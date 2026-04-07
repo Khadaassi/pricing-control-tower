@@ -1,0 +1,178 @@
+# Cahier des Charges Fonctionnel
+
+> **Projet :** Pricing Control Tower
+> **Domaine :** Pilotage tarifaire et Intelligence Artificielle
+> **Version :** 1.0 — MVP
+
+---
+
+## 1. Contexte du projet
+
+Le projet Pricing Control Tower est une application web de pilotage tarifaire permettant de centraliser, analyser et piloter les prix et promotions au sein d’une organisation multi-magasins.
+
+Ce projet est réalisé dans le cadre d’une certification professionnelle RNCP en développement IA. Il a pour objectif de démontrer la capacité à concevoir une architecture data complète, à développer une application web connectée à des services de données et à intégrer des fonctionnalités d’intelligence artificielle.
+
+Le projet simule un contexte d’entreprise réaliste avec des contraintes de traçabilité, de gouvernance et de performance.
+
+2. OBJECTIFS DU PRODUIT
+
+L’application permet aux utilisateurs métiers d'intervenir sur les axes suivants :
+
+Analyse et Pilotage
+
+Visualisation : Suivi des ventes en quantité et chiffre d’affaires.
+
+Performance : Analyse de l'efficacité des prix et des promotions.
+
+Comparaison : Mise en perspective des performances entre les magasins et au niveau national.
+
+Pricing et Promotions
+
+Consultation : Accès aux prix standards et promotionnels (niveaux pays et magasin).
+
+Historisation : Consultation de l'historique complet des prix appliqués.
+
+Efficacité promotionnelle : Mesure de l'accélération des ventes par rapport à une baseline.
+
+Aide à la décision et Gouvernance
+
+Identification : Détection des anomalies de performance ou des incohérences tarifaires.
+
+Workflow : Gestion d'un cycle de validation pour tout changement de prix.
+
+Traçabilité : Audit complet des actions effectuées sur la plateforme.
+
+Intelligence Artificielle (Évolution)
+
+Explication des indicateurs clés de performance (KPI).
+
+Analyse des causes d'anomalies.
+
+Suggestions d'actions correctives (sans automatisation).
+
+---
+
+## 3. Périmètre du MVP
+
+| Axe | Définition du périmètre |
+|---|---|
+| **Géographique** | France uniquement |
+| **Organisation** | Structure multi-magasins |
+| **Catalogue** | 3 familles de produits (~10 produits par famille) |
+| **Pricing** | Prix nationaux et *overrides* locaux (magasin) |
+| **Promotions** | Nationales et locales |
+| **Données** | Flux transactionnels simulés |
+| **Processus** | Workflow de création et validation manuelle des demandes |
+| **Analytique** | Table centrale `obt_sales` et KPI spécifiques |
+
+---
+
+## 4. Utilisateurs
+
+### Phase MVP
+
+| Rôle | Description |
+|---|---|
+| **Administrateur** | Utilisateur unique disposant de l'intégralité des droits d'accès et de modification. |
+
+### Évolutions cibles
+
+| Rôle | Description |
+|---|---|
+| **Analyste** | Accès en lecture seule. |
+| **Responsable Magasin** | Gestion locale. |
+| **Responsable Pays** | Vision globale et stratégie. |
+| **Validateur** | Pouvoir d'approbation des demandes de changement. |
+
+---
+
+## 5. Concepts métier
+
+### 5.1 Produit et Prix
+
+- **Produit** — Entité appartenant à une famille, associée à un ou plusieurs prix.
+- **Prix** — Défini au niveau pays ou magasin. Il peut être de type `STANDARD` ou `PROMO`, possède une période de validité et fait l'objet d'un archivage historique.
+
+### 5.2 Promotion et Vente
+
+- **Promotion** — Entité temporelle influençant les prix promotionnels au niveau national ou local.
+- **Vente** — Transaction réalisée en magasin, liant un produit à un prix et, le cas échéant, à une promotion.
+
+### 5.3 Flux de validation
+
+- **Demande de changement** — Requête portant sur un produit ou un périmètre géographique, soumise à validation avant mise en application.
+
+---
+
+## 6. Règles de gestion
+
+### 6.1 Gestion du Pricing
+
+- Un produit peut posséder plusieurs prix successifs dans le temps.
+- Un prix est hiérarchisé : il est défini au niveau **pays** ou au niveau **magasin** (le magasin étant rattaché au pays).
+- Tout prix promotionnel doit être **impérativement** associé à une promotion active.
+- La validité d'un prix est encadrée par les champs `effective_from` et `effective_to`.
+
+### 6.2 Gestion des Ventes et Promotions
+
+- Les promotions sont strictement délimitées par une date de début et une date de fin.
+- Pour chaque vente, la quantité et le montant doivent être **strictement positifs**.
+
+### 6.3 Workflow et Audit
+
+- L'application d'un nouveau prix est conditionnée par une validation préalable.
+- Les statuts d'une demande suivent le cycle : `PENDING` → `APPROVED` → `APPLIED` *(ou `REJECTED` / `FAILED`)*.
+- L'historisation des prix et le journal d'audit (actions utilisateurs) sont **obligatoires**.
+
+---
+
+## 7. KPI et Analytique
+
+### Structure de données
+
+Utilisation d'une table analytique centrale unique : `obt_sales`.
+
+### Indicateurs de performance
+
+- **Prix** — Comparaison des performances avant/après changement et benchmark par rapport au niveau pays.
+- **Promotion** :
+  - *Baseline* fixée à **14 jours** avant le début de la promotion.
+  - Calcul basé sur la famille de produits (en excluant le produit promu de la référence).
+  - Mesure de l'accélération (Quantité et CA).
+
+---
+
+## 8. Architecture technique
+
+| Composant | Technologie | Rôle |
+|---|---|---|
+| **Backend** | FastAPI | Logique métier et exposition API REST |
+| **Frontend** | Django / Tailwind CSS | Interface utilisateur et rendu serveur (SSR) |
+| **Base de données** | PostgreSQL | Stockage `pct_core` (transac.) et `pct_analytics` (data) |
+| **Transformation** | dbt | Pipeline de données pour la table `obt_sales` |
+| **Service IA** | Python dédié | Analyse et suggestions en lecture seule |
+| **Déploiement** | Docker / GCP Cloud Run | Conteneurisation et hébergement cloud |
+
+---
+
+## 9. Contraintes
+
+- Réalisation en **autonomie complète**.
+- Architecture modulaire favorisant la maintenabilité.
+- Utilisation de données simulées cohérentes avec le secteur.
+- **Interdiction** d'automatisation des décisions de pricing (*humain dans la boucle*).
+- Exigence de **traçabilité totale** sur les flux de données et d'actions.
+
+---
+
+## 10. Definition of Done (DoD)
+
+Le projet est considéré comme finalisé après validation des étapes suivantes :
+
+- [ ] Instance PostgreSQL opérationnelle.
+- [ ] API FastAPI et application Django fonctionnelles et interconnectées.
+- [ ] Calculs analytiques validés via dbt.
+- [ ] KPI disponibles et conformes aux règles métier.
+- [ ] Service IA opérationnel en lecture seule.
+- [ ] Pipeline CI/CD et monitoring configurés.
+- [ ] Documentation technique et fonctionnelle exhaustive.
