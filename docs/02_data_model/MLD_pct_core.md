@@ -119,7 +119,7 @@ Le schéma `pct_core` regroupe les tables suivantes :
 | discount_value | NUMERIC(10,2) | NOT NULL                        |
 | start_date     | DATE          | NOT NULL                        |
 | end_date       | DATE          | NOT NULL                        |
-| store_id       | INTEGER       | FK → store(id), NOT NULL        |
+| store_id       | INTEGER       | FK → store(id), NULL        |
 | created_by     | INTEGER       | FK → user_account(id), NOT NULL |
 | created_at     | TIMESTAMP     | NOT NULL                        |
 | active         | BOOLEAN       | NOT NULL                        |
