@@ -14,41 +14,35 @@ Ce projet est réalisé dans le cadre d’une certification professionnelle RNCP
 
 Le projet simule un contexte d’entreprise réaliste avec des contraintes de traçabilité, de gouvernance et de performance.
 
-2. OBJECTIFS DU PRODUIT
+---
+
+## 2. Objectifs du produit
 
 L’application permet aux utilisateurs métiers d'intervenir sur les axes suivants :
 
-Analyse et Pilotage
+### 2.1 Analyse et Pilotage
 
-Visualisation : Suivi des ventes en quantité et chiffre d’affaires.
+- **Visualisation** — Suivi des ventes en quantité et chiffre d'affaires.
+- **Performance** — Analyse de l'efficacité des prix et des promotions.
+- **Comparaison** — Mise en perspective des performances entre les magasins et au niveau national.
 
-Performance : Analyse de l'efficacité des prix et des promotions.
+### 2.2 Pricing et Promotions
 
-Comparaison : Mise en perspective des performances entre les magasins et au niveau national.
+- **Consultation** — Accès aux prix standards et promotionnels (niveaux pays et magasin).
+- **Historisation** — Consultation de l'historique complet des prix appliqués.
+- **Efficacité promotionnelle** — Mesure de l'accélération des ventes par rapport à une *baseline*.
 
-Pricing et Promotions
+### 2.3 Aide à la décision et Gouvernance
 
-Consultation : Accès aux prix standards et promotionnels (niveaux pays et magasin).
+- **Identification** — Détection des anomalies de performance ou des incohérences tarifaires.
+- **Workflow** — Gestion d'un cycle de validation pour tout changement de prix.
+- **Traçabilité** — Audit complet des actions effectuées sur la plateforme.
 
-Historisation : Consultation de l'historique complet des prix appliqués.
+### 2.4 Intelligence Artificielle (Évolution)
 
-Efficacité promotionnelle : Mesure de l'accélération des ventes par rapport à une baseline.
-
-Aide à la décision et Gouvernance
-
-Identification : Détection des anomalies de performance ou des incohérences tarifaires.
-
-Workflow : Gestion d'un cycle de validation pour tout changement de prix.
-
-Traçabilité : Audit complet des actions effectuées sur la plateforme.
-
-Intelligence Artificielle (Évolution)
-
-Explication des indicateurs clés de performance (KPI).
-
-Analyse des causes d'anomalies.
-
-Suggestions d'actions correctives (sans automatisation).
+- Explication des indicateurs clés de performance (KPI).
+- Analyse des causes d'anomalies.
+- Suggestions d'actions correctives (sans automatisation).
 
 ---
 
@@ -106,23 +100,45 @@ Suggestions d'actions correctives (sans automatisation).
 
 ## 6. Règles de gestion
 
-### 6.1 Gestion du Pricing
+Les règles de gestion ci-dessous sont identifiées par un code unique (`RGxx`) pour assurer leur traçabilité dans le code et les tests.
 
-- Un produit peut posséder plusieurs prix successifs dans le temps.
-- Un prix est hiérarchisé : il est défini au niveau **pays** ou au niveau **magasin** (le magasin étant rattaché au pays).
-- Tout prix promotionnel doit être **impérativement** associé à une promotion active.
-- La validité d'un prix est encadrée par les champs `effective_from` et `effective_to`.
+### 6.1 Périmètre et Organisation
 
-### 6.2 Gestion des Ventes et Promotions
+| Règle | Énoncé |
+|---|---|
+| **RG01** | L'application ne gère que des **magasins physiques**. La notion de canal (online / offline) est hors périmètre. |
 
-- Les promotions sont strictement délimitées par une date de début et une date de fin.
-- Pour chaque vente, la quantité et le montant doivent être **strictement positifs**.
+### 6.2 Gestion du Pricing
 
-### 6.3 Workflow et Audit
+| Règle | Énoncé |
+|---|---|
+| **RG02** | Un produit peut posséder **plusieurs prix successifs** dans le temps. |
+| **RG03** | Un prix est toujours défini pour un pays (`country_id` obligatoire). Le champ `store_id` est optionnel. |
+| **RG04** | Un prix peut être défini au niveau **pays** (prix global) ou au niveau **magasin** (prix local spécifique). |
+| **RG05** | Tout prix promotionnel doit être **impérativement** associé à une promotion active. |
+| **RG06** | La validité d'un prix est encadrée par les champs `effective_from` et `effective_to`. |
+| **RG07** | Il ne doit **jamais** exister plusieurs prix différents pour un même produit, dans un même magasin, sur une même période. Cette unicité est garantie par le système. |
 
-- L'application d'un nouveau prix est conditionnée par une validation préalable.
-- Les statuts d'une demande suivent le cycle : `PENDING` → `APPROVED` → `APPLIED` *(ou `REJECTED` / `FAILED`)*.
-- L'historisation des prix et le journal d'audit (actions utilisateurs) sont **obligatoires**.
+### 6.3 Gestion des Promotions
+
+| Règle | Énoncé |
+|---|---|
+| **RG08** | Les promotions sont strictement délimitées par une date de début et une date de fin. |
+| **RG09** | Une promotion peut être définie au niveau **pays** ou au niveau **magasin**. Elle n'est pas nécessairement limitée à un seul magasin. |
+
+### 6.4 Gestion des Ventes
+
+| Règle | Énoncé |
+|---|---|
+| **RG10** | Pour chaque vente, la quantité et le montant doivent être **strictement positifs**. |
+
+### 6.5 Workflow et Audit
+
+| Règle | Énoncé |
+|---|---|
+| **RG11** | L'application d'un nouveau prix est conditionnée par une **validation préalable**. |
+| **RG12** | Les statuts d'une demande suivent le cycle : `PENDING` → `APPROVED` → `APPLIED` *(ou `REJECTED` / `FAILED`)*. |
+| **RG13** | L'historisation des prix et le journal d'audit (actions utilisateurs) sont **obligatoires**. |
 
 ---
 
