@@ -87,6 +87,9 @@ L’application permet aux utilisateurs métiers d'intervenir sur les axes suiva
 - **Produit** — Entité appartenant à une famille, associée à un ou plusieurs prix.
 - **Prix** — Défini au niveau pays ou magasin. Il peut être de type `STANDARD` ou `PROMO`, possède une période de validité et fait l'objet d'un archivage historique.
 
+Lorsqu’un prix existe à la fois au niveau pays et au niveau magasin, le prix magasin constitue une surcharge locale et est appliqué en priorité.
+
+
 ### 5.2 Promotion et Vente
 
 - **Promotion** — Entité temporelle influençant les prix promotionnels au niveau national ou local.
@@ -117,14 +120,16 @@ Les règles de gestion ci-dessous sont identifiées par un code unique (`RGxx`) 
 | **RG04** | Un prix peut être défini au niveau **pays** (prix global) ou au niveau **magasin** (prix local spécifique). |
 | **RG05** | Tout prix promotionnel doit être **impérativement** associé à une promotion active. |
 | **RG06** | La validité d'un prix est encadrée par les champs `effective_from` et `effective_to`. |
-| **RG07** | Il ne doit **jamais** exister plusieurs prix différents pour un même produit, dans un même magasin, sur une même période. Cette unicité est garantie par le système. |
+| **RG07** | Il ne doit jamais exister plusieurs prix actifs simultanément pour un même produit sur un même périmètre (pays ou magasin) sur une période donnée. |
+
 
 ### 6.3 Gestion des Promotions
 
 | Règle | Énoncé |
 |---|---|
 | **RG08** | Les promotions sont strictement délimitées par une date de début et une date de fin. |
-| **RG09** | Une promotion peut être définie au niveau **pays** ou au niveau **magasin**. Elle n'est pas nécessairement limitée à un seul magasin. |
+| **RG08bis** | Pour un produit donné, dans un magasin donné et à une date donnée, le prix applicable est déterminé selon l’ordre de priorité suivant : (1) prix magasin actif, (2) à défaut prix pays actif. |
+| **RG09** | Une promotion est définie soit au niveau pays (applicable à tous les magasins du pays), soit au niveau d’un magasin spécifique. |
 
 ### 6.4 Gestion des Ventes
 
