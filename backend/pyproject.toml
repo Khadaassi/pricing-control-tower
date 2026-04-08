@@ -1,0 +1,7 @@
+[project]
+name = "pct-backend"
+version = "0.1.0"
+description = "Pricing Control Tower - Backend API"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = []
