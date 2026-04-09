@@ -33,4 +33,10 @@ jobs:
       - name: Run lint (Ruff)
         working-directory: backend
         run: uv run ruff check app tests
+
+      - name: Verify backend startup
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+psycopg://ci_user:ci_password@localhost:5432/ci_db
+        run: uv run python -c "from app.main import app; print(app.title)"
         
