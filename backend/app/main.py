@@ -7,11 +7,14 @@ def create_app() -> FastAPI:
         version="0.1.0",
     )
 
+    @app.get("/health", tags=["Technical"])
+    def health_check():
+        return {"status": "ok"}
+    
     @app.get("/")
     def root():
         return {"message": "Pricing Control Tower API"}
 
     return app
-
 
 app = create_app()
