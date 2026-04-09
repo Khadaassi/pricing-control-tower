@@ -7,6 +7,10 @@ def create_app() -> FastAPI:
         version="0.1.0",
     )
 
+    @app.get("/")
+    def root():
+        return {"message": "Pricing Control Tower API"}
+
     return app
 
 
