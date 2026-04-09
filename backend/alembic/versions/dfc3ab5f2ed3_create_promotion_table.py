@@ -5,6 +5,7 @@ Revises: b6e75178c6ca
 Create Date: 2026-04-08 13:55:12.379924
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -12,10 +13,11 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'dfc3ab5f2ed3'
-down_revision: Union[str, Sequence[str], None] = 'b6e75178c6ca'
+revision: str = "dfc3ab5f2ed3"
+down_revision: Union[str, Sequence[str], None] = "b6e75178c6ca"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
+
 
 def upgrade() -> None:
     op.create_table(
@@ -37,7 +39,6 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
         sa.Column("active", sa.Boolean(), nullable=False, server_default=sa.true()),
-
         sa.ForeignKeyConstraint(
             ["store_id"],
             ["pct_core.store.id"],
@@ -48,13 +49,10 @@ def upgrade() -> None:
             ["pct_core.user_account.id"],
             name="fk_promotion_user",
         ),
-
         sa.UniqueConstraint("code", name="uq_promotion_code"),
-
         schema="pct_core",
     )
 
 
 def downgrade() -> None:
     op.drop_table("promotion", schema="pct_core")
-

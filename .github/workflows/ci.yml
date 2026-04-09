@@ -29,3 +29,8 @@ jobs:
       - name: Install backend dependencies
         working-directory: backend
         run: uv sync
+      
+      - name: Run lint (Ruff)
+        working-directory: backend
+        run: uv run ruff check app tests
+        
