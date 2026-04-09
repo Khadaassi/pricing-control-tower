@@ -17,8 +17,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install uv
+        run: pip install uv
+
       - name: Show Python version
         run: python --version
 
       - name: Check backend folder exists
         run: test -d backend
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync
