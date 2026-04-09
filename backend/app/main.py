@@ -1,5 +1,15 @@
-def main() -> None:
-    print("Pricing Control Tower backend")
+from fastapi import FastAPI
 
-if __name__ == "__main__":
-    main()
+from .api.router import api_router
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="Pricing Control Tower API",
+        version="0.1.0",
+    )
+    app.include_router(api_router)
+    return app
+
+
+app = create_app()
