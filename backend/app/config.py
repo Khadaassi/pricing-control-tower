@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
+
 def get_database_url() -> str:
     database_url = os.getenv("DATABASE_URL")
 
