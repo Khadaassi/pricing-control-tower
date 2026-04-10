@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -10,11 +10,23 @@ router = APIRouter(prefix="/products", tags=["Products"])
 
 
 @router.get("", response_model=list[ProductRead])
-def list_products(db: Session = Depends(get_db)) -> list[Product]:
-    stmt = (
-        select(Product)
-        .options(selectinload(Product.family))
-        .order_by(Product.id.asc())
-    )
-    products = db.scalars(stmt).all()
-    return list(products)
+def list_products(
+    active: bool | None = Query(default=None),
+    product_family_id: int | None = Query(default=None),
+    code: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    stmt = select(Product).options(selectinload(Product.family))
+
+    if active is not None:
+        stmt = stmt.where(Product.active == active)
+
+    if product_family_id is not None:
+        stmt = stmt.where(Product.product_family_id == product_family_id)
+
+    if code is not None:
+        stmt = stmt.where(Product.code == code)
+
+    stmt = stmt.order_by(Product.id.asc())
+
+    return list(db.scalars(stmt).all())
