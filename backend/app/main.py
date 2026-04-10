@@ -8,6 +8,15 @@ def create_app() -> FastAPI:
         title="Pricing Control Tower API",
         version="0.1.0",
     )
+
+    @app.get("/")
+    def root() -> dict[str, str]:
+        return {
+            "message": "Pricing Control Tower API",
+            "docs": "/docs",
+            "health": "/health",
+        }
+
     app.include_router(api_router)
     return app
 
