@@ -1,9 +1,9 @@
 from fastapi import APIRouter
 
-from .routes.technical import router as technical_router
-from .routes.products import router as products_router
 from .routes.prices import router as prices_router
+from .routes.products import router as products_router
 from .routes.promotions import router as promotions_router
+from .routes.technical import router as technical_router
 
 api_router = APIRouter()
 

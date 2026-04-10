@@ -18,3 +18,15 @@ dev = [
     "pytest>=9.0.3",
     "ruff>=0.15.9",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]  # erreurs, flake, imports
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
