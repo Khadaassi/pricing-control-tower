@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -10,12 +10,36 @@ router = APIRouter(prefix="/prices", tags=["Prices"])
 
 
 @router.get("", response_model=list[PriceRead])
-def list_prices(db: Session = Depends(get_db)) -> list[PriceRead]:
-    stmt = (
-        select(Price)
-        .options(selectinload(Price.product))
-        .order_by(Price.id.asc())
-    )
+def list_prices(
+    product_id: int | None = Query(default=None),
+    country_id: int | None = Query(default=None),
+    store_id: int | None = Query(default=None),
+    price_scope: str | None = Query(default=None),
+    price_type: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    stmt = select(Price).options(selectinload(Price.product))
+
+    if product_id is not None:
+        stmt = stmt.where(Price.product_id == product_id)
+
+    if country_id is not None:
+        stmt = stmt.where(Price.country_id == country_id)
+
+    if store_id is not None:
+        stmt = stmt.where(Price.store_id == store_id)
+
+    if price_scope is not None:
+        stmt = stmt.where(Price.price_scope == price_scope)
+
+    if price_type is not None:
+        stmt = stmt.where(Price.price_type == price_type)
+
+    if status is not None:
+        stmt = stmt.where(Price.status == status)
+
+    stmt = stmt.order_by(Price.id.asc())
 
     prices = db.scalars(stmt).all()
 
