@@ -1,3 +1,36 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.db import get_db
+from app.models.promotion import Promotion
+from app.schemas.promotion import PromotionRead
 
 router = APIRouter(prefix="/promotions", tags=["Promotions"])
+
+
+@router.get("", response_model=list[PromotionRead])
+def list_promotions(
+    country_id: int | None = Query(default=None),
+    store_id: int | None = Query(default=None),
+    active: bool | None = Query(default=None),
+    discount_type: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    stmt = select(Promotion)
+
+    if country_id is not None:
+        stmt = stmt.where(Promotion.country_id == country_id)
+
+    if store_id is not None:
+        stmt = stmt.where(Promotion.store_id == store_id)
+
+    if active is not None:
+        stmt = stmt.where(Promotion.active == active)
+
+    if discount_type is not None:
+        stmt = stmt.where(Promotion.discount_type == discount_type)
+
+    stmt = stmt.order_by(Promotion.id.asc())
+
+    return list(db.scalars(stmt).all())
