@@ -34,7 +34,7 @@ Il constitue la base de référence pour :
 
 ### Promotions
 
-* **Promotion** : action promotionnelle appliquée localement
+* **Promotion** : promotional action applied to a single **Product**, scoped to a country or a specific store
 
 ---
 
@@ -78,9 +78,10 @@ Il constitue la base de référence pour :
 
 ### Promotions
 
-* Une **Promotion** est définie pour un **Store**
-* Une **Promotion** peut être liée à un **Price**
-* Une **Promotion** peut être associée à des **Sale**
+* A **Promotion** targets exactly one **Product**
+* A **Promotion** is scoped to a **Country** (optionally a specific **Store**)
+* A **Promotion** can be linked to a **Price**
+* A **Promotion** can be associated with **Sale** transactions
 
 ---
 

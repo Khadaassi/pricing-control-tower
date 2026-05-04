@@ -109,20 +109,22 @@ Le schéma `pct_core` regroupe les tables suivantes :
 
 ### 3.7 promotion
 
-| Champ          | Type          | Contraintes                     |
-| -------------- | ------------- | ------------------------------- |
-| id             | INTEGER       | PK                              |
-| code           | VARCHAR(50)   | UNIQUE, NOT NULL                |
-| name           | VARCHAR(150)  | NOT NULL                        |
-| description    | TEXT          | NULL                            |
-| discount_type  | VARCHAR(20)   | NOT NULL                        |
-| discount_value | NUMERIC(10,2) | NOT NULL                        |
-| start_date     | DATE          | NOT NULL                        |
-| end_date       | DATE          | NOT NULL                        |
-| store_id       | INTEGER       | FK → store(id), NULL        |
-| created_by     | INTEGER       | FK → user_account(id), NOT NULL |
-| created_at     | TIMESTAMP     | NOT NULL                        |
-| active         | BOOLEAN       | NOT NULL                        |
+| Champ          | Type          | Contraintes                              |
+| -------------- | ------------- | ---------------------------------------- |
+| id             | INTEGER       | PK                                       |
+| code           | VARCHAR(50)   | UNIQUE, NOT NULL                         |
+| name           | VARCHAR(150)  | NOT NULL                                 |
+| description    | TEXT          | NULL                                     |
+| discount_type  | VARCHAR(20)   | NOT NULL, CHECK IN ('PERCENTAGE', 'FIXED_PRICE') |
+| discount_value | NUMERIC(10,2) | NOT NULL                                 |
+| product_id     | INTEGER       | FK → product(id), NOT NULL               |
+| start_date     | DATE          | NOT NULL                                 |
+| end_date       | DATE          | NOT NULL                                 |
+| country_id     | INTEGER       | FK → country(id), NOT NULL               |
+| store_id       | INTEGER       | FK → store(id), NULL                     |
+| created_by     | INTEGER       | FK → user_account(id), NOT NULL          |
+| created_at     | TIMESTAMP     | NOT NULL                                 |
+| active         | BOOLEAN       | NOT NULL                                 |
 
 ---
 

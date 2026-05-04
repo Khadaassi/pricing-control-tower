@@ -117,7 +117,9 @@ Used for:
 
 Retrieve promotions defined in the system.
 
-Promotions can be applied at:
+Each promotion targets a single product and applies a discount of type `PERCENTAGE` or `FIXED_PRICE`.
+
+Promotions can be scoped at:
 
 * country level
 * store level
@@ -126,12 +128,13 @@ Promotions can be applied at:
 
 ## Query parameters
 
-| Parameter     | Type    | Description              |
-| ------------- | ------- | ------------------------ |
-| country_id    | integer | Filter by country        |
-| store_id      | integer | Filter by store          |
-| active        | boolean | Filter active promotions |
-| discount_type | string  | Promotion type           |
+| Parameter     | Type    | Description                                      |
+| ------------- | ------- | ------------------------------------------------ |
+| country_id    | integer | Filter by country                                |
+| store_id      | integer | Filter by store                                  |
+| active        | boolean | Filter active promotions                         |
+| discount_type | string  | Promotion type (`PERCENTAGE` or `FIXED_PRICE`)   |
+| product_id    | integer | Filter by product                                |
 
 ---
 
@@ -144,8 +147,9 @@ Promotions can be applied at:
     "code": "PROMO-001",
     "name": "Winter Sale",
     "description": "Discount",
-    "discount_type": "PERCENT",
+    "discount_type": "PERCENTAGE",
     "discount_value": 20.00,
+    "product_id": 1,
     "start_date": "2026-01-01",
     "end_date": "2026-01-31",
     "country_id": 1,
