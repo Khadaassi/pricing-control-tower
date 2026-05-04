@@ -1,0 +1,15 @@
+name: 'pct_analytics'
+version: '1.0.0'
+
+profile: 'pct'
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+snapshot-paths: ["snapshots"]
+test-paths: ["tests"]
+analysis-paths: ["analyses"]
+macro-paths: ["macros"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
