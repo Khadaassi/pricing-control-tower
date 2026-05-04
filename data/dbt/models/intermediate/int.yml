@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: int_sales_enriched
+    description: "Sales transactions enriched with product, store, price and promotion dimensions"
+    columns:
+      - name: transaction_id
+        description: "Primary key"
+        tests:
+          - unique
+          - not_null
+      - name: transaction_date
+        tests:
+          - not_null
+      - name: product_id
+        tests:
+          - not_null
+      - name: store_id
+        tests:
+          - not_null
+      - name: price_id
+        tests:
+          - not_null
+      - name: product_name
+        tests:
+          - not_null
+      - name: store_name
+        tests:
+          - not_null
+      - name: quantity
+        tests:
+          - not_null
+      - name: unit_price
+        tests:
+          - not_null
+      - name: revenue
+        tests:
+          - not_null
