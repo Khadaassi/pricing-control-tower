@@ -1,0 +1,89 @@
+version: 2
+
+models:
+  - name: kpi_promo_performance
+    description: >
+      Promotion performance KPI model.
+      Primary uplift is computed at product level only (same product before vs during promo).
+      A secondary family-level indicator detects cannibalization or halo effect.
+      All comparisons use daily averages to normalize for different period lengths.
+    columns:
+      - name: country_id
+        description: "Country identifier"
+        tests: [not_null]
+      - name: store_id
+        description: "Store identifier"
+        tests: [not_null]
+      - name: product_id
+        description: "Product identifier (primary uplift grain)"
+        tests: [not_null]
+      - name: product_family_id
+        description: "Product family identifier (secondary KPI only)"
+        tests: [not_null]
+      - name: promotion_id
+        description: "Promotion identifier"
+        tests: [not_null]
+      - name: discount_type
+        description: "Discount mechanism: PERCENTAGE or FIXED_PRICE"
+      - name: discount_value
+        description: "Applied discount value"
+      - name: promotion_start_date
+        description: "Promotion start date"
+        tests: [not_null]
+      - name: promotion_end_date
+        description: "Promotion end date"
+        tests: [not_null]
+      - name: baseline_start_date
+        description: "Baseline period start (promo_start - 14 days)"
+      - name: baseline_end_date
+        description: "Baseline period end (promo_start - 1 day)"
+      - name: promo_quantity
+        description: "Total quantity sold during promotion"
+      - name: promo_revenue
+        description: "Total revenue during promotion"
+      - name: baseline_quantity
+        description: "Total quantity sold during baseline (same product, 14 days)"
+      - name: baseline_revenue
+        description: "Total revenue during baseline (same product, 14 days)"
+      - name: promo_daily_quantity
+        description: "Average daily quantity during promotion"
+      - name: promo_daily_revenue
+        description: "Average daily revenue during promotion"
+      - name: baseline_daily_quantity
+        description: "Average daily quantity during baseline"
+      - name: baseline_daily_revenue
+        description: "Average daily revenue during baseline"
+      - name: quantity_uplift_rate
+        description: "Quantity uplift rate (decimal) — primary product-level KPI"
+      - name: quantity_uplift_pct
+        description: "Quantity uplift percentage — primary product-level KPI"
+      - name: revenue_uplift_rate
+        description: "Revenue uplift rate (decimal) — primary product-level KPI"
+      - name: revenue_uplift_pct
+        description: "Revenue uplift percentage — primary product-level KPI"
+      - name: additional_quantity
+        description: "Incremental volume attributable to the promotion"
+      - name: additional_revenue
+        description: "Incremental revenue attributable to the promotion"
+      - name: avg_price_discount_effect_pct
+        description: "Average selling price variation during vs before promo (%)"
+      - name: family_promo_daily_quantity
+        description: "Average daily quantity of sibling products during promo"
+      - name: family_baseline_daily_quantity
+        description: "Average daily quantity of sibling products before promo"
+      - name: family_quantity_variation_pct
+        description: "Daily quantity variation of sibling products (%)"
+      - name: family_revenue_variation_pct
+        description: "Daily revenue variation of sibling products (%)"
+      - name: family_effect_flag
+        description: "Family effect classification"
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['CANNIBALIZATION', 'HALO_EFFECT', 'NEUTRAL', 'NO_FAMILY_DATA']
+      - name: promo_performance_flag
+        description: "Overall promotion performance classification"
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['EFFICIENT_PROMO', 'VOLUME_ONLY_PROMO', 'UNDERPERFORMING_PROMO', 'MIXED_PERFORMANCE', 'NOT_COMPARABLE']
