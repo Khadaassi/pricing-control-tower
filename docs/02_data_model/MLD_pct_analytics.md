@@ -32,7 +32,8 @@ sources (pct_core)
             ▼
     marts
     ├── obt_sales
-    └── kpi_price_performance
+    ├── kpi_price_performance
+    └── kpi_promo_performance
 ```
 
 ---
@@ -161,3 +162,63 @@ Modèle de KPI basé sur une comparaison glissante de 30 jours et un benchmark p
 - `ABOVE_COUNTRY_BENCHMARK` — prix moyen magasin > prix moyen pays
 - `BELOW_COUNTRY_BENCHMARK` — prix moyen magasin < prix moyen pays
 - `NOT_COMPARABLE` — données insuffisantes (prix null)
+
+---
+
+### 5.3 `kpi_promo_performance` — KPI Performance Promotionnelle
+
+Modèle de KPI mesurant l'efficacité des promotions par comparaison produit AVANT vs PENDANT la promo.
+
+> **Règle métier** : L'uplift principal est calculé **uniquement au niveau produit** (même produit avant vs pendant promo). La famille n'est **jamais** utilisée pour calculer l'uplift principal.
+
+#### Grain
+
+**1 ligne = 1 combinaison (country_id, store_id, product_id, promotion_id)**
+
+#### Périodes d'analyse
+
+| Période | Définition |
+|---|---|
+| Période promo | `promotion_start_date` → `promotion_end_date` |
+| Période baseline | `promotion_start_date - 14 jours` → `promotion_start_date - 1 jour` |
+
+#### KPI principal — Uplift produit
+
+| Champ | Description |
+|---|---|
+| `promo_quantity` / `promo_revenue` | Ventes du produit pendant la promo |
+| `baseline_quantity` / `baseline_revenue` | Ventes du **même produit** avant la promo (14j) |
+| `promo_daily_quantity` / `promo_daily_revenue` | Moyenne journalière pendant la promo |
+| `baseline_daily_quantity` / `baseline_daily_revenue` | Moyenne journalière avant la promo |
+| `quantity_uplift_rate` | Taux d'accélération quantité (décimal) |
+| `quantity_uplift_pct` | Accélération quantité en % |
+| `additional_quantity` | Volume incrémental attribuable à la promo |
+| `revenue_uplift_rate` | Taux d'accélération CA (décimal) |
+| `revenue_uplift_pct` | Accélération CA en % |
+| `additional_revenue` | CA incrémental attribuable à la promo |
+| `avg_price_discount_effect_pct` | Variation du prix moyen de vente (%) |
+
+#### KPI complémentaire — Effet famille (cannibalisation / halo)
+
+| Champ | Description |
+|---|---|
+| `family_promo_quantity` / `family_promo_revenue` | Ventes des **autres produits** de la même famille pendant la promo |
+| `family_baseline_quantity` / `family_baseline_revenue` | Ventes des autres produits de la famille avant la promo |
+| `family_quantity_variation_pct` | Variation quantité famille (%) |
+| `family_revenue_variation_pct` | Variation CA famille (%) |
+| `family_effect_flag` | Indicateur d'effet famille |
+
+#### Flags métier
+
+**promo_performance_flag :**
+- `EFFICIENT_PROMO` — uplift quantité > 0 ET uplift CA > 0
+- `VOLUME_ONLY_PROMO` — uplift quantité > 0 mais uplift CA ≤ 0
+- `UNDERPERFORMING_PROMO` — uplift quantité ≤ 0 ET uplift CA < 0
+- `MIXED_PERFORMANCE` — autres combinaisons
+- `NOT_COMPARABLE` — baseline à 0 (pas de données avant promo)
+
+**family_effect_flag :**
+- `CANNIBALIZATION` — variation quantité famille < -10%
+- `HALO_EFFECT` — variation quantité famille > +10%
+- `NEUTRAL` — variation entre -10% et +10%
+- `NO_FAMILY_DATA` — pas de données famille disponibles
