@@ -129,12 +129,22 @@ CREATE TABLE pct_core.promotion (
     description TEXT,
     discount_type VARCHAR(20) NOT NULL,
     discount_value NUMERIC(10,2) NOT NULL,
+    product_id INTEGER NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
-    store_id INTEGER NOT NULL,
+    country_id INTEGER NOT NULL,
+    store_id INTEGER,
     created_by INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     active BOOLEAN NOT NULL DEFAULT TRUE,
+    CONSTRAINT ck_promotion_discount_type
+        CHECK (discount_type IN ('PERCENTAGE', 'FIXED_PRICE')),
+    CONSTRAINT fk_promotion_product
+        FOREIGN KEY (product_id)
+        REFERENCES pct_core.product(id),
+    CONSTRAINT fk_promotion_country
+        FOREIGN KEY (country_id)
+        REFERENCES pct_core.country(id),
     CONSTRAINT fk_promotion_store
         FOREIGN KEY (store_id)
         REFERENCES pct_core.store(id),
@@ -215,6 +225,8 @@ Les relations sont assurées par des contraintes FK explicites :
 * store → country
 * product → product_family
 * product_image → product
+* promotion → product
+* promotion → country
 * promotion → store
 * promotion → user_account
 * price → product, country, store, promotion, user_account

@@ -6,7 +6,8 @@ from pathlib import Path
 from sqlalchemy import create_engine, text
 
 
-CSV_PATH = Path("data/generated/sales_transactions.csv")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+CSV_PATH = REPO_ROOT / "data" / "generated" / "sales_transactions.csv"
 
 
 def _read_env_value(env_path: Path, key: str) -> str | None:

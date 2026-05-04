@@ -74,7 +74,7 @@ Cela crée le schéma `pct_core` et toutes les tables (country, store, product, 
 python data/generation/seed_reference_data.py
 ```
 
-Insère les pays, magasins, familles, produits, prix et promotions.
+Insère les utilisateurs, pays, magasins, familles, produits, promotions et prix.
 
 ---
 
