@@ -22,8 +22,8 @@ obt as (
         -- Transaction
         se.transaction_id,
         se.transaction_date,
-        cast(se.transaction_date as date)                as transaction_day,
-        date_trunc('month', se.transaction_date)::date   as transaction_month,
+        cast(se.transaction_date as date) as transaction_day,
+        date_trunc('month', se.transaction_date)::date as transaction_month,
 
         -- Product
         se.product_id,
@@ -45,15 +45,25 @@ obt as (
         c.country_code,
         c.country_name,
 
-        -- Price
+        -- Price reference
         se.price_id,
         se.price_amount,
         se.currency_code,
         se.price_effective_from,
         se.price_effective_to,
         se.price_status,
+
+        -- Pricing classification
         se.price_scope,
         se.price_type,
+        se.is_store_specific_price,
+        se.is_promotional_price,
+        se.is_price_temporally_valid,
+
+        -- Price performance
+        se.unit_price,
+        se.price_difference,
+        se.price_difference_rate,
 
         -- Promotion
         se.promotion_id,
@@ -67,12 +77,15 @@ obt as (
 
         -- Measures
         se.quantity,
-        se.unit_price,
         se.revenue
 
     from sales_enriched se
-    left join product_families pf on se.product_family_id = pf.product_family_id
-    left join countries c         on se.country_id        = c.country_id
+
+    left join product_families pf
+        on se.product_family_id = pf.product_family_id
+
+    left join countries c
+        on se.country_id = c.country_id
 
 )
 
