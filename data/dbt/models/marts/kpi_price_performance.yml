@@ -1,0 +1,88 @@
+version: 2
+
+models:
+  - name: kpi_price_performance
+    description: "KPI mart — price performance analysis with rolling 30-day period comparison, country benchmark, promo dependency and business flags"
+    columns:
+      - name: country_id
+        description: "Country identifier"
+        tests:
+          - not_null
+      - name: store_id
+        description: "Store identifier"
+        tests:
+          - not_null
+      - name: product_id
+        description: "Product identifier"
+        tests:
+          - not_null
+      - name: analysis_period_days
+        description: "Number of days in each analysis period (default 30)"
+        tests:
+          - not_null
+      - name: current_period_start_date
+        description: "Start date of the current analysis period"
+        tests:
+          - not_null
+      - name: current_period_end_date
+        description: "End date of the current analysis period (= max transaction date)"
+        tests:
+          - not_null
+      - name: previous_period_start_date
+        description: "Start date of the previous analysis period"
+        tests:
+          - not_null
+      - name: previous_period_end_date
+        description: "End date of the previous analysis period"
+        tests:
+          - not_null
+      - name: current_revenue
+        description: "Total revenue for the current 30-day period"
+        tests:
+          - not_null
+      - name: previous_revenue
+        description: "Total revenue for the previous 30-day period"
+        tests:
+          - not_null
+      - name: revenue_change_pct
+        description: "Percentage change in revenue between current and previous period. Null if no previous revenue"
+      - name: current_quantity
+        description: "Total quantity sold in the current 30-day period"
+        tests:
+          - not_null
+      - name: previous_quantity
+        description: "Total quantity sold in the previous 30-day period"
+        tests:
+          - not_null
+      - name: quantity_change_pct
+        description: "Percentage change in quantity between current and previous period. Null if no previous quantity"
+      - name: current_avg_selling_price
+        description: "Average selling price in the current period (revenue / quantity)"
+      - name: previous_avg_selling_price
+        description: "Average selling price in the previous period (revenue / quantity)"
+      - name: avg_price_change_pct
+        description: "Percentage change in average selling price between periods. Null if no previous data"
+      - name: country_current_revenue
+        description: "Total revenue at country level for the product in the current period"
+      - name: country_current_quantity
+        description: "Total quantity at country level for the product in the current period"
+      - name: country_store_count
+        description: "Number of distinct stores selling the product in the country during the current period"
+      - name: country_avg_selling_price
+        description: "Country-level average selling price for the same product in the current period"
+      - name: price_vs_country_benchmark_pct
+        description: "Store price deviation vs country average (%). Positive = above benchmark, negative = below"
+      - name: current_promo_revenue_share
+        description: "Percentage of current period revenue generated under promotions. Null if no current revenue"
+      - name: performance_flag
+        description: "Business classification: NEW_ACTIVITY, STRONG_GROWTH, STRONG_DECLINE, STABLE, NOT_COMPARABLE"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['NEW_ACTIVITY', 'STRONG_GROWTH', 'STRONG_DECLINE', 'STABLE', 'NOT_COMPARABLE']
+      - name: benchmark_flag
+        description: "Position vs country benchmark: ABOVE_COUNTRY_BENCHMARK, BELOW_COUNTRY_BENCHMARK, ALIGNED_WITH_COUNTRY_BENCHMARK, NOT_COMPARABLE"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['ABOVE_COUNTRY_BENCHMARK', 'BELOW_COUNTRY_BENCHMARK', 'ALIGNED_WITH_COUNTRY_BENCHMARK', 'NOT_COMPARABLE']
