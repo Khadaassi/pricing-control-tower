@@ -190,6 +190,25 @@ def generate_quantity(product_id: int, store_id: int, price_type: str) -> int:
 
     return quantity
 
+def apply_seasonality(quantity: int, tx_date: date) -> int:
+    saturday_boost = 1 if tx_date.weekday() == 5 else 0
+
+    month_boost_map = {
+        1: 0,
+        2: 0,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 2,
+    }
+    month_boost = month_boost_map.get(tx_date.month, 0)
+
+    quantity += saturday_boost
+
+    if random.random() < 0.3:
+        quantity += month_boost
+
+    return min(quantity, 8)
 
 def generate_sales_rows(
     products: list[dict],
@@ -208,6 +227,9 @@ def generate_sales_rows(
         product = random.choice(products)
         store = random.choice(stores)
         tx_datetime = random_transaction_datetime(START_DATE, END_DATE)
+        if tx_datetime.weekday() == 6:  # Sunday
+            if random.random() < 0.99:
+                continue
 
         selected_price = select_active_price(
             product_id=product["id"],
@@ -221,10 +243,15 @@ def generate_sales_rows(
             continue
 
         quantity = generate_quantity(
-    product_id=product["id"],
-    store_id=store["id"],
-    price_type=selected_price["price_type"],
-)
+            product_id=product["id"],
+            store_id=store["id"],
+            price_type=selected_price["price_type"],
+        )
+
+        quantity = apply_seasonality(
+            quantity=quantity,
+            tx_date=tx_datetime.date(),
+        )
         unit_price = selected_price["amount"]
         revenue = (Decimal(quantity) * unit_price).quantize(Decimal("0.01"))
         promotion_id = selected_price["promotion_id"]
@@ -313,7 +340,25 @@ def main():
     for row in rows:
         qty = row["quantity"]
         quantity_distribution[qty] = quantity_distribution.get(qty, 0) + 1
+    weekday_distribution: dict[int, int] = {}
+    for row in rows:
+        tx_date = datetime.fromisoformat(row["transaction_date"])
+        weekday = tx_date.weekday()
+        weekday_distribution[weekday] = weekday_distribution.get(weekday, 0) + 1
 
+    print("Weekday distribution:")
+    weekday_names = {
+        0: "Mon",
+        1: "Tue",
+        2: "Wed",
+        3: "Thu",
+        4: "Fri",
+        5: "Sat",
+        6: "Sun",
+    }
+
+    for weekday in sorted(weekday_distribution):
+        print(f"  {weekday_names[weekday]}: {weekday_distribution[weekday]}")
     print("Quantity distribution:")
     for qty in sorted(quantity_distribution):
         print(f"  {qty}: {quantity_distribution[qty]}")
