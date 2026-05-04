@@ -169,6 +169,7 @@ PROMOTIONS = [
         "end_date": date(2025, 3, 31),
         "country_code": "FR",
         "store_code": None,
+        "product_code": "CAMP-001",
         "active": True,
     },
     {
@@ -181,18 +182,20 @@ PROMOTIONS = [
         "end_date": date(2025, 4, 20),
         "country_code": "ES",
         "store_code": None,
+        "product_code": "FIT-001",
         "active": True,
     },
     {
         "code": "IT_RUNNING_DAYS",
         "name": "Italy Running Days",
         "description": "Running promo in Italy",
-        "discount_type": "PERCENTAGE",
-        "discount_value": Decimal("12.00"),
+        "discount_type": "FIXED_PRICE",
+        "discount_value": Decimal("59.99"),
         "start_date": date(2025, 5, 1),
         "end_date": date(2025, 5, 15),
         "country_code": "IT",
         "store_code": None,
+        "product_code": "RUN-001",
         "active": True,
     },
     {
@@ -205,18 +208,20 @@ PROMOTIONS = [
         "end_date": date(2025, 2, 17),
         "country_code": "FR",
         "store_code": "LIL001",
+        "product_code": "CAMP-005",
         "active": True,
     },
     {
         "code": "MAD_LOCAL",
         "name": "Madrid Local Promo",
         "description": "Local store promotion for Madrid",
-        "discount_type": "PERCENTAGE",
-        "discount_value": Decimal("18.00"),
+        "discount_type": "FIXED_PRICE",
+        "discount_value": Decimal("24.99"),
         "start_date": date(2025, 6, 1),
         "end_date": date(2025, 6, 10),
         "country_code": "ES",
         "store_code": "MAD001",
+        "product_code": "FIT-003",
         "active": True,
     },
 ]
@@ -225,6 +230,18 @@ PROMOTIONS = [
 def fetch_id_map(connection, query: str, key_column: str, id_column: str = "id") -> dict:
     rows = connection.execute(text(query)).mappings().all()
     return {row[key_column]: row[id_column] for row in rows}
+
+
+def seed_users(connection) -> None:
+    connection.execute(
+        text(
+            """
+            INSERT INTO pct_core.user_account (email, full_name, active)
+            VALUES ('admin@pct.local', 'PCT Admin', TRUE)
+            ON CONFLICT (email) DO NOTHING
+            """
+        ),
+    )
 
 
 def seed_countries(connection) -> None:
@@ -350,6 +367,11 @@ def seed_promotions(connection) -> None:
         "SELECT id, code FROM pct_core.store",
         key_column="code",
     )
+    product_map = fetch_id_map(
+        connection,
+        "SELECT id, code FROM pct_core.product",
+        key_column="code",
+    )
 
     for promo in PROMOTIONS:
         connection.execute(
@@ -361,6 +383,7 @@ def seed_promotions(connection) -> None:
                     description,
                     discount_type,
                     discount_value,
+                    product_id,
                     start_date,
                     end_date,
                     store_id,
@@ -374,6 +397,7 @@ def seed_promotions(connection) -> None:
                     :description,
                     :discount_type,
                     :discount_value,
+                    :product_id,
                     :start_date,
                     :end_date,
                     :store_id,
@@ -390,6 +414,7 @@ def seed_promotions(connection) -> None:
                 "description": promo["description"],
                 "discount_type": promo["discount_type"],
                 "discount_value": promo["discount_value"],
+                "product_id": product_map[promo["product_code"]],
                 "start_date": promo["start_date"],
                 "end_date": promo["end_date"],
                 "store_id": store_map[promo["store_code"]] if promo["store_code"] else None,
@@ -435,8 +460,10 @@ def seed_prices(connection) -> None:
             SELECT
                 p.id,
                 p.code,
+                p.product_id,
                 p.country_id,
                 p.store_id,
+                p.discount_type,
                 p.discount_value,
                 p.start_date,
                 p.end_date
@@ -566,76 +593,85 @@ def seed_prices(connection) -> None:
                 },
             )
 
-    # Promo prices linked to promotions
+    # Promo prices linked to promotions (1 promo = 1 product)
+    product_id_to_idx = {product["id"]: idx for idx, product in enumerate(product_rows, start=1)}
+
     for promo in promotion_rows:
         promo_country_code = country_code_by_id[promo["country_id"]]
+        product_id = promo["product_id"]
+        idx = product_id_to_idx.get(product_id, 1)
 
-        for idx, product in enumerate(product_rows[:8], start=1):
-            standard_amount = build_base_price(idx, promo_country_code)
+        standard_amount = build_base_price(idx, promo_country_code)
+
+        if promo["discount_type"] == "FIXED_PRICE":
+            promo_amount = promo["discount_value"]
+        else:
+            # PERCENTAGE
             discount_factor = (Decimal("100.00") - promo["discount_value"]) / Decimal("100.00")
             promo_amount = (standard_amount * discount_factor).quantize(Decimal("0.01"))
 
-            scope = "STORE" if promo["store_id"] else "COUNTRY"
+        scope = "STORE" if promo["store_id"] else "COUNTRY"
 
-            connection.execute(
-                text(
-                    """
-                    INSERT INTO pct_core.price (
-                        product_id,
-                        price_scope,
-                        country_id,
-                        store_id,
-                        price_type,
-                        amount,
-                        currency_code,
-                        effective_from,
-                        effective_to,
-                        status,
-                        promotion_id,
-                        reason,
-                        created_by
-                    )
-                    SELECT
-                        :product_id,
-                        CAST(:price_scope AS VARCHAR(20)),
-                        :country_id,
-                        :store_id,
-                        'PROMO',
-                        :amount,
-                        'EUR',
-                        :effective_from,
-                        :effective_to,
-                        'ACTIVE',
-                        :promotion_id,
-                        'MVP promotional price',
-                        1
-                    WHERE NOT EXISTS (
-                        SELECT 1
-                        FROM pct_core.price pr
-                        WHERE pr.product_id = :product_id
-                          AND pr.price_scope = CAST(:price_scope AS VARCHAR(20))
-                          AND pr.country_id = :country_id
-                                                    AND COALESCE(pr.store_id, -1) = COALESCE(CAST(:store_id AS INTEGER), -1)
-                          AND pr.price_type = 'PROMO'
-                          AND pr.promotion_id = :promotion_id
-                    )
-                    """
-                ),
-                {
-                    "product_id": product["id"],
-                    "price_scope": scope,
-                    "country_id": promo["country_id"],
-                    "store_id": promo["store_id"],
-                    "amount": promo_amount,
-                    "promotion_id": promo["id"],
-                    "effective_from": promo["start_date"],
-                    "effective_to": promo["end_date"],
-                },
-            )
+        connection.execute(
+            text(
+                """
+                INSERT INTO pct_core.price (
+                    product_id,
+                    price_scope,
+                    country_id,
+                    store_id,
+                    price_type,
+                    amount,
+                    currency_code,
+                    effective_from,
+                    effective_to,
+                    status,
+                    promotion_id,
+                    reason,
+                    created_by
+                )
+                SELECT
+                    :product_id,
+                    CAST(:price_scope AS VARCHAR(20)),
+                    :country_id,
+                    :store_id,
+                    'PROMO',
+                    :amount,
+                    'EUR',
+                    :effective_from,
+                    :effective_to,
+                    'ACTIVE',
+                    :promotion_id,
+                    'MVP promotional price',
+                    1
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM pct_core.price pr
+                    WHERE pr.product_id = :product_id
+                      AND pr.price_scope = CAST(:price_scope AS VARCHAR(20))
+                      AND pr.country_id = :country_id
+                      AND COALESCE(pr.store_id, -1) = COALESCE(CAST(:store_id AS INTEGER), -1)
+                      AND pr.price_type = 'PROMO'
+                      AND pr.promotion_id = :promotion_id
+                )
+                """
+            ),
+            {
+                "product_id": product_id,
+                "price_scope": scope,
+                "country_id": promo["country_id"],
+                "store_id": promo["store_id"],
+                "amount": promo_amount,
+                "promotion_id": promo["id"],
+                "effective_from": promo["start_date"],
+                "effective_to": promo["end_date"],
+            },
+        )
 
 
 def main() -> None:
     with engine.begin() as connection:
+        seed_users(connection)
         seed_countries(connection)
         seed_product_families(connection)
         seed_products(connection)

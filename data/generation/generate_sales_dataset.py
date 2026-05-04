@@ -41,7 +41,8 @@ def get_database_url() -> str:
 DATABASE_URL = get_database_url()
 engine = create_engine(DATABASE_URL)
 
-OUTPUT_PATH = Path("data/generated/sales_transactions.csv")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+OUTPUT_PATH = REPO_ROOT / "data" / "generated" / "sales_transactions.csv"
 TARGET_ROWS = int(os.getenv("SALES_TARGET_ROWS", "20000"))
 START_DATE = date(2025, 1, 1)
 END_DATE = date(2025, 6, 30)

@@ -1,7 +1,13 @@
 from datetime import date
 from decimal import Decimal
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict
+
+
+class DiscountTypeEnum(str, Enum):
+    PERCENTAGE = "PERCENTAGE"
+    FIXED_PRICE = "FIXED_PRICE"
 
 
 class PromotionRead(BaseModel):
@@ -12,8 +18,10 @@ class PromotionRead(BaseModel):
     name: str
     description: str | None
 
-    discount_type: str
+    discount_type: DiscountTypeEnum
     discount_value: Decimal
+
+    product_id: int
 
     start_date: date
     end_date: date
