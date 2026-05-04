@@ -106,8 +106,8 @@ enriched as (
         promo.promotion_name,
         promo.discount_type,
         promo.discount_value,
-        promo.start_date as promotion_start_date,
-        promo.end_date as promotion_end_date
+        promo.promotion_start_date,
+        promo.promotion_end_date
 
     from sales s
 

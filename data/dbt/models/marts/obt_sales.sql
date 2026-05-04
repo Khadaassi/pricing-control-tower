@@ -34,6 +34,7 @@ obt as (
         pf.product_family_id,
         pf.product_family_code,
         pf.product_family_name,
+        pf.product_family_description,
 
         -- Store & Geography
         se.store_id,
@@ -74,6 +75,19 @@ obt as (
         se.promotion_start_date,
         se.promotion_end_date,
         se.is_promo,
+
+        case
+            when se.promotion_id is not null then true
+            else false
+        end as has_promotion,
+
+        case
+            when se.promotion_id is null then true
+            when cast(se.transaction_date as date) >= se.promotion_start_date
+             and cast(se.transaction_date as date) <= se.promotion_end_date
+            then true
+            else false
+        end as is_promotion_temporally_valid,
 
         -- Measures
         se.quantity,

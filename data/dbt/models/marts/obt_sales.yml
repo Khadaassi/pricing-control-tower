@@ -96,3 +96,5 @@ models:
       - name: currency_code
         tests:
           - not_null
+      - name: product_family_description
+        description: "Product family business description. Useful for documentation and dashboard context."

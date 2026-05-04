@@ -128,10 +128,10 @@ models:
       - name: discount_value
         tests:
           - not_null
-      - name: start_date
+      - name: promotion_start_date
         tests:
           - not_null
-      - name: end_date
+      - name: promotion_end_date
         tests:
           - not_null
 
