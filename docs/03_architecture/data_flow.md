@@ -10,7 +10,8 @@
         │                         │                         │
    seed_reference_data.py         │                    obt_sales
    generate_sales_dataset.py      │                    kpi_price_performance
-   load_sales_transactions.py     │                         │
+   load_sales_transactions.py     │                    kpi_promo_performance
+                                  │                         │
                                   │                         ▼
                            ┌──────▼──────┐          ┌──────────────┐
                            │  FastAPI    │          │  Frontend    │
@@ -73,6 +74,7 @@ INTERMEDIATE (enrichissement, jointures)
 MARTS (agrégation, KPI)
     obt_sales              → Table dénormalisée complète
     kpi_price_performance  → KPI glissant 30j + benchmark pays
+    kpi_promo_performance  → KPI uplift promo (produit) + effet famille
 ```
 
 ### Détail des transformations
@@ -83,6 +85,7 @@ MARTS (agrégation, KPI)
 | Intermediate | `int_sales_enriched` | Jointure ventes × produit × magasin × prix × promotion. Calcul `price_difference`, `price_difference_rate`, flags booléens |
 | Mart | `obt_sales` | Ajout familles, pays, classification temporelle promotion |
 | Mart | `kpi_price_performance` | Périodisation 30j, agrégation par (country, store, product), benchmark pays, flags métier |
+| Mart | `kpi_promo_performance` | Uplift produit (avant vs pendant promo), effet famille (cannibalisation / halo), flags métier |
 
 ---
 

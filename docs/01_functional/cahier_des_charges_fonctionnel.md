@@ -129,8 +129,8 @@ Les règles de gestion ci-dessous sont identifiées par un code unique (`RGxx`) 
 |---|---|
 | **RG08** | Les promotions sont strictement délimitées par une date de début et une date de fin. |
 | **RG08bis** | Pour un produit donné, dans un magasin donné et à une date donnée, le prix applicable est déterminé selon l’ordre de priorité suivant : (1) prix magasin actif, (2) à défaut prix pays actif. |
-| **RG09** | Une promotion est définie soit au niveau pays (applicable à tous les magasins du pays), soit au niveau d’un magasin spécifique. |
-
+| **RG09** | Une promotion est définie soit au niveau pays (applicable à tous les magasins du pays), soit au niveau d’un magasin spécifique. || **RG09bis** | Une promotion cible **un seul produit** (`product_id` NOT NULL). Pas de bundle ni de set. |
+| **RG09ter** | Le type de remise (`discount_type`) est limité à deux valeurs : `PERCENTAGE` (pourcentage de réduction) ou `FIXED_PRICE` (prix fixe imposé). |
 ### 6.4 Gestion des Ventes
 
 | Règle | Énoncé |
@@ -158,7 +158,8 @@ Utilisation d'une table analytique centrale unique : `obt_sales`.
 - **Prix** — Comparaison des performances avant/après changement et benchmark par rapport au niveau pays.
 - **Promotion** :
   - *Baseline* fixée à **14 jours** avant le début de la promotion.
-  - Calcul basé sur la famille de produits (en excluant le produit promu de la référence).
+  - **KPI principal (uplift)** : calculé **uniquement au niveau produit** — même produit AVANT promo vs PENDANT promo. La famille ne doit jamais être utilisée pour ce calcul.
+  - **KPI complémentaire (famille)** : variation des ventes des autres produits de la même famille pendant la promo, pour détecter cannibalisation ou effet halo.
   - Mesure de l'accélération (Quantité et CA).
 
 ---

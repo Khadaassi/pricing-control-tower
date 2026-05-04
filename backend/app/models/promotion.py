@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
+from enum import Enum as PyEnum
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
+    ForeignKey,
     Integer,
     Numeric,
     String,
@@ -18,9 +21,20 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
 
+class DiscountType(str, PyEnum):
+    PERCENTAGE = "PERCENTAGE"
+    FIXED_PRICE = "FIXED_PRICE"
+
+
 class Promotion(Base):
     __tablename__ = "promotion"
-    __table_args__ = {"schema": "pct_core"}
+    __table_args__ = (
+        CheckConstraint(
+            "discount_type IN ('PERCENTAGE', 'FIXED_PRICE')",
+            name="ck_promotion_discount_type",
+        ),
+        {"schema": "pct_core"},
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
@@ -31,6 +45,12 @@ class Promotion(Base):
     # Métier promotion
     discount_type: Mapped[str] = mapped_column(String(20), nullable=False)
     discount_value: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+
+    # Produit ciblé (une promo = un seul produit)
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("pct_core.product.id", name="fk_promotion_product"),
+        nullable=False,
+    )
 
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
