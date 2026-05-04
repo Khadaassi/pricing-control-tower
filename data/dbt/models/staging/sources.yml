@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: pct_core
+    schema: pct_core
+    tables:
+      - name: sales_transaction
+      - name: product
+      - name: product_family
+      - name: store
+      - name: country
+      - name: price
+      - name: promotion
