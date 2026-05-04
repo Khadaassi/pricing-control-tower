@@ -1,0 +1,168 @@
+version: 2
+
+models:
+  - name: stg_sales
+    description: "Staged sales transactions from pct_core.sales_transaction"
+    columns:
+      - name: transaction_id
+        description: "Primary key"
+        tests:
+          - unique
+          - not_null
+      - name: transaction_date
+        tests:
+          - not_null
+      - name: product_id
+        tests:
+          - not_null
+      - name: store_id
+        tests:
+          - not_null
+      - name: price_id
+        tests:
+          - not_null
+      - name: quantity
+        tests:
+          - not_null
+      - name: unit_price
+        tests:
+          - not_null
+      - name: revenue
+        tests:
+          - not_null
+      - name: is_promo
+        tests:
+          - not_null
+      - name: price_scope
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['COUNTRY', 'STORE']
+      - name: price_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['STANDARD', 'PROMO']
+
+  - name: stg_product
+    description: "Staged products from pct_core.product"
+    columns:
+      - name: product_id
+        description: "Primary key"
+        tests:
+          - unique
+          - not_null
+      - name: product_code
+        tests:
+          - unique
+          - not_null
+      - name: product_name
+        tests:
+          - not_null
+
+  - name: stg_store
+    description: "Staged stores from pct_core.store"
+    columns:
+      - name: store_id
+        description: "Primary key"
+        tests:
+          - unique
+          - not_null
+      - name: store_code
+        tests:
+          - unique
+          - not_null
+      - name: store_name
+        tests:
+          - not_null
+      - name: country_id
+        tests:
+          - not_null
+
+  - name: stg_price
+    description: "Staged prices from pct_core.price"
+    columns:
+      - name: price_id
+        description: "Primary key"
+        tests:
+          - unique
+          - not_null
+      - name: product_id
+        tests:
+          - not_null
+      - name: price_scope
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['COUNTRY', 'STORE']
+      - name: price_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['STANDARD', 'PROMO']
+      - name: price_amount
+        tests:
+          - not_null
+      - name: currency_code
+        tests:
+          - not_null
+
+  - name: stg_promotion
+    description: "Staged promotions from pct_core.promotion"
+    columns:
+      - name: promotion_id
+        description: "Primary key"
+        tests:
+          - unique
+          - not_null
+      - name: promotion_code
+        tests:
+          - unique
+          - not_null
+      - name: promotion_name
+        tests:
+          - not_null
+      - name: discount_type
+        tests:
+          - not_null
+      - name: discount_value
+        tests:
+          - not_null
+      - name: promotion_start_date
+        tests:
+          - not_null
+      - name: promotion_end_date
+        tests:
+          - not_null
+
+  - name: stg_product_family
+    description: "Staged product families from pct_core.product_family"
+    columns:
+      - name: product_family_id
+        description: "Primary key"
+        tests:
+          - unique
+          - not_null
+      - name: product_family_code
+        tests:
+          - unique
+          - not_null
+      - name: product_family_name
+        tests:
+          - not_null
+
+  - name: stg_country
+    description: "Staged countries from pct_core.country"
+    columns:
+      - name: country_id
+        description: "Primary key"
+        tests:
+          - unique
+          - not_null
+      - name: country_code
+        tests:
+          - unique
+          - not_null
+      - name: country_name
+        tests:
+          - not_null

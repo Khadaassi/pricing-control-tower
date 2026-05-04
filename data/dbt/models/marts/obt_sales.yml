@@ -1,0 +1,100 @@
+version: 2
+
+models:
+  - name: obt_sales
+    description: "One Big Table — fully denormalized sales fact with all dimensions for analytics"
+    columns:
+      - name: transaction_id
+        description: "Primary key — unique sale transaction"
+        tests:
+          - unique
+          - not_null
+      - name: transaction_date
+        tests:
+          - not_null
+      - name: transaction_day
+        description: "Transaction date cast to date (no time)"
+        tests:
+          - not_null
+      - name: transaction_month
+        description: "First day of the transaction month"
+        tests:
+          - not_null
+      - name: product_id
+        tests:
+          - not_null
+      - name: product_code
+        tests:
+          - not_null
+      - name: product_name
+        tests:
+          - not_null
+      - name: store_id
+        tests:
+          - not_null
+      - name: store_code
+        tests:
+          - not_null
+      - name: store_name
+        tests:
+          - not_null
+      - name: country_code
+        tests:
+          - not_null
+      - name: country_name
+        tests:
+          - not_null
+      - name: price_scope
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['COUNTRY', 'STORE']
+      - name: price_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['STANDARD', 'PROMO']
+      - name: is_store_specific_price
+        description: "True if the price is scoped to a specific store"
+        tests:
+          - not_null
+      - name: is_promotional_price
+        description: "True if the price type is PROMO"
+        tests:
+          - not_null
+      - name: is_price_temporally_valid
+        description: "True if the transaction date falls within the price effective period"
+        tests:
+          - not_null
+      - name: price_amount
+        description: "Reference price amount from the price table"
+        tests:
+          - not_null
+      - name: price_difference
+        description: "Difference between reference price and unit price paid"
+        tests:
+          - not_null
+      - name: price_difference_rate
+        description: "Percentage difference between reference price and unit price"
+        tests:
+          - not_null
+      - name: is_promo
+        tests:
+          - not_null
+      - name: quantity
+        tests:
+          - not_null
+      - name: unit_price
+        tests:
+          - not_null
+      - name: revenue
+        tests:
+          - not_null
+      - name: price_id
+        tests:
+          - not_null
+      - name: currency_code
+        tests:
+          - not_null
+      - name: product_family_description
+        description: "Product family business description. Useful for documentation and dashboard context."
