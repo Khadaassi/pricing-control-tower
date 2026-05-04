@@ -1,0 +1,50 @@
+version: 2
+
+models:
+  - name: kpi_price_performance
+    description: "KPI mart — price performance analysis with rolling 30-day period comparison, country benchmark and promo dependency"
+    columns:
+      - name: country_id
+        description: "Country identifier"
+        tests:
+          - not_null
+      - name: store_id
+        description: "Store identifier"
+        tests:
+          - not_null
+      - name: product_id
+        description: "Product identifier"
+        tests:
+          - not_null
+      - name: current_revenue
+        description: "Total revenue for the current 30-day period"
+        tests:
+          - not_null
+      - name: previous_revenue
+        description: "Total revenue for the previous 30-day period"
+        tests:
+          - not_null
+      - name: revenue_change_pct
+        description: "Percentage change in revenue between current and previous period. Null if no previous revenue"
+      - name: current_quantity
+        description: "Total quantity sold in the current 30-day period"
+        tests:
+          - not_null
+      - name: previous_quantity
+        description: "Total quantity sold in the previous 30-day period"
+        tests:
+          - not_null
+      - name: quantity_change_pct
+        description: "Percentage change in quantity between current and previous period. Null if no previous quantity"
+      - name: current_avg_selling_price
+        description: "Average selling price in the current period (revenue / quantity)"
+      - name: previous_avg_selling_price
+        description: "Average selling price in the previous period (revenue / quantity)"
+      - name: avg_price_change_pct
+        description: "Percentage change in average selling price between periods. Null if no previous data"
+      - name: country_avg_selling_price
+        description: "Country-level average selling price for the same product in the current period"
+      - name: price_vs_country_benchmark_pct
+        description: "Store price deviation vs country average (%). Positive = above benchmark, negative = below"
+      - name: current_promo_revenue_share
+        description: "Percentage of current period revenue generated under promotions. Null if no current revenue"
