@@ -1,78 +1,78 @@
-# MCD simplifié — Pricing Control Tower
+# Simplified CDM — Pricing Control Tower
 
-## 1. Objectif
+## 1. Purpose
 
-Ce modèle conceptuel de données (MCD) décrit les principales entités métier du système Pricing Control Tower ainsi que leurs relations.
+This conceptual data model (CDM) describes the main business entities of the Pricing Control Tower system and their relationships.
 
-Il constitue la base de référence pour :
+It serves as the reference for:
 
-* la conception de la base de données PostgreSQL
-* l’implémentation des modèles SQLAlchemy
-* la mise en place des migrations Alembic
-* la compréhension globale du système lors de la soutenance
+* the PostgreSQL database design
+* the SQLAlchemy model implementation
+* the Alembic migration setup
+* the overall system understanding
 
 ---
 
-## 2. Entités principales
+## 2. Main Entities
 
-### Référentiel
+### Reference Data
 
-* **Country** : pays dans lequel opèrent les magasins
-* **Store** : point de vente physique ou logique
-* **Product** : produit vendu
-* **ProductFamily** : regroupement de produits
-* **ProductImage** : illustration associée à un produit
+* **Country**: country in which stores operate
+* **Store**: physical or logical point of sale
+* **Product**: product sold
+* **ProductFamily**: product grouping
+* **ProductImage**: illustration associated with a product
 
 ---
 
 ### Pricing
 
-* **Price** : prix d’un produit dans un magasin donné
-* **PriceHistory** : historique des modifications de prix
+* **Price**: price of a product in a given store
+* **PriceHistory**: history of price modifications
 
 ---
 
 ### Promotions
 
-* **Promotion** : promotional action applied to a single **Product**, scoped to a country or a specific store
+* **Promotion**: promotional action applied to a single **Product**, scoped to a country or a specific store
 
 ---
 
 ### Performance
 
-* **Sale** : vente réalisée (fait métier principal pour l’analyse)
+* **Sale**: completed sale (main business fact for analysis)
 
 ---
 
-### Workflow & traçabilité
+### Workflow & Traceability
 
-* **PriceChangeRequest** : demande de modification de prix
-* **User** : utilisateur du système (création / validation)
-* **AuditLog** : journal des actions utilisateurs
+* **PriceChangeRequest**: request for a price modification
+* **User**: system user (creation / validation)
+* **AuditLog**: user action log
 
 ---
 
-## 3. Relations principales
+## 3. Main Relationships
 
-### Référentiel
+### Reference Data
 
-* Un **Country** possède plusieurs **Store**
+* A **Country** has multiple **Store**s
 
-* Un **Store** appartient à un seul **Country**
+* A **Store** belongs to a single **Country**
 
-* Un **Product** appartient à une **ProductFamily**
+* A **Product** belongs to a **ProductFamily**
 
-* Un **Product** peut avoir plusieurs **ProductImage**
+* A **Product** can have multiple **ProductImage**s
 
 ---
 
 ### Pricing
 
-* Un **Product** est associé à plusieurs **Price**
+* A **Product** is associated with multiple **Price**s
 
-* Un **Price** est défini pour un **Product** et un **Store**
+* A **Price** is defined for a **Product** and a **Store**
 
-* Un **Price** possède plusieurs entrées dans **PriceHistory**
+* A **Price** has multiple entries in **PriceHistory**
 
 ---
 
@@ -87,70 +87,70 @@ Il constitue la base de référence pour :
 
 ### Performance
 
-* Une **Sale** concerne un **Product**
-* Une **Sale** est réalisée dans un **Store**
-* Une **Sale** peut être associée à une **Promotion**
+* A **Sale** concerns a **Product**
+* A **Sale** is made in a **Store**
+* A **Sale** can be associated with a **Promotion**
 
 ---
 
 ### Workflow
 
-* Un **PriceChangeRequest** concerne un **Product**
+* A **PriceChangeRequest** concerns a **Product**
 
-* Un **PriceChangeRequest** concerne un **Store**
+* A **PriceChangeRequest** concerns a **Store**
 
-* Un **PriceChangeRequest** est lié à un **Price**
+* A **PriceChangeRequest** is linked to a **Price**
 
-* Un **User** crée ou valide un **PriceChangeRequest**
-
----
-
-### Traçabilité
-
-* Un **User** génère des entrées dans **AuditLog**
+* A **User** creates or validates a **PriceChangeRequest**
 
 ---
 
-## 4. Règles métier principales
+### Traceability
 
-* Un prix est toujours défini pour un couple **Product / Store**
-* Un prix peut être de type **STANDARD** ou **PROMO**
-* Un prix peut être marqué comme **recommandé par le pays** (booléen)
-* Toute modification de prix doit être tracée dans **PriceHistory**
-* Toute action utilisateur importante doit être tracée dans **AuditLog**
+* A **User** generates entries in **AuditLog**
 
 ---
 
-## 5. Simplifications retenues pour le MVP
+## 4. Main Business Rules
 
-Afin de maintenir un niveau de complexité maîtrisé pour la première version :
-
-* Le **canal (online / magasin)** n’est pas modélisé explicitement
-* Le ciblage des promotions est simplifié (pas d’entité `PromotionTarget`)
-* La recommandation pays est portée par un attribut de l’entité **Price**
-* Le workflow de changement de prix est directement relié à **Price**
-
-Ces choix permettent une implémentation progressive tout en restant évolutifs.
+* A price is always defined for a **Product / Store** pair
+* A price can be of type **STANDARD** or **PROMO**
+* A price can be marked as **country-recommended** (boolean)
+* Any price modification must be traced in **PriceHistory**
+* Any significant user action must be traced in **AuditLog**
 
 ---
 
-## 6. Évolutions prévues
+## 5. Simplifications for the MVP
 
-Le modèle pourra évoluer dans les versions suivantes pour intégrer :
+To maintain a manageable complexity level for the first version:
 
-* Une entité **Channel** (online / instore)
-* Une entité **PromotionTarget** pour un ciblage plus fin
-* Des règles de pricing plus avancées
-* Des optimisations pour la couche analytique (`pct_analytics`)
+* The **channel (online / store)** is not explicitly modeled
+* Promotion targeting is simplified (no `PromotionTarget` entity)
+* The country recommendation is carried by an attribute on the **Price** entity
+* The price change workflow is directly linked to **Price**
+
+These choices allow progressive implementation while remaining extensible.
+
+---
+
+## 6. Planned Evolutions
+
+The model may evolve in future versions to include:
+
+* A **Channel** entity (online / instore)
+* A **PromotionTarget** entity for finer targeting
+* More advanced pricing rules
+* Optimizations for the analytical layer (`pct_analytics`)
 
 ---
 
 ## 7. Conclusion
 
-Ce MCD fournit une base cohérente, compréhensible et exploitable pour :
+This CDM provides a coherent, understandable, and actionable base for:
 
-* la création du modèle logique (MLD)
-* l’implémentation en base de données
-* le développement backend
+* the logical data model (LDM) creation
+* the database implementation
+* the backend development
 
-Il reflète un compromis entre simplicité (MVP) et évolutivité.
+It reflects a balance between simplicity (MVP) and extensibility.

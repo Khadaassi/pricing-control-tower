@@ -161,12 +161,171 @@ Promotions can be scoped at:
 
 ---
 
+# 4. GET /sales (Sprint 3)
+
+## Business purpose
+
+Retrieve raw sales transaction records with optional filters.
+
+Used for:
+
+* sales exploration and filtering
+* promotion impact verification
+* data quality checks
+
+---
+
+## Query parameters
+
+| Parameter    | Type    | Description                               |
+| ------------ | ------- | ----------------------------------------- |
+| product_id   | integer | Filter by product                         |
+| store_id     | integer | Filter by store                           |
+| promotion_id | integer | Filter by promotion                       |
+| is_promo     | boolean | Filter promotional / non-promo sales      |
+| price_type   | string  | STANDARD or PROMO                         |
+| limit        | integer | Max records returned (1–500, default 100) |
+
+---
+
+## Response structure
+
+```json
+[
+  {
+    "transaction_id": 1,
+    "transaction_date": "2026-03-15T14:30:00",
+    "product_id": 31,
+    "store_id": 5,
+    "price_id": 12,
+    "promotion_id": 2,
+    "quantity": 3,
+    "unit_price": 49.99,
+    "revenue": 149.97,
+    "is_promo": true,
+    "price_scope": "STORE",
+    "price_type": "PROMO"
+  }
+]
+```
+
+---
+
+# 5. GET /kpis (Sprint 3)
+
+## Business purpose
+
+Return aggregated MVP sales KPIs computed dynamically from `pct_analytics.obt_sales`.
+
+Used for:
+
+* dashboard summary cards
+* promotional performance monitoring
+* quick business health check
+
+---
+
+## Query parameters
+
+| Parameter  | Type    | Description                          |
+| ---------- | ------- | ------------------------------------ |
+| product_id | integer | Filter by product                    |
+| store_id   | integer | Filter by store                      |
+| is_promo   | boolean | Filter promotional / non-promo sales |
+| price_type | string  | STANDARD or PROMO                    |
+
+---
+
+## Response structure
+
+```json
+{
+  "total_sales_count": 1250,
+  "total_quantity": 3420,
+  "total_revenue": 187530.00,
+  "promo_sales_count": 320,
+  "promo_revenue": 45200.00,
+  "promo_sales_share": 0.2560,
+  "average_order_value": 150.02
+}
+```
+
+---
+
+## KPI definitions
+
+| KPI                 | Calculation                                 |
+| ------------------- | ------------------------------------------- |
+| total_sales_count   | Count of transactions                       |
+| total_quantity      | Sum of quantities sold                      |
+| total_revenue       | Sum of revenue                              |
+| promo_sales_count   | Count of transactions where is_promo = true |
+| promo_revenue       | Revenue from promotional sales              |
+| promo_sales_share   | promo_sales_count / total_sales_count       |
+| average_order_value | total_revenue / total_sales_count           |
+
+---
+
+# 6. GET /anomalies (Sprint 3)
+
+## Business purpose
+
+Detect rule-based business anomalies from the analytical model.
+
+MVP rule: flag promotions whose total revenue is **below a configurable threshold** (default: 500 €). This helps pricing managers identify underperforming promotions.
+
+---
+
+## Query parameters
+
+| Parameter    | Type    | Description                                      |
+| ------------ | ------- | ------------------------------------------------ |
+| min_revenue  | decimal | Revenue threshold for detection (default 500.00) |
+| promotion_id | integer | Filter by promotion                              |
+| product_id   | integer | Filter by product                                |
+| store_id     | integer | Filter by store                                  |
+| limit        | integer | Max anomalies returned (1–200, default 50)       |
+
+---
+
+## Response structure
+
+```json
+[
+  {
+    "anomaly_type": "LOW_PROMOTION_REVENUE",
+    "severity": "HIGH",
+    "message": "Promotion 2 generated revenue below the configured threshold.",
+    "promotion_id": 2,
+    "product_id": 31,
+    "store_id": null,
+    "sales_count": 4,
+    "total_quantity": 7,
+    "total_revenue": 120.50,
+    "threshold": 500.00
+  }
+]
+```
+
+---
+
+## Severity logic
+
+| Condition                     | Severity |
+| ----------------------------- | -------- |
+| revenue < 50 % of threshold  | HIGH     |
+| revenue < 80 % of threshold  | MEDIUM   |
+| revenue < 100 % of threshold | LOW      |
+
+---
+
 # Design principles
 
 * Simple REST endpoints
 * Read-oriented API for MVP
 * Business-aligned data exposure
-* No business logic duplication (handled in database)
+* Analytical calculations isolated in service files
+* No complex business logic directly inside route handlers
 
 ---
 

@@ -1,128 +1,128 @@
 # Data Generation — Sales Dataset (MVP)
 
-## 1. Objectif
+## 1. Purpose
 
-Générer un dataset de ventes simulées cohérent avec le modèle métier du projet Pricing Control Tower.
+Generate a simulated sales dataset consistent with the Pricing Control Tower business model.
 
-Ce dataset est utilisé pour :
+This dataset is used to:
 
-- alimenter la table `pct_core.sales_transaction`
-- permettre les analyses via dbt
-- simuler des cas réalistes pour les KPI
-- préparer les futures analyses d'anomalies
-
----
-
-## 2. Hypothèses générales
-
-- Une ligne = une ligne de ticket de caisse
-- La quantité peut être supérieure à 1
-- Le prix payé est toujours issu de la table `price`
-- La priorité est donnée au prix magasin sur le prix pays
-- Une promotion active est appliquée si un prix promo est disponible
-- Les données sont déterministes et reproductibles (seed fixée)
+- populate the `pct_core.sales_transaction` table
+- enable dbt-based analytics
+- simulate realistic scenarios for KPIs
+- prepare future anomaly detection
 
 ---
 
-## 3. Génération des ventes
+## 2. General Assumptions
 
-Chaque vente est générée selon les étapes suivantes :
-
-1. Sélection aléatoire d'un produit actif
-2. Sélection aléatoire d'un magasin
-3. Génération d'une date de transaction
-4. Sélection du prix actif à la date
-5. Calcul de la quantité
-6. Calcul du revenu (`quantity × unit_price`)
-7. Export dans un fichier CSV
+- One row = one receipt line item
+- Quantity can be greater than 1
+- The paid price always comes from the `price` table
+- Store price takes priority over country price
+- An active promotion is applied if a promo price is available
+- Data is deterministic and reproducible (fixed seed)
 
 ---
 
-## 4. Distribution des quantités (T48)
+## 3. Sales Generation
 
-### Objectif
+Each sale is generated according to the following steps:
 
-Éviter une distribution uniforme artificielle et introduire une variabilité simple et explicable.
+1. Random selection of an active product
+2. Random selection of a store
+3. Transaction date generation
+4. Selection of the active price at the date
+5. Quantity computation
+6. Revenue computation (`quantity × unit_price`)
+7. Export to a CSV file
 
-### Logique retenue
+---
 
-La quantité est calculée à partir de 3 facteurs principaux.
+## 4. Quantity Distribution
 
-### 4.1 Variabilité produit
+### Purpose
 
-Chaque produit est associé implicitement à un niveau de volume :
+Avoid an artificial uniform distribution and introduce simple, explainable variability.
 
-- faible volume
-- volume moyen
-- volume élevé
+### Approach
 
-Implémentation :
+Quantity is computed from 3 main factors.
+
+### 4.1 Product Variability
+
+Each product is implicitly associated with a volume level:
+
+- low volume
+- medium volume
+- high volume
+
+Implementation:
 
 ```python
 product_factor = product_id % 3
 ```
 
-### 4.2 Variabilité magasin
+### 4.2 Store Variability
 
-Les magasins sont répartis en deux catégories :
+Stores are divided into two categories:
 
-- magasins à faible volume
-- magasins à fort volume
+- low-volume stores
+- high-volume stores
 
-Implémentation :
+Implementation:
 
 ```python
 store_factor = 1 if store_id % 2 == 0 else 0
 ```
 
-### 4.3 Effet promotion
+### 4.3 Promotion Effect
 
-Les promotions augmentent la quantité achetée :
+Promotions increase the purchased quantity:
 
 ```python
 promo_boost = 1 if price_type == "PROMO" else 0
 ```
 
-### 4.4 Calcul de la quantité
+### 4.4 Quantity Computation
 
 ```python
 quantity = 1 + product_factor + store_factor + promo_boost
 quantity += random.choice([0, 1])
 ```
 
-### Résultat attendu
+### Expected Result
 
-| Critère | Valeur |
+| Criterion | Value |
 |---|---|
-| Quantité minimale | 1 |
-| Quantité maximale (avant saisonnalité) | 6 |
-| Distribution | Non uniforme |
-| Variabilité | Explicable |
-| Comportement | Reproductible |
+| Minimum quantity | 1 |
+| Maximum quantity (before seasonality) | 6 |
+| Distribution | Non-uniform |
+| Variability | Explainable |
+| Behavior | Reproducible |
 
 ---
 
-## 5. Saisonnalité simple (T49)
+## 5. Simple Seasonality
 
-### Objectif
+### Purpose
 
-Introduire une variation temporelle simple pour rendre les analyses plus crédibles.
+Introduce simple temporal variation to make analyses more credible.
 
-### Logique retenue
+### Approach
 
-La saisonnalité repose sur 3 éléments :
+Seasonality relies on 3 elements:
 
-### 5.1 Effet samedi
+### 5.1 Saturday Effect
 
-Le samedi est un jour à forte activité commerciale :
+Saturday is a high commercial activity day:
 
 ```python
 saturday_boost = 1 if tx_date.weekday() == 5 else 0
 ```
 
-### 5.2 Effet dimanche (magasins fermés)
+### 5.2 Sunday Effect (closed stores)
 
-Le dimanche est considéré comme un jour de fermeture (sauf exceptions) :
+Sunday is considered a closure day (with exceptions):
 
 ```python
 if tx_date.weekday() == 6:
@@ -130,11 +130,11 @@ if tx_date.weekday() == 6:
         continue
 ```
 
-> 90% des ventes sont ignorées — quelques ventes subsistent (cas exceptionnels).
+> 90% of sales are skipped — a few persist (exceptional cases).
 
-### 5.3 Effet mensuel léger
+### 5.3 Monthly Effect
 
-Une variation simple est introduite sur la période :
+A simple variation is introduced over the period:
 
 ```python
 month_boost_map = {
@@ -147,14 +147,14 @@ month_boost_map = {
 }
 ```
 
-Application partielle :
+Partial application:
 
 ```python
 if random.random() < 0.3:
     quantity += month_boost
 ```
 
-### 5.4 Application finale
+### 5.4 Final Application
 
 ```python
 quantity += saturday_boost
@@ -165,51 +165,35 @@ if random.random() < 0.3:
 quantity = min(quantity, 8)
 ```
 
-### Résultat attendu
+### Expected Result
 
-- Plus de ventes le samedi
-- Très peu de ventes le dimanche
-- Légère augmentation des volumes sur certains mois
-- Variation temporelle observable
-- Dataset toujours stable et contrôlé
+- More sales on Saturday
+- Very few sales on Sunday
+- Slight volume increase in certain months
+- Observable temporal variation
+- Dataset remains stable and controlled
 
 ---
 
-## 6. Contrôles de cohérence
+## 6. Consistency Checks
 
-Les contrôles suivants sont appliqués :
+The following checks are applied:
 
 - `revenue = quantity × unit_price`
-- cohérence `promotion_id` ↔ `price_type`
-- respect des contraintes métier
-- distribution des quantités vérifiée
-- distribution des ventes par jour vérifiée
+- `promotion_id` ↔ `price_type` consistency
+- Business constraint compliance
+- Quantity distribution verified
+- Sales per day distribution verified
 
 ---
 
-## 7. Limites du MVP
+## 7. MVP Limitations
 
-Les simplifications suivantes sont volontaires :
+The following simplifications are intentional:
 
-- pas de comportement client
-- pas de corrélation produit × magasin
-- pas de gestion du stock
-- pas de calendrier de jours fériés
-- pas de saisonnalité avancée (ex : météo, événements)
-- pas de modélisation statistique complexe
-
----
-
-## 8. Conclusion
-
-Le dataset généré :
-
-- est cohérent avec le modèle métier
-- présente une variabilité réaliste
-- reste simple, explicable et reproductible
-- est directement exploitable pour :
-  - ingestion en base
-  - dbt
-  - API
-  - KPI
-  - détection d'anomalies
+- No customer behavior
+- No product × store correlation
+- No stock management
+- No public holiday calendar
+- No advanced seasonality (e.g., weather, events)
+- No complex statistical modeling

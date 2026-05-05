@@ -1,11 +1,11 @@
 # Data Flow — Pricing Control Tower
 
-## 1. Vue d'ensemble du flux de données
+## 1. Data Flow Overview
 
 ```
 ┌───────────────────┐     ┌──────────────────┐     ┌─────────────────────┐
-│  Scripts Python   │────▶│   pct_core       │────▶│   pct_analytics     │
-│  (génération)     │     │   (PostgreSQL)   │     │   (vues dbt)        │
+│  Python Scripts   │────▶│   pct_core       │────▶│   pct_analytics     │
+│  (generation)     │     │   (PostgreSQL)   │     │   (dbt views)       │
 └───────────────────┘     └──────────────────┘     └─────────────────────┘
         │                         │                         │
    seed_reference_data.py         │                    obt_sales
@@ -21,128 +21,156 @@
 
 ---
 
-## 2. Flux d'ingestion (données → pct_core)
+## 2. Ingestion Flow (data → pct_core)
 
-### Étape 1 : Seed des données de référence
+### Step 1: Reference Data Seeding
 
-**Script** : `data/generation/seed_reference_data.py`
+**Script**: `data/generation/seed_reference_data.py`
 
-Insère les données de référence dans `pct_core` :
-- Pays (country)
-- Magasins (store)
-- Familles de produits (product_family)
-- Produits (product)
-- Prix standards et promotionnels (price)
+Inserts reference data into `pct_core`:
+- Countries (country)
+- Stores (store)
+- Product families (product_family)
+- Products (product)
+- Standard and promotional prices (price)
 - Promotions (promotion)
 
-### Étape 2 : Génération du dataset de ventes
+### Step 2: Sales Dataset Generation
 
-**Script** : `data/generation/generate_sales_dataset.py`
+**Script**: `data/generation/generate_sales_dataset.py`
 
-Génère un fichier CSV (`data/generated/sales_transactions.csv`) contenant ~20 000 transactions simulées sur 6 mois.
+Generates a CSV file (`data/generated/sales_transactions.csv`) containing ~20,000 simulated transactions over 6 months.
 
-Règles de génération :
-- Distribution non uniforme des quantités (variabilité produit + magasin + effet promo)
-- Saisonnalité simple
-- Cohérence avec les prix et promotions actifs à chaque date
+Generation rules:
+- Non-uniform quantity distribution (product + store variability + promo effect)
+- Simple seasonality
+- Consistency with active prices and promotions at each date
 
-### Étape 3 : Chargement en base
+### Step 3: Database Loading
 
-**Script** : `data/generation/load_sales_transactions.py`
+**Script**: `data/generation/load_sales_transactions.py`
 
-Charge le CSV dans la table `pct_core.sales_transaction`.
+Loads the CSV into the `pct_core.sales_transaction` table.
 
 ---
 
-## 3. Flux de transformation (pct_core → pct_analytics via dbt)
+## 3. Transformation Flow (pct_core → pct_analytics via dbt)
 
-### Pipeline dbt
+### dbt Pipeline
 
 ```
 pct_core (source)
     │
     ▼
-STAGING (renommage, typage)
+STAGING (renaming, typing)
     stg_sales, stg_product, stg_product_family,
     stg_store, stg_country, stg_price, stg_promotion
     │
     ▼
-INTERMEDIATE (enrichissement, jointures)
+INTERMEDIATE (enrichment, joins)
     int_sales_enriched
     │
     ▼
-MARTS (agrégation, KPI)
-    obt_sales              → Table dénormalisée complète
-    kpi_price_performance  → KPI glissant 30j + benchmark pays
-    kpi_promo_performance  → KPI uplift promo (produit) + effet famille
+MARTS (aggregation, KPI)
+    obt_sales              → Full denormalized table
+    kpi_price_performance  → Rolling 30d KPI + country benchmark
+    kpi_promo_performance  → Product uplift (before vs during promo) + family effect
 ```
 
-### Détail des transformations
+### Transformation Details
 
-| Couche | Modèle | Transformation |
+| Layer | Model | Transformation |
 |---|---|---|
-| Staging | `stg_*` | Sélection des colonnes, renommage, typage |
-| Intermediate | `int_sales_enriched` | Jointure ventes × produit × magasin × prix × promotion. Calcul `price_difference`, `price_difference_rate`, flags booléens |
-| Mart | `obt_sales` | Ajout familles, pays, classification temporelle promotion |
-| Mart | `kpi_price_performance` | Périodisation 30j, agrégation par (country, store, product), benchmark pays, flags métier |
-| Mart | `kpi_promo_performance` | Uplift produit (avant vs pendant promo), effet famille (cannibalisation / halo), flags métier |
+| Staging | `stg_*` | Column selection, renaming, typing |
+| Intermediate | `int_sales_enriched` | Join sales × product × store × price × promotion. Compute `price_difference`, `price_difference_rate`, boolean flags |
+| Mart | `obt_sales` | Add families, countries, promotion temporal classification |
+| Mart | `kpi_price_performance` | 30d periodization, aggregation by (country, store, product), country benchmark, business flags |
+| Mart | `kpi_promo_performance` | Product uplift (before vs during promo), family effect (cannibalization / halo), business flags |
 
 ---
 
-## 4. Flux de consommation (pct_analytics → API → Frontend)
+## 4. Consumption Flow (pct_analytics → API → Frontend)
 
 ### Backend (FastAPI)
 
-L'API expose les données de `pct_core` via des endpoints REST :
-- `GET /products` — Référentiel produits
-- `GET /prices` — Prix standards et promotionnels
-- `GET /promotions` — Promotions actives et historiques
+The API exposes `pct_core` data via REST endpoints:
+- `GET /products` — Product catalog
+- `GET /prices` — Standard and promotional prices
+- `GET /promotions` — Active and historical promotions
 
-Les KPI issus de `pct_analytics` sont consommables via des endpoints dédiés (évolution).
+#### Analytical Layer (Sprint 3)
+
+The API also exposes `pct_analytics` data via dedicated endpoints:
+- `GET /sales` — Filterable listing of sales transactions (`pct_core.sales_transaction`)
+- `GET /kpis` — Aggregated KPIs computed dynamically from `pct_analytics.obt_sales`
+- `GET /anomalies` — Rule-based business anomaly detection from `pct_analytics.obt_sales`
+
+```
+pct_analytics.obt_sales
+        │
+        ├──▶ GET /kpis       → total_revenue, promo_share, AOV
+        │
+        └──▶ GET /anomalies  → underperforming promotions (LOW_PROMOTION_REVENUE)
+```
+
+**Business logic implemented in services:**
+
+| Service | Role |
+|---|---|
+| `kpi_service.py` | Dynamic KPI computation (count, sum, avg) with optional filters |
+| `anomaly_service.py` | Rule-based detection: promotions with revenue < configurable threshold |
+
+KPIs from `pct_analytics` are consumable via dedicated endpoints.
 
 ### Frontend (Django)
 
-Consomme l'API REST pour afficher :
-- Tableaux de bord
-- Listes de produits et prix
-- Indicateurs de performance
+Consumes the REST API to display:
+- Dashboards
+- Product and price listings
+- Performance indicators
 
 ---
 
-## 5. Dépendances du flux
+## 5. Flow Dependencies
 
-| Étape | Prérequis |
+| Step | Prerequisites |
 |---|---|
-| Seed référentiel | PostgreSQL opérationnel, schéma `pct_core` créé |
-| Génération ventes | Référentiel inséré (produits, magasins, prix, promos) |
-| Chargement ventes | CSV généré |
-| dbt run | Données présentes dans `pct_core`, schéma `pct_analytics` créé |
+| Reference data seed | PostgreSQL running, `pct_core` schema created |
+| Sales generation | Reference data inserted (products, stores, prices, promos) |
+| Sales loading | CSV generated |
+| dbt run | Data present in `pct_core`, `pct_analytics` schema created |
 | API | PostgreSQL accessible |
 | Frontend | API accessible |
 
 ---
 
-## 6. Commandes d'exécution
+## 6. Execution Commands
 
 ```bash
-# 1. Démarrer PostgreSQL
-cd backend && docker compose up -d
+# 1. Start PostgreSQL
+cd backend
+docker compose up -d
 
-# 2. Appliquer les migrations
+# 2. Apply database migrations
 alembic upgrade head
 
-# 3. Seed des données de référence
+# 3. Return to repository root
+cd ..
+
+# 4. Seed reference data
 python data/generation/seed_reference_data.py
 
-# 4. Générer les ventes
+# 5. Generate sales transactions
 python data/generation/generate_sales_dataset.py
 
-# 5. Charger les ventes
+# 6. Load sales transactions into PostgreSQL
 python data/generation/load_sales_transactions.py
 
-# 6. Exécuter dbt
-cd data/dbt && dbt run
+# 7. Run dbt transformations
+cd data/dbt
+dbt run
 
-# 7. Lancer l'API
-cd backend && uvicorn app.main:app --reload
+# 8. Start the API
+cd ../../backend
+uvicorn app.main:app --reload
 ```

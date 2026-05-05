@@ -1,90 +1,90 @@
-# Choix Techniques — Pricing Control Tower
+# Technical Choices — Pricing Control Tower
 
 ## 1. Backend
 
-| Technologie | Version | Justification |
+| Technology | Version | Justification |
 |---|---|---|
-| **Python** | 3.11+ | Langage principal — écosystème data et IA mature |
-| **FastAPI** | 0.100+ | Framework API moderne, typage natif, documentation auto (OpenAPI) |
-| **SQLAlchemy** | 2.x | ORM robuste, support async, mapping déclaratif |
-| **Alembic** | 1.x | Migrations versionnées, intégration native SQLAlchemy |
-| **uv** | — | Gestionnaire de packages rapide, remplacement de pip |
-| **Pydantic** | 2.x | Validation des données, sérialisation, schémas API |
+| **Python** | 3.11+ | Primary language — mature data and AI ecosystem |
+| **FastAPI** | 0.100+ | Modern API framework, native typing, auto documentation (OpenAPI) |
+| **SQLAlchemy** | 2.x | Robust ORM, async support, declarative mapping |
+| **Alembic** | 1.x | Versioned migrations, native SQLAlchemy integration |
+| **uv** | — | Fast package manager, pip replacement |
+| **Pydantic** | 2.x | Data validation, serialization, API schemas |
 
 ---
 
-## 2. Base de données
+## 2. Database
 
-| Technologie | Version | Justification |
+| Technology | Version | Justification |
 |---|---|---|
-| **PostgreSQL** | 16 | SGBD relationnel performant, support JSON, CTE, window functions |
-| **Docker Compose** | — | Orchestration locale simple et reproductible |
+| **PostgreSQL** | 16 | High-performance relational DBMS, JSON support, CTEs, window functions |
+| **Docker Compose** | — | Simple and reproducible local orchestration |
 
-### Organisation des schémas
+### Schema Organization
 
-| Schéma | Rôle | Gestion |
+| Schema | Role | Management |
 |---|---|---|
-| `pct_core` | Données transactionnelles et référentiel | Alembic (migrations) |
-| `pct_analytics` | Vues analytiques et KPI | dbt (transformations) |
+| `pct_core` | Transactional data and reference | Alembic (migrations) |
+| `pct_analytics` | Analytical views and KPIs | dbt (transformations) |
 
 ---
 
 ## 3. Data / Analytics
 
-| Technologie | Version | Justification |
+| Technology | Version | Justification |
 |---|---|---|
-| **dbt** (dbt-core + dbt-postgres) | 1.8+ | Transformation SQL versionnée, tests intégrés, documentation auto |
-| **Python (scripts)** | — | Génération de données simulées reproductibles |
+| **dbt** (dbt-core + dbt-postgres) | 1.8+ | Versioned SQL transformation, built-in tests, auto documentation |
+| **Python (scripts)** | — | Reproducible simulated data generation |
 
-### Architecture dbt
+### dbt Architecture
 
-- **Staging** : extraction et renommage depuis les sources `pct_core`
-- **Intermediate** : enrichissement par jointures (ventes × dimensions)
-- **Marts** : tables dénormalisées (`obt_sales`) et KPI (`kpi_price_performance`)
+- **Staging**: extraction and renaming from `pct_core` sources
+- **Intermediate**: enrichment via joins (sales × dimensions)
+- **Marts**: denormalized tables (`obt_sales`) and KPIs (`kpi_price_performance`, `kpi_promo_performance`)
 
-### Choix de modélisation analytique
+### Analytical Modeling Choices
 
-- **OBT (One Big Table)** : approche dénormalisée adaptée au volume MVP (~20k lignes)
-- **Périodisation glissante** : comparaison 30 jours vs 30 jours précédents (pas de calendrier fiscal)
-- **Benchmark pays** : prix moyen pondéré par volume au niveau country × product
+- **OBT (One Big Table)**: denormalized approach suited to MVP volume (~20k rows)
+- **Rolling periodization**: 30-day vs previous 30-day comparison (no fiscal calendar)
+- **Country benchmark**: volume-weighted average price at country × product level
 
 ---
 
 ## 4. Frontend
 
-| Technologie | Justification |
+| Technology | Justification |
 |---|---|
-| **Django** | Framework full-stack Python, rendu serveur (SSR), admin intégré |
-| **Tailwind CSS** | Utility-first CSS, rapidité de développement, design responsive |
+| **Django** | Full-stack Python framework, server-side rendering (SSR), built-in admin |
+| **Tailwind CSS** | Utility-first CSS, rapid development, responsive design |
 
 ---
 
 ## 5. Infrastructure
 
-| Technologie | Justification |
+| Technology | Justification |
 |---|---|
-| **Docker** | Conteneurisation pour la reproductibilité |
-| **Docker Compose** | Orchestration locale (PostgreSQL) |
-| **GCP Cloud Run** (cible) | Déploiement cloud serverless |
+| **Docker** | Containerization for reproducibility |
+| **Docker Compose** | Local orchestration (PostgreSQL) |
+| **GCP Cloud Run** (target) | Serverless cloud deployment |
 
 ---
 
-## 6. Qualité et Tests
+## 6. Quality and Testing
 
-| Outil | Rôle |
+| Tool | Role |
 |---|---|
-| **pytest** | Tests unitaires et intégration backend |
-| **dbt test** | Tests de données (not_null, unique, accepted_values) |
-| **GitHub Actions** (cible) | CI/CD automatisée |
+| **pytest** | Backend unit and integration tests |
+| **dbt test** | Data tests (not_null, unique, accepted_values) |
+| **GitHub Actions** (target) | Automated CI/CD |
 
 ---
 
-## 7. Décisions clés
+## 7. Key Decisions
 
-| Décision | Raison |
+| Decision | Reason |
 |---|---|
-| PostgreSQL unique (core + analytics) | Simplicité MVP, pas de datawarehouse séparé nécessaire |
-| dbt en vues (pas de tables matérialisées) | Volume faible, rafraîchissement instantané |
-| Génération Python plutôt que Faker | Contrôle total de la distribution et reproductibilité (seed fixe) |
-| API stateless | Scalabilité, simplicité, pas de gestion de session |
-| Séparation backend/data/frontend | Indépendance des déploiements, responsabilités claires |
+| Single PostgreSQL (core + analytics) | MVP simplicity, no separate data warehouse needed |
+| dbt as views (no materialized tables) | Low volume, instant refresh |
+| Python generation rather than Faker | Full control over distribution and reproducibility (fixed seed) |
+| Stateless API | Scalability, simplicity, no session management |
+| backend/data/frontend separation | Deployment independence, clear responsibilities |
