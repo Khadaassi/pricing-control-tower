@@ -26,3 +26,5 @@ class Product(Base):
     family: Mapped[ProductFamily] = relationship(
         back_populates="products",
     )
+
+    images: Mapped[list["ProductImage"]] = relationship(back_populates="product")

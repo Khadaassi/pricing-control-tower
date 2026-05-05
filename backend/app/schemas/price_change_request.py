@@ -8,7 +8,6 @@ class PriceChangeRequestCreate(BaseModel):
     product_id: int = Field(gt=0)
     country_id: int = Field(gt=0)
     store_id: int | None = Field(default=None, gt=0)
-    current_price_id: int = Field(gt=0)
 
     requested_price_amount: Decimal = Field(gt=0, max_digits=10, decimal_places=2)
     justification: str = Field(min_length=1)
