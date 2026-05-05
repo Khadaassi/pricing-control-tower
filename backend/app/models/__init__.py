@@ -1,5 +1,8 @@
+from app.models.audit_log import AuditLog
 from app.models.base import Base
 from app.models.price import Price
+from app.models.price_change_request import PriceChangeRequest
+from app.models.price_history import PriceHistory
 from app.models.product import Product
 from app.models.product_family import ProductFamily
 from app.models.promotion import Promotion
@@ -11,5 +14,8 @@ __all__ = [
     "ProductFamily", 
     "Price", 
     "Promotion", 
-    "SalesTransaction"
+    "SalesTransaction",
+    "PriceChangeRequest",
+    "AuditLog",
+    "PriceHistory"
 ]

@@ -7,9 +7,9 @@ Create Date: 2026-05-05 14:20:30.545725
 """
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '63cb3004e2e5'
@@ -34,7 +34,7 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(
             ["price_change_request_id"],
-            ["pct_core.price_change_request.request_id"],
+            ["pct_core.price_change_request.id"],
             name="fk_audit_log_price_change_request",
         ),
         sa.ForeignKeyConstraint(

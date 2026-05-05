@@ -7,9 +7,9 @@ Create Date: 2026-05-05 13:26:16.450336
 """
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '68b888fcb0b3'
@@ -22,7 +22,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.create_table(
         "price_change_request",
-        sa.Column("request_id", sa.Integer(), primary_key=True, nullable=False),
+        sa.Column("id", sa.Integer(), sa.Identity(always=True), primary_key=True, nullable=False),
         sa.Column("product_id", sa.Integer(), nullable=False),
         sa.Column("country_id", sa.Integer(), nullable=False),
         sa.Column("store_id", sa.Integer(), nullable=True),
