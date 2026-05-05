@@ -17,7 +17,8 @@ if not database_url:
         database_url = get_database_url()
     except RuntimeError as exc:
         raise RuntimeError(
-            "DATABASE_URL is not set. Define it in your environment or in backend/.env before running Alembic."
+            "DATABASE_URL is not set. Define it in your environment"
+            " or in backend/.env before running Alembic."
         ) from exc
 
 config.set_main_option("sqlalchemy.url", database_url)

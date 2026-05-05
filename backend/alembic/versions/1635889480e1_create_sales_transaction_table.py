@@ -7,9 +7,9 @@ Create Date: 2026-04-19 11:36:18.757581
 """
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '1635889480e1'
@@ -56,9 +56,13 @@ def upgrade() -> None:
         sa.CheckConstraint("quantity > 0", name="chk_sales_transaction_quantity_positive"),
         sa.CheckConstraint("unit_price >= 0", name="chk_sales_transaction_unit_price_non_negative"),
         sa.CheckConstraint("revenue >= 0", name="chk_sales_transaction_revenue_non_negative"),
-        sa.CheckConstraint("revenue = quantity * unit_price", name="chk_sales_transaction_revenue_consistency"),
         sa.CheckConstraint(
-            "((is_promo = TRUE AND promotion_id IS NOT NULL) OR (is_promo = FALSE AND promotion_id IS NULL))",
+            "revenue = quantity * unit_price",
+            name="chk_sales_transaction_revenue_consistency",
+        ),
+        sa.CheckConstraint(
+            "((is_promo = TRUE AND promotion_id IS NOT NULL)"
+            " OR (is_promo = FALSE AND promotion_id IS NULL))",
             name="chk_sales_transaction_promo_consistency",
         ),
         sa.CheckConstraint(
@@ -106,8 +110,24 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_sales_transaction_promotion_id", table_name="sales_transaction", schema="pct_core")
-    op.drop_index("ix_sales_transaction_store_id", table_name="sales_transaction", schema="pct_core")
-    op.drop_index("ix_sales_transaction_product_id", table_name="sales_transaction", schema="pct_core")
-    op.drop_index("ix_sales_transaction_transaction_date", table_name="sales_transaction", schema="pct_core")
+    op.drop_index(
+        "ix_sales_transaction_promotion_id",
+        table_name="sales_transaction",
+        schema="pct_core",
+    )
+    op.drop_index(
+        "ix_sales_transaction_store_id",
+        table_name="sales_transaction",
+        schema="pct_core",
+    )
+    op.drop_index(
+        "ix_sales_transaction_product_id",
+        table_name="sales_transaction",
+        schema="pct_core",
+    )
+    op.drop_index(
+        "ix_sales_transaction_transaction_date",
+        table_name="sales_transaction",
+        schema="pct_core",
+    )
     op.drop_table("sales_transaction", schema="pct_core")

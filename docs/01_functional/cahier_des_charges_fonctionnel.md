@@ -1,200 +1,200 @@
-# Cahier des Charges Fonctionnel
+# Functional Specification
 
-> **Projet :** Pricing Control Tower
-> **Domaine :** Pilotage tarifaire et Intelligence Artificielle
-> **Version :** 1.0 — MVP
-
----
-
-## 1. Contexte du projet
-
-Le projet Pricing Control Tower est une application web de pilotage tarifaire permettant de centraliser, analyser et piloter les prix et promotions au sein d’une organisation multi-magasins.
-
-Ce projet est réalisé dans le cadre d’une certification professionnelle RNCP en développement IA. Il a pour objectif de démontrer la capacité à concevoir une architecture data complète, à développer une application web connectée à des services de données et à intégrer des fonctionnalités d’intelligence artificielle.
-
-Le projet simule un contexte d’entreprise réaliste avec des contraintes de traçabilité, de gouvernance et de performance.
+> **Project:** Pricing Control Tower
+> **Domain:** Price Management and Artificial Intelligence
+> **Version:** 1.0 — MVP
 
 ---
 
-## 2. Objectifs du produit
+## 1. Project Context
 
-L’application permet aux utilisateurs métiers d'intervenir sur les axes suivants :
+The Pricing Control Tower project is a web application for price management that centralizes, analyzes, and controls prices and promotions within a multi-store organization.
 
-### 2.1 Analyse et Pilotage
+This project is carried out as part of an RNCP professional certification in AI development. Its goal is to demonstrate the ability to design a complete data architecture, develop a web application connected to data services, and integrate artificial intelligence features.
 
-- **Visualisation** — Suivi des ventes en quantité et chiffre d'affaires.
-- **Performance** — Analyse de l'efficacité des prix et des promotions.
-- **Comparaison** — Mise en perspective des performances entre les magasins et au niveau national.
-
-### 2.2 Pricing et Promotions
-
-- **Consultation** — Accès aux prix standards et promotionnels (niveaux pays et magasin).
-- **Historisation** — Consultation de l'historique complet des prix appliqués.
-- **Efficacité promotionnelle** — Mesure de l'accélération des ventes par rapport à une *baseline*.
-
-### 2.3 Aide à la décision et Gouvernance
-
-- **Identification** — Détection des anomalies de performance ou des incohérences tarifaires.
-- **Workflow** — Gestion d'un cycle de validation pour tout changement de prix.
-- **Traçabilité** — Audit complet des actions effectuées sur la plateforme.
-
-### 2.4 Intelligence Artificielle (Évolution)
-
-- Explication des indicateurs clés de performance (KPI).
-- Analyse des causes d'anomalies.
-- Suggestions d'actions correctives (sans automatisation).
+The project simulates a realistic business context with traceability, governance, and performance constraints.
 
 ---
 
-## 3. Périmètre du MVP
+## 2. Product Objectives
 
-| Axe | Définition du périmètre |
-|---|---|
-| **Géographique** | France uniquement |
-| **Organisation** | Structure multi-magasins |
-| **Catalogue** | 3 familles de produits (~10 produits par famille) |
-| **Pricing** | Prix nationaux et *overrides* locaux (magasin) |
-| **Promotions** | Nationales et locales |
-| **Données** | Flux transactionnels simulés |
-| **Processus** | Workflow de création et validation manuelle des demandes |
-| **Analytique** | Table centrale `obt_sales` et KPI spécifiques |
+The application enables business users to work on the following axes:
 
----
+### 2.1 Analysis and Management
 
-## 4. Utilisateurs
+- **Visualization** — Sales tracking in quantity and revenue.
+- **Performance** — Analysis of price and promotion effectiveness.
+- **Comparison** — Performance benchmarking between stores and at the national level.
 
-### Phase MVP
+### 2.2 Pricing and Promotions
 
-| Rôle | Description |
-|---|---|
-| **Administrateur** | Utilisateur unique disposant de l'intégralité des droits d'accès et de modification. |
+- **Consultation** — Access to standard and promotional prices (country and store levels).
+- **History** — Full history of applied prices.
+- **Promotional effectiveness** — Measurement of sales acceleration relative to a *baseline*.
 
-### Évolutions cibles
+### 2.3 Decision Support and Governance
 
-| Rôle | Description |
-|---|---|
-| **Analyste** | Accès en lecture seule. |
-| **Responsable Magasin** | Gestion locale. |
-| **Responsable Pays** | Vision globale et stratégie. |
-| **Validateur** | Pouvoir d'approbation des demandes de changement. |
+- **Detection** — Identification of performance anomalies or pricing inconsistencies.
+- **Workflow** — Validation cycle management for any price change.
+- **Traceability** — Full audit of actions performed on the platform.
+
+### 2.4 Artificial Intelligence (Evolution)
+
+- Key performance indicator (KPI) explanation.
+- Anomaly root cause analysis.
+- Corrective action suggestions (without automation).
 
 ---
 
-## 5. Concepts métier
+## 3. MVP Scope
 
-### 5.1 Produit et Prix
-
-- **Produit** — Entité appartenant à une famille, associée à un ou plusieurs prix.
-- **Prix** — Défini au niveau pays ou magasin. Il peut être de type `STANDARD` ou `PROMO`, possède une période de validité et fait l'objet d'un archivage historique.
-
-Lorsqu’un prix existe à la fois au niveau pays et au niveau magasin, le prix magasin constitue une surcharge locale et est appliqué en priorité.
-
-
-### 5.2 Promotion et Vente
-
-- **Promotion** — Entité temporelle influençant les prix promotionnels au niveau national ou local.
-- **Vente** — Transaction réalisée en magasin, liant un produit à un prix et, le cas échéant, à une promotion.
-
-### 5.3 Flux de validation
-
-- **Demande de changement** — Requête portant sur un produit ou un périmètre géographique, soumise à validation avant mise en application.
+| Axis | Scope Definition |
+|---|---|
+| **Geographic** | France only |
+| **Organization** | Multi-store structure |
+| **Catalog** | 3 product families (~10 products per family) |
+| **Pricing** | National prices and local overrides (store) |
+| **Promotions** | National and local |
+| **Data** | Simulated transactional flows |
+| **Process** | Manual creation and validation workflow |
+| **Analytics** | Central `obt_sales` table and specific KPIs |
 
 ---
 
-## 6. Règles de gestion
+## 4. Users
 
-Les règles de gestion ci-dessous sont identifiées par un code unique (`RGxx`) pour assurer leur traçabilité dans le code et les tests.
+### MVP Phase
 
-### 6.1 Périmètre et Organisation
-
-| Règle | Énoncé |
+| Role | Description |
 |---|---|
-| **RG01** | L'application ne gère que des **magasins physiques**. La notion de canal (online / offline) est hors périmètre. |
+| **Administrator** | Single user with full access and modification rights. |
 
-### 6.2 Gestion du Pricing
+### Target Evolutions
 
-| Règle | Énoncé |
+| Role | Description |
 |---|---|
-| **RG02** | Un produit peut posséder **plusieurs prix successifs** dans le temps. |
-| **RG03** | Un prix est toujours défini pour un pays (`country_id` obligatoire). Le champ `store_id` est optionnel. |
-| **RG04** | Un prix peut être défini au niveau **pays** (prix global) ou au niveau **magasin** (prix local spécifique). |
-| **RG05** | Tout prix promotionnel doit être **impérativement** associé à une promotion active. |
-| **RG06** | La validité d'un prix est encadrée par les champs `effective_from` et `effective_to`. |
-| **RG07** | Il ne doit jamais exister plusieurs prix actifs simultanément pour un même produit sur un même périmètre (pays ou magasin) sur une période donnée. |
-
-
-### 6.3 Gestion des Promotions
-
-| Règle | Énoncé |
-|---|---|
-| **RG08** | Les promotions sont strictement délimitées par une date de début et une date de fin. |
-| **RG08bis** | Pour un produit donné, dans un magasin donné et à une date donnée, le prix applicable est déterminé selon l’ordre de priorité suivant : (1) prix magasin actif, (2) à défaut prix pays actif. |
-| **RG09** | Une promotion est définie soit au niveau pays (applicable à tous les magasins du pays), soit au niveau d’un magasin spécifique. || **RG09bis** | Une promotion cible **un seul produit** (`product_id` NOT NULL). Pas de bundle ni de set. |
-| **RG09ter** | Le type de remise (`discount_type`) est limité à deux valeurs : `PERCENTAGE` (pourcentage de réduction) ou `FIXED_PRICE` (prix fixe imposé). |
-### 6.4 Gestion des Ventes
-
-| Règle | Énoncé |
-|---|---|
-| **RG10** | Pour chaque vente, la quantité et le montant doivent être **strictement positifs**. |
-
-### 6.5 Workflow et Audit
-
-| Règle | Énoncé |
-|---|---|
-| **RG11** | L'application d'un nouveau prix est conditionnée par une **validation préalable**. |
-| **RG12** | Les statuts d'une demande suivent le cycle : `PENDING` → `APPROVED` → `APPLIED` *(ou `REJECTED` / `FAILED`)*. |
-| **RG13** | L'historisation des prix et le journal d'audit (actions utilisateurs) sont **obligatoires**. |
+| **Analyst** | Read-only access. |
+| **Store Manager** | Local management. |
+| **Country Manager** | Global vision and strategy. |
+| **Validator** | Approval authority for change requests. |
 
 ---
 
-## 7. KPI et Analytique
+## 5. Business Concepts
 
-### Structure de données
+### 5.1 Product and Price
 
-Utilisation d'une table analytique centrale unique : `obt_sales`.
+- **Product** — Entity belonging to a family, associated with one or more prices.
+- **Price** — Defined at country or store level. It can be of type `STANDARD` or `PROMO`, has a validity period, and is subject to historical archiving.
 
-### Indicateurs de performance
+When a price exists at both country and store level, the store price constitutes a local override and takes priority.
 
-- **Prix** — Comparaison des performances avant/après changement et benchmark par rapport au niveau pays.
-- **Promotion** :
-  - *Baseline* fixée à **14 jours** avant le début de la promotion.
-  - **KPI principal (uplift)** : calculé **uniquement au niveau produit** — même produit AVANT promo vs PENDANT promo. La famille ne doit jamais être utilisée pour ce calcul.
-  - **KPI complémentaire (famille)** : variation des ventes des autres produits de la même famille pendant la promo, pour détecter cannibalisation ou effet halo.
-  - Mesure de l'accélération (Quantité et CA).
+### 5.2 Promotion and Sale
+
+- **Promotion** — Temporal entity influencing promotional prices at national or local level.
+- **Sale** — Transaction made in store, linking a product to a price and, where applicable, to a promotion.
+
+### 5.3 Validation Flow
+
+- **Change request** — Request concerning a product or geographic scope, subject to validation before application.
 
 ---
 
-## 8. Architecture technique
+## 6. Business Rules
 
-| Composant | Technologie | Rôle |
+Business rules below are identified by a unique code (`RGxx`) to ensure traceability in code and tests.
+
+### 6.1 Scope and Organization
+
+| Rule | Statement |
+|---|---|
+| **RG01** | The application only manages **physical stores**. The channel concept (online / offline) is out of scope. |
+
+### 6.2 Pricing Management
+
+| Rule | Statement |
+|---|---|
+| **RG02** | A product can have **multiple successive prices** over time. |
+| **RG03** | A price is always defined for a country (`country_id` mandatory). The `store_id` field is optional. |
+| **RG04** | A price can be defined at **country** level (global price) or at **store** level (local specific price). |
+| **RG05** | Any promotional price must be **imperatively** associated with an active promotion. |
+| **RG06** | Price validity is bounded by `effective_from` and `effective_to` fields. |
+| **RG07** | There must never be multiple active prices simultaneously for the same product in the same scope (country or store) over a given period. |
+
+### 6.3 Promotion Management
+
+| Rule | Statement |
+|---|---|
+| **RG08** | Promotions are strictly bounded by a start date and an end date. |
+| **RG08bis** | For a given product, in a given store, at a given date, the applicable price is determined in the following priority order: (1) active store price, (2) failing that, active country price. |
+| **RG09** | A promotion is defined either at country level (applicable to all stores in the country) or at a specific store level. |
+| **RG09bis** | A promotion targets **a single product** (`product_id` NOT NULL). No bundles or sets. |
+| **RG09ter** | The discount type (`discount_type`) is limited to two values: `PERCENTAGE` (percentage reduction) or `FIXED_PRICE` (imposed fixed price). |
+
+### 6.4 Sales Management
+
+| Rule | Statement |
+|---|---|
+| **RG10** | For each sale, quantity and amount must be **strictly positive**. |
+
+### 6.5 Workflow and Audit
+
+| Rule | Statement |
+|---|---|
+| **RG11** | Applying a new price is conditional on **prior validation**. |
+| **RG12** | Request statuses follow the cycle: `PENDING` → `APPROVED` → `APPLIED` *(or `REJECTED` / `FAILED`)*. |
+| **RG13** | Price history and audit log (user actions) are **mandatory**. |
+
+---
+
+## 7. KPIs and Analytics
+
+### Data Structure
+
+Uses a single central analytical table: `obt_sales`.
+
+### Performance Indicators
+
+- **Price** — Before/after change performance comparison and country-level benchmark.
+- **Promotion**:
+  - *Baseline* fixed at **14 days** before promotion start.
+  - **Main KPI (uplift)**: calculated **only at product level** — same product BEFORE vs DURING promo. Family must never be used for this calculation.
+  - **Complementary KPI (family)**: variation of other product sales in the same family during the promo, to detect cannibalization or halo effect.
+  - Acceleration measurement (Quantity and Revenue).
+
+---
+
+## 8. Technical Architecture
+
+| Component | Technology | Role |
 |---|---|---|
-| **Backend** | FastAPI | Logique métier et exposition API REST |
-| **Frontend** | Django / Tailwind CSS | Interface utilisateur et rendu serveur (SSR) |
-| **Base de données** | PostgreSQL | Stockage `pct_core` (transac.) et `pct_analytics` (data) |
-| **Transformation** | dbt | Pipeline de données pour la table `obt_sales` |
-| **Service IA** | Python dédié | Analyse et suggestions en lecture seule |
-| **Déploiement** | Docker / GCP Cloud Run | Conteneurisation et hébergement cloud |
+| **Backend** | FastAPI | Business logic and REST API exposure |
+| **Frontend** | Django / Tailwind CSS | User interface and server-side rendering (SSR) |
+| **Database** | PostgreSQL | `pct_core` (transactional) and `pct_analytics` (data) storage |
+| **Transformation** | dbt | Data pipeline for the `obt_sales` table |
+| **AI Service** | Dedicated Python | Read-only analysis and suggestions |
+| **Deployment** | Docker / GCP Cloud Run | Containerization and cloud hosting |
 
 ---
 
-## 9. Contraintes
+## 9. Constraints
 
-- Réalisation en **autonomie complète**.
-- Architecture modulaire favorisant la maintenabilité.
-- Utilisation de données simulées cohérentes avec le secteur.
-- **Interdiction** d'automatisation des décisions de pricing (*humain dans la boucle*).
-- Exigence de **traçabilité totale** sur les flux de données et d'actions.
+- Carried out in **full autonomy**.
+- Modular architecture favoring maintainability.
+- Use of simulated data consistent with the sector.
+- **Prohibition** of pricing decision automation (*human in the loop*).
+- Requirement for **full traceability** on data flows and actions.
 
 ---
 
 ## 10. Definition of Done (DoD)
 
-Le projet est considéré comme finalisé après validation des étapes suivantes :
+The project is considered complete after validation of the following steps:
 
-- [ ] Instance PostgreSQL opérationnelle.
-- [ ] API FastAPI et application Django fonctionnelles et interconnectées.
-- [ ] Calculs analytiques validés via dbt.
-- [ ] KPI disponibles et conformes aux règles métier.
-- [ ] Service IA opérationnel en lecture seule.
-- [ ] Pipeline CI/CD et monitoring configurés.
-- [ ] Documentation technique et fonctionnelle exhaustive.
+- [ ] PostgreSQL instance operational.
+- [ ] FastAPI API and Django application functional and interconnected.
+- [ ] Analytical computations validated via dbt.
+- [ ] KPIs available and compliant with business rules.
+- [ ] AI service operational in read-only mode.
+- [ ] CI/CD pipeline and monitoring configured.
+- [ ] Exhaustive technical and functional documentation.

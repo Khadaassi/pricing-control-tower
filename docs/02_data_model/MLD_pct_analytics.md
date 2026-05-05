@@ -1,18 +1,18 @@
-# MLD — Schéma analytique `pct_analytics`
+# LDM — Analytical Schema `pct_analytics`
 
-## 1. Objectif
+## 1. Purpose
 
-Ce modèle logique de données décrit la structure du schéma `pct_analytics`, construit par dbt à partir des données transactionnelles du schéma `pct_core`.
+This logical data model describes the structure of the `pct_analytics` schema, built by dbt from transactional data in the `pct_core` schema.
 
-Il sert de référence pour :
+It serves as a reference for:
 
-* comprendre la couche analytique du projet
-* documenter les modèles dbt (staging → intermediate → marts)
-* guider l'interprétation des KPI
+* understanding the analytical layer of the project
+* documenting dbt models (staging → intermediate → marts)
+* guiding KPI interpretation
 
 ---
 
-## 2. Architecture des modèles dbt
+## 2. dbt Model Architecture
 
 ```
 sources (pct_core)
@@ -38,187 +38,187 @@ sources (pct_core)
 
 ---
 
-## 3. Couche Staging
+## 3. Staging Layer
 
-Les modèles staging extraient et renomment les colonnes depuis les tables source `pct_core`.
+Staging models extract and rename columns from the `pct_core` source tables.
 
-| Modèle | Source | Description |
+| Model | Source | Description |
 |---|---|---|
-| `stg_sales` | `pct_core.sales_transaction` | Transactions de vente brutes |
-| `stg_product` | `pct_core.product` | Référentiel produit |
-| `stg_product_family` | `pct_core.product_family` | Familles de produits |
-| `stg_store` | `pct_core.store` | Référentiel magasin |
-| `stg_country` | `pct_core.country` | Référentiel pays |
-| `stg_price` | `pct_core.price` | Référentiel prix |
-| `stg_promotion` | `pct_core.promotion` | Référentiel promotions |
+| `stg_sales` | `pct_core.sales_transaction` | Raw sales transactions |
+| `stg_product` | `pct_core.product` | Product reference |
+| `stg_product_family` | `pct_core.product_family` | Product families |
+| `stg_store` | `pct_core.store` | Store reference |
+| `stg_country` | `pct_core.country` | Country reference |
+| `stg_price` | `pct_core.price` | Price reference |
+| `stg_promotion` | `pct_core.promotion` | Promotion reference |
 
 ---
 
-## 4. Couche Intermediate
+## 4. Intermediate Layer
 
 ### 4.1 `int_sales_enriched`
 
-Jointure des ventes avec les dimensions produit, magasin, prix et promotion.
+Joins sales with product, store, price, and promotion dimensions.
 
-| Champ | Description |
+| Field | Description |
 |---|---|
-| `transaction_id` | PK — identifiant unique de la vente |
-| `transaction_date` | Date et heure de la transaction |
-| `product_id`, `product_code`, `product_name` | Dimensions produit |
-| `brand`, `model`, `product_family_id` | Attributs produit |
-| `store_id`, `store_code`, `store_name` | Dimensions magasin |
-| `country_id`, `city`, `region` | Dimensions géographiques |
-| `price_id`, `price_amount`, `currency_code` | Prix de référence |
-| `price_effective_from`, `price_effective_to` | Période de validité du prix |
-| `price_scope` | `COUNTRY` ou `STORE` |
-| `price_type` | `STANDARD` ou `PROMO` |
-| `is_store_specific_price` | Booléen — prix magasin spécifique |
-| `is_promotional_price` | Booléen — prix promotionnel |
-| `is_price_temporally_valid` | Booléen — validité temporelle du prix |
-| `price_difference` | Écart entre prix payé et prix de référence |
-| `price_difference_rate` | Taux d'écart prix payé vs référence |
-| `promotion_id`, `promotion_code`, `promotion_name` | Dimensions promotion |
-| `discount_type`, `discount_value` | Type et valeur de remise |
-| `promotion_start_date`, `promotion_end_date` | Période promotion |
-| `quantity`, `unit_price`, `revenue` | Mesures transactionnelles |
-| `is_promo` | Booléen — transaction liée à une promo |
+| `transaction_id` | PK — unique sale identifier |
+| `transaction_date` | Transaction date and time |
+| `product_id`, `product_code`, `product_name` | Product dimensions |
+| `brand`, `model`, `product_family_id` | Product attributes |
+| `store_id`, `store_code`, `store_name` | Store dimensions |
+| `country_id`, `city`, `region` | Geographic dimensions |
+| `price_id`, `price_amount`, `currency_code` | Reference price |
+| `price_effective_from`, `price_effective_to` | Price validity period |
+| `price_scope` | `COUNTRY` or `STORE` |
+| `price_type` | `STANDARD` or `PROMO` |
+| `is_store_specific_price` | Boolean — store-specific price |
+| `is_promotional_price` | Boolean — promotional price |
+| `is_price_temporally_valid` | Boolean — temporal price validity |
+| `price_difference` | Gap between paid price and reference price |
+| `price_difference_rate` | Paid price vs reference price deviation rate |
+| `promotion_id`, `promotion_code`, `promotion_name` | Promotion dimensions |
+| `discount_type`, `discount_value` | Discount type and value |
+| `promotion_start_date`, `promotion_end_date` | Promotion period |
+| `quantity`, `unit_price`, `revenue` | Transaction measures |
+| `is_promo` | Boolean — transaction linked to a promotion |
 
 ---
 
-## 5. Couche Marts
+## 5. Marts Layer
 
 ### 5.1 `obt_sales` — One Big Table
 
-Table analytique centrale dénormalisée. Grain : **1 ligne = 1 transaction de vente**.
+Central denormalized analytical table. Grain: **1 row = 1 sales transaction**.
 
-Contient toutes les dimensions (produit, famille, magasin, pays, prix, promotion) et les mesures associées.
+Contains all dimensions (product, family, store, country, price, promotion) and associated measures.
 
-#### Champs principaux
+#### Main Fields
 
-| Catégorie | Champs |
+| Category | Fields |
 |---|---|
 | Transaction | `transaction_id`, `transaction_date`, `transaction_day`, `transaction_month` |
-| Produit | `product_id`, `product_code`, `product_name`, `brand`, `model` |
-| Famille | `product_family_id`, `product_family_code`, `product_family_name` |
-| Magasin | `store_id`, `store_code`, `store_name`, `city`, `region` |
-| Géographie | `country_id`, `country_code`, `country_name` |
-| Prix | `price_id`, `price_amount`, `currency_code`, `price_scope`, `price_type` |
+| Product | `product_id`, `product_code`, `product_name`, `brand`, `model` |
+| Family | `product_family_id`, `product_family_code`, `product_family_name` |
+| Store | `store_id`, `store_code`, `store_name`, `city`, `region` |
+| Geography | `country_id`, `country_code`, `country_name` |
+| Price | `price_id`, `price_amount`, `currency_code`, `price_scope`, `price_type` |
 | Classification | `is_store_specific_price`, `is_promotional_price`, `is_price_temporally_valid` |
-| Performance prix | `unit_price`, `price_difference`, `price_difference_rate` |
+| Price Performance | `unit_price`, `price_difference`, `price_difference_rate` |
 | Promotion | `promotion_id`, `promotion_code`, `has_promotion`, `is_promotion_temporally_valid` |
-| Mesures | `quantity`, `revenue` |
+| Measures | `quantity`, `revenue` |
 | Flags | `is_promo` |
 
 ---
 
-### 5.2 `kpi_price_performance` — KPI Performance Prix
+### 5.2 `kpi_price_performance` — Price Performance KPI
 
-Modèle de KPI basé sur une comparaison glissante de 30 jours et un benchmark pays.
+KPI model based on a 30-day rolling comparison and a country benchmark.
 
 #### Grain
 
-**1 ligne = 1 combinaison (country_id, store_id, product_id)**
+**1 row = 1 combination (country_id, store_id, product_id)**
 
-#### Périodes d'analyse
+#### Analysis Periods
 
-| Période | Définition |
+| Period | Definition |
 |---|---|
-| Période courante | `max_date - 30 jours` → `max_date` |
-| Période précédente | `max_date - 60 jours` → `max_date - 30 jours` |
+| Current period | `max_date - 30 days` → `max_date` |
+| Previous period | `max_date - 60 days` → `max_date - 30 days` |
 
-#### Métriques calculées
+#### Computed Metrics
 
-| Champ | Description |
+| Field | Description |
 |---|---|
-| `current_revenue` / `previous_revenue` | CA sur chaque période |
-| `revenue_change_pct` | Variation de CA en % |
-| `current_quantity` / `previous_quantity` | Quantités vendues par période |
-| `quantity_change_pct` | Variation de quantité en % |
-| `current_avg_selling_price` | Prix moyen de vente (période courante) |
-| `previous_avg_selling_price` | Prix moyen de vente (période précédente) |
-| `avg_price_change_pct` | Variation du prix moyen en % |
-| `country_avg_selling_price` | Prix moyen pays pour le même produit |
-| `price_vs_country_benchmark_pct` | Écart du prix magasin vs benchmark pays (%) |
-| `current_promo_revenue_share` | Part du CA sous promotion (%) |
+| `current_revenue` / `previous_revenue` | Revenue for each period |
+| `revenue_change_pct` | Revenue change (%) |
+| `current_quantity` / `previous_quantity` | Quantities sold per period |
+| `quantity_change_pct` | Quantity change (%) |
+| `current_avg_selling_price` | Average selling price (current period) |
+| `previous_avg_selling_price` | Average selling price (previous period) |
+| `avg_price_change_pct` | Average price change (%) |
+| `country_avg_selling_price` | Country average price for the same product |
+| `price_vs_country_benchmark_pct` | Store price vs country benchmark deviation (%) |
+| `current_promo_revenue_share` | Revenue share under promotion (%) |
 
-#### Flags métier
+#### Business Flags
 
-| Flag | Valeurs | Logique |
+| Flag | Values | Logic |
 |---|---|---|
-| `performance_flag` | `NEW_ACTIVITY`, `STRONG_GROWTH`, `STRONG_DECLINE`, `STABLE`, `NOT_COMPARABLE` | Basé sur `revenue_change_pct` (seuil ±20%) |
-| `benchmark_flag` | `ABOVE_COUNTRY_BENCHMARK`, `BELOW_COUNTRY_BENCHMARK`, `ALIGNED_WITH_COUNTRY_BENCHMARK`, `NOT_COMPARABLE` | Comparaison prix moyen magasin vs prix moyen pays |
+| `performance_flag` | `NEW_ACTIVITY`, `STRONG_GROWTH`, `STRONG_DECLINE`, `STABLE`, `NOT_COMPARABLE` | Based on `revenue_change_pct` (threshold ±20%) |
+| `benchmark_flag` | `ABOVE_COUNTRY_BENCHMARK`, `BELOW_COUNTRY_BENCHMARK`, `ALIGNED_WITH_COUNTRY_BENCHMARK`, `NOT_COMPARABLE` | Store avg price vs country avg price comparison |
 
-#### Règles des flags
+#### Flag Rules
 
-**performance_flag :**
-- `NEW_ACTIVITY` — pas de CA précédent mais CA courant > 0
-- `STRONG_GROWTH` — variation CA ≥ +20%
-- `STRONG_DECLINE` — variation CA ≤ -20%
-- `STABLE` — variation CA entre -20% et +20%
-- `NOT_COMPARABLE` — aucune condition remplie
+**performance_flag:**
+- `NEW_ACTIVITY` — no previous revenue but current revenue > 0
+- `STRONG_GROWTH` — revenue change ≥ +20%
+- `STRONG_DECLINE` — revenue change ≤ -20%
+- `STABLE` — revenue change between -20% and +20%
+- `NOT_COMPARABLE` — no condition met
 
-**benchmark_flag :**
-- `ALIGNED_WITH_COUNTRY_BENCHMARK` — prix moyen magasin = prix moyen pays (arrondi à 2 décimales)
-- `ABOVE_COUNTRY_BENCHMARK` — prix moyen magasin > prix moyen pays
-- `BELOW_COUNTRY_BENCHMARK` — prix moyen magasin < prix moyen pays
-- `NOT_COMPARABLE` — données insuffisantes (prix null)
+**benchmark_flag:**
+- `ALIGNED_WITH_COUNTRY_BENCHMARK` — store avg price = country avg price (rounded to 2 decimals)
+- `ABOVE_COUNTRY_BENCHMARK` — store avg price > country avg price
+- `BELOW_COUNTRY_BENCHMARK` — store avg price < country avg price
+- `NOT_COMPARABLE` — insufficient data (null price)
 
 ---
 
-### 5.3 `kpi_promo_performance` — KPI Performance Promotionnelle
+### 5.3 `kpi_promo_performance` — Promotional Performance KPI
 
-Modèle de KPI mesurant l'efficacité des promotions par comparaison produit AVANT vs PENDANT la promo.
+KPI model measuring promotion effectiveness by comparing product sales BEFORE vs DURING the promo.
 
-> **Règle métier** : L'uplift principal est calculé **uniquement au niveau produit** (même produit avant vs pendant promo). La famille n'est **jamais** utilisée pour calculer l'uplift principal.
+> **Business rule**: The main uplift is calculated **only at product level** (same product before vs during promo). Family is **never** used to calculate the main uplift.
 
 #### Grain
 
-**1 ligne = 1 combinaison (country_id, store_id, product_id, promotion_id)**
+**1 row = 1 combination (country_id, store_id, product_id, promotion_id)**
 
-#### Périodes d'analyse
+#### Analysis Periods
 
-| Période | Définition |
+| Period | Definition |
 |---|---|
-| Période promo | `promotion_start_date` → `promotion_end_date` |
-| Période baseline | `promotion_start_date - 14 jours` → `promotion_start_date - 1 jour` |
+| Promo period | `promotion_start_date` → `promotion_end_date` |
+| Baseline period | `promotion_start_date - 14 days` → `promotion_start_date - 1 day` |
 
-#### KPI principal — Uplift produit
+#### Main KPI — Product Uplift
 
-| Champ | Description |
+| Field | Description |
 |---|---|
-| `promo_quantity` / `promo_revenue` | Ventes du produit pendant la promo |
-| `baseline_quantity` / `baseline_revenue` | Ventes du **même produit** avant la promo (14j) |
-| `promo_daily_quantity` / `promo_daily_revenue` | Moyenne journalière pendant la promo |
-| `baseline_daily_quantity` / `baseline_daily_revenue` | Moyenne journalière avant la promo |
-| `quantity_uplift_rate` | Taux d'accélération quantité (décimal) |
-| `quantity_uplift_pct` | Accélération quantité en % |
-| `additional_quantity` | Volume incrémental attribuable à la promo |
-| `revenue_uplift_rate` | Taux d'accélération CA (décimal) |
-| `revenue_uplift_pct` | Accélération CA en % |
-| `additional_revenue` | CA incrémental attribuable à la promo |
-| `avg_price_discount_effect_pct` | Variation du prix moyen de vente (%) |
+| `promo_quantity` / `promo_revenue` | Product sales during the promotion |
+| `baseline_quantity` / `baseline_revenue` | Sales of the **same product** before the promotion (14d) |
+| `promo_daily_quantity` / `promo_daily_revenue` | Daily average during the promotion |
+| `baseline_daily_quantity` / `baseline_daily_revenue` | Daily average before the promotion |
+| `quantity_uplift_rate` | Quantity acceleration rate (decimal) |
+| `quantity_uplift_pct` | Quantity acceleration (%) |
+| `additional_quantity` | Incremental volume attributable to the promotion |
+| `revenue_uplift_rate` | Revenue acceleration rate (decimal) |
+| `revenue_uplift_pct` | Revenue acceleration (%) |
+| `additional_revenue` | Incremental revenue attributable to the promotion |
+| `avg_price_discount_effect_pct` | Average selling price change (%) |
 
-#### KPI complémentaire — Effet famille (cannibalisation / halo)
+#### Complementary KPI — Family Effect (Cannibalization / Halo)
 
-| Champ | Description |
+| Field | Description |
 |---|---|
-| `family_promo_quantity` / `family_promo_revenue` | Ventes des **autres produits** de la même famille pendant la promo |
-| `family_baseline_quantity` / `family_baseline_revenue` | Ventes des autres produits de la famille avant la promo |
-| `family_quantity_variation_pct` | Variation quantité famille (%) |
-| `family_revenue_variation_pct` | Variation CA famille (%) |
-| `family_effect_flag` | Indicateur d'effet famille |
+| `family_promo_quantity` / `family_promo_revenue` | Sales of **other products** in the same family during the promotion |
+| `family_baseline_quantity` / `family_baseline_revenue` | Sales of other family products before the promotion |
+| `family_quantity_variation_pct` | Family quantity change (%) |
+| `family_revenue_variation_pct` | Family revenue change (%) |
+| `family_effect_flag` | Family effect indicator |
 
-#### Flags métier
+#### Business Flags
 
-**promo_performance_flag :**
-- `EFFICIENT_PROMO` — uplift quantité > 0 ET uplift CA > 0
-- `VOLUME_ONLY_PROMO` — uplift quantité > 0 mais uplift CA ≤ 0
-- `UNDERPERFORMING_PROMO` — uplift quantité ≤ 0 ET uplift CA < 0
-- `MIXED_PERFORMANCE` — autres combinaisons
-- `NOT_COMPARABLE` — baseline à 0 (pas de données avant promo)
+**promo_performance_flag:**
+- `EFFICIENT_PROMO` — quantity uplift > 0 AND revenue uplift > 0
+- `VOLUME_ONLY_PROMO` — quantity uplift > 0 but revenue uplift ≤ 0
+- `UNDERPERFORMING_PROMO` — quantity uplift ≤ 0 AND revenue uplift < 0
+- `MIXED_PERFORMANCE` — other combinations
+- `NOT_COMPARABLE` — baseline at 0 (no data before promo)
 
-**family_effect_flag :**
-- `CANNIBALIZATION` — variation quantité famille < -10%
-- `HALO_EFFECT` — variation quantité famille > +10%
-- `NEUTRAL` — variation entre -10% et +10%
-- `NO_FAMILY_DATA` — pas de données famille disponibles
+**family_effect_flag:**
+- `CANNIBALIZATION` — family quantity change < -10%
+- `HALO_EFFECT` — family quantity change > +10%
+- `NEUTRAL` — change between -10% and +10%
+- `NO_FAMILY_DATA` — no family data available

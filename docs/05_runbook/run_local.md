@@ -1,15 +1,15 @@
-# Run Local — Guide d'exécution locale
+# Run Local — Local Execution Guide
 
-## Prérequis
+## Prerequisites
 
 - Python 3.11+
 - Docker & Docker Compose
-- uv (gestionnaire de packages Python)
+- uv (Python package manager)
 - Git
 
 ---
 
-## 1. Cloner le projet
+## 1. Clone the Project
 
 ```bash
 git clone <repo_url>
@@ -18,14 +18,14 @@ cd princing-control-tower
 
 ---
 
-## 2. Démarrer PostgreSQL
+## 2. Start PostgreSQL
 
 ```bash
 cd backend
 docker compose up -d
 ```
 
-Vérification :
+Verification:
 
 ```bash
 docker compose exec postgres psql -U pct_user -d pct -c "SELECT 1;"
@@ -33,7 +33,7 @@ docker compose exec postgres psql -U pct_user -d pct -c "SELECT 1;"
 
 ---
 
-## 3. Configurer l'environnement Python
+## 3. Configure the Python Environment
 
 ```bash
 cd backend
@@ -44,9 +44,9 @@ uv pip install -e ".[dev]"
 
 ---
 
-## 4. Variables d'environnement
+## 4. Environment Variables
 
-Créer un fichier `backend/.env` :
+Create a `backend/.env` file:
 
 ```env
 POSTGRES_USER=pct_user
@@ -57,55 +57,56 @@ DATABASE_URL=postgresql://pct_user:pct_password@localhost:5432/pct
 
 ---
 
-## 5. Appliquer les migrations
+## 5. Apply Migrations
 
 ```bash
 cd backend
 alembic upgrade head
 ```
 
-Cela crée le schéma `pct_core` et toutes les tables (country, store, product, price, promotion, sales_transaction, etc.).
+This creates the `pct_core` schema and all tables (country, store, product, price, promotion, sales_transaction, etc.).
 
 ---
 
-## 6. Charger les données de référence
+## 6. Load Reference Data
 
 ```bash
 python data/generation/seed_reference_data.py
 ```
 
-Insère les utilisateurs, pays, magasins, familles, produits, promotions et prix.
+Inserts users, countries, stores, families, products, promotions, and prices.
 
 ---
 
-## 7. Générer et charger les ventes
+## 7. Generate and Load Sales
 
 ```bash
-# Génération du CSV
+# Generate the CSV
 python data/generation/generate_sales_dataset.py
 
-# Chargement en base
+# Load into database
 python data/generation/load_sales_transactions.py
 ```
 
-Le fichier généré est `data/generated/sales_transactions.csv` (~20 000 lignes).
+The generated file is `data/generated/sales_transactions.csv` (~20,000 rows).
 
 ---
 
-## 8. Exécuter dbt
+## 8. Run dbt
 
 ```bash
 cd data/dbt
 dbt run
 ```
 
-Cela crée les vues dans le schéma `pct_analytics` :
+This creates views in the `pct_analytics` schema:
 - `stg_*` (staging)
 - `int_sales_enriched` (intermediate)
 - `obt_sales` (mart — OBT)
 - `kpi_price_performance` (mart — KPI)
+- `kpi_promo_performance` (mart — KPI)
 
-### Tests dbt
+### dbt Tests
 
 ```bash
 dbt test
@@ -113,7 +114,7 @@ dbt test
 
 ---
 
-## 9. Lancer l'API
+## 9. Start the API
 
 ```bash
 cd backend
@@ -121,37 +122,37 @@ source .venv/bin/activate
 uvicorn app.main:app --reload --port 8000
 ```
 
-L'API est accessible sur `http://localhost:8000`.
+The API is accessible at `http://localhost:8000`.
 
-Documentation interactive : `http://localhost:8000/docs`
+Interactive documentation: `http://localhost:8000/docs`
 
 ---
 
-## 10. Vérifications rapides
+## 10. Quick Verifications
 
 ```bash
-# Santé de l'API
+# API health
 curl http://localhost:8000/health
 
-# Liste des produits
+# Product list
 curl http://localhost:8000/products
 
-# KPI depuis psql
+# KPIs from psql
 docker compose exec postgres psql -U pct_user -d pct \
   -c "SELECT * FROM pct_analytics.kpi_price_performance LIMIT 5;"
 ```
 
 ---
 
-## Résumé des commandes
+## Command Summary
 
-| Étape | Commande |
+| Step | Command |
 |---|---|
 | PostgreSQL | `cd backend && docker compose up -d` |
 | Migrations | `cd backend && alembic upgrade head` |
-| Seed référentiel | `python data/generation/seed_reference_data.py` |
-| Génération ventes | `python data/generation/generate_sales_dataset.py` |
-| Chargement ventes | `python data/generation/load_sales_transactions.py` |
+| Reference seed | `python data/generation/seed_reference_data.py` |
+| Sales generation | `python data/generation/generate_sales_dataset.py` |
+| Sales loading | `python data/generation/load_sales_transactions.py` |
 | dbt | `cd data/dbt && dbt run` |
-| Tests dbt | `cd data/dbt && dbt test` |
+| dbt tests | `cd data/dbt && dbt test` |
 | API | `cd backend && uvicorn app.main:app --reload` |

@@ -1,21 +1,21 @@
-# MPD — Schéma physique PostgreSQL `pct_core`
+# PDM — PostgreSQL Physical Schema `pct_core`
 
-## 1. Objectif
+## 1. Purpose
 
-Ce modèle physique de données (MPD) décrit l’implémentation concrète du schéma `pct_core` dans PostgreSQL.
+This physical data model (PDM) describes the concrete implementation of the `pct_core` schema in PostgreSQL.
 
-Il précise :
+It specifies:
 
-* les types SQL
-* les contraintes (PK, FK, UNIQUE)
-* les valeurs par défaut
-* les règles d’intégrité
+* SQL types
+* Constraints (PK, FK, UNIQUE)
+* Default values
+* Integrity rules
 
-Ce modèle est directement issu des migrations Alembic et représente l’état réel de la base.
+This model is directly derived from Alembic migrations and represents the actual state of the database.
 
 ---
 
-## 2. Schéma
+## 2. Schema
 
 ```sql
 CREATE SCHEMA IF NOT EXISTS pct_core;
@@ -195,11 +195,66 @@ CREATE TABLE pct_core.price (
 
 ---
 
-## 4. Contraintes et règles d’intégrité
+### 3.9 sales_transaction
 
-### Clés primaires
+```sql
+CREATE TABLE pct_core.sales_transaction (
+    transaction_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    transaction_date TIMESTAMP NOT NULL,
+    product_id INTEGER NOT NULL,
+    store_id INTEGER NOT NULL,
+    price_id INTEGER NOT NULL,
+    promotion_id INTEGER,
+    quantity INTEGER NOT NULL,
+    unit_price NUMERIC(10,2) NOT NULL,
+    revenue NUMERIC(12,2) NOT NULL,
+    is_promo BOOLEAN NOT NULL,
+    price_scope VARCHAR(20) NOT NULL,
+    price_type VARCHAR(20) NOT NULL,
+    CONSTRAINT fk_sales_transaction_product
+        FOREIGN KEY (product_id) REFERENCES pct_core.product(id),
+    CONSTRAINT fk_sales_transaction_store
+        FOREIGN KEY (store_id) REFERENCES pct_core.store(id),
+    CONSTRAINT fk_sales_transaction_price
+        FOREIGN KEY (price_id) REFERENCES pct_core.price(id),
+    CONSTRAINT fk_sales_transaction_promotion
+        FOREIGN KEY (promotion_id) REFERENCES pct_core.promotion(id),
+    CONSTRAINT chk_sales_transaction_quantity_positive
+        CHECK (quantity > 0),
+    CONSTRAINT chk_sales_transaction_unit_price_non_negative
+        CHECK (unit_price >= 0),
+    CONSTRAINT chk_sales_transaction_revenue_non_negative
+        CHECK (revenue >= 0),
+    CONSTRAINT chk_sales_transaction_revenue_consistency
+        CHECK (revenue = quantity * unit_price),
+    CONSTRAINT chk_sales_transaction_promo_consistency
+        CHECK (
+            (is_promo = TRUE AND promotion_id IS NOT NULL)
+            OR (is_promo = FALSE AND promotion_id IS NULL)
+        ),
+    CONSTRAINT chk_sales_transaction_price_scope
+        CHECK (price_scope IN ('COUNTRY', 'STORE')),
+    CONSTRAINT chk_sales_transaction_price_type
+        CHECK (price_type IN ('STANDARD', 'PROMO'))
+);
 
-Toutes les tables utilisent une clé primaire de type :
+CREATE INDEX ix_sales_transaction_transaction_date
+    ON pct_core.sales_transaction (transaction_date);
+CREATE INDEX ix_sales_transaction_product_id
+    ON pct_core.sales_transaction (product_id);
+CREATE INDEX ix_sales_transaction_store_id
+    ON pct_core.sales_transaction (store_id);
+CREATE INDEX ix_sales_transaction_promotion_id
+    ON pct_core.sales_transaction (promotion_id);
+```
+
+---
+
+## 4. Constraints and Integrity Rules
+
+### Primary Keys
+
+All tables use a primary key of type:
 
 ```sql
 INTEGER GENERATED ALWAYS AS IDENTITY
@@ -207,7 +262,7 @@ INTEGER GENERATED ALWAYS AS IDENTITY
 
 ---
 
-### Contraintes d’unicité
+### Unique Constraints
 
 * `country.code`
 * `store.code`
@@ -218,9 +273,9 @@ INTEGER GENERATED ALWAYS AS IDENTITY
 
 ---
 
-### Clés étrangères
+### Foreign Keys
 
-Les relations sont assurées par des contraintes FK explicites :
+Relationships are enforced by explicit FK constraints:
 
 * store → country
 * product → product_family
@@ -230,10 +285,11 @@ Les relations sont assurées par des contraintes FK explicites :
 * promotion → store
 * promotion → user_account
 * price → product, country, store, promotion, user_account
+* sales_transaction → product, store, price, promotion
 
 ---
 
-### Valeurs par défaut
+### Default Values
 
 * `active` → TRUE
 * `currency_code` → 'EUR'
@@ -242,38 +298,40 @@ Les relations sont assurées par des contraintes FK explicites :
 
 ---
 
-## 5. Règles métier implicites
+## 5. Implicit Business Rules
 
-### Scope des prix
+### Price Scope
 
-* `price_scope = 'COUNTRY'` → prix au niveau pays
-* `price_scope = 'STORE'` → prix spécifique magasin
+* `price_scope = 'COUNTRY'` → country-level price
+* `price_scope = 'STORE'` → store-specific price
 
-### Cohérence attendue
+### Expected Consistency
 
-* un `store` appartient toujours à un `country`
-* un `price` de type STORE doit référencer un `store`
-* un `price` de type COUNTRY doit référencer un `country`
+* a `store` always belongs to a `country`
+* a `price` with scope `STORE` must reference a `store`
+* a `price` with scope `COUNTRY` must not reference a `store`
+* a promotional price must be linked to a promotion
+* a standard price must not be linked to a promotion
 
-Ces règles sont actuellement gérées au niveau applicatif.
+These rules are enforced by database constraints added via Alembic.
 
 ---
 
-## 6. Évolutions prévues
+## 6. Planned Evolutions
 
-* ajout de contraintes CHECK (cohérence `price_scope`)
-* gestion des chevauchements de périodes de prix
-* ajout d’index pour performance
-* création du schéma analytique `pct_analytics`
+* Handle overlapping price periods
+* Add additional indexes to optimize analytical queries
+* Add price change workflow
+* Add price change audit trail
 
 ---
 
 ## 7. Conclusion
 
-Le MPD reflète fidèlement l’implémentation PostgreSQL du modèle métier.
+This PDM faithfully reflects the PostgreSQL implementation of the business model.
 
-Il constitue :
+It provides:
 
-* une base robuste pour le backend
-* un socle pour les évolutions futures
-* un élément clé de validation pour la certification
+* a robust foundation for the backend
+* a base for future evolutions
+* a key validation element for the certification

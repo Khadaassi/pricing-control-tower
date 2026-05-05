@@ -1,8 +1,8 @@
 # Architecture Overview — Pricing Control Tower
 
-## 1. Vue d'ensemble
+## 1. Overview
 
-Le projet Pricing Control Tower est organisé en couches indépendantes communicant via des interfaces bien définies :
+The Pricing Control Tower project is organized in independent layers communicating via well-defined interfaces:
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -20,88 +20,88 @@ Le projet Pricing Control Tower est organisé en couches indépendantes communic
 │                                                     │
 │  ┌─────────────┐          ┌──────────────────┐     │
 │  │  pct_core   │          │  pct_analytics   │     │
-│  │ (transac.)  │──dbt────▶│ (vues analytiques)│    │
+│  │ (transac.)  │──dbt────▶│ (analytical views)│    │
 │  └─────────────┘          └──────────────────┘     │
 └─────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Composants
+## 2. Components
 
-| Composant | Technologie | Rôle |
+| Component | Technology | Role |
 |---|---|---|
-| **Backend** | FastAPI + SQLAlchemy | API REST, logique métier, accès données transactionnelles |
-| **Frontend** | Django + Tailwind CSS | Interface utilisateur, rendu serveur (SSR) |
-| **Base de données** | PostgreSQL 16 | Stockage transactionnel (`pct_core`) et analytique (`pct_analytics`) |
-| **Transformation** | dbt (dbt-postgres) | Pipeline de transformation : staging → intermediate → marts |
-| **Génération de données** | Python (scripts) | Simulation de ventes réalistes pour le MVP |
-| **Conteneurisation** | Docker Compose | Orchestration locale (PostgreSQL) |
+| **Backend** | FastAPI + SQLAlchemy | REST API, business logic, transactional data access |
+| **Frontend** | Django + Tailwind CSS | User interface, server-side rendering (SSR) |
+| **Database** | PostgreSQL 16 | Transactional (`pct_core`) and analytical (`pct_analytics`) storage |
+| **Transformation** | dbt (dbt-postgres) | Transformation pipeline: staging → intermediate → marts |
+| **Data Generation** | Python (scripts) | Realistic sales simulation for MVP |
+| **Containerization** | Docker Compose | Local orchestration (PostgreSQL) |
 
 ---
 
-## 3. Schémas de base de données
+## 3. Database Schemas
 
-### `pct_core` — Données transactionnelles
+### `pct_core` — Transactional Data
 
-Géré par Alembic (migrations versionnées). Contient :
+Managed by Alembic (versioned migrations). Contains:
 
-- `country`, `store` — Référentiel géographique
-- `product_family`, `product`, `product_image` — Référentiel produit
-- `price` — Prix (standard et promotionnel)
+- `country`, `store` — Geographic reference
+- `product_family`, `product`, `product_image` — Product reference
+- `price` — Prices (standard and promotional)
 - `promotion` — Promotions
-- `sales_transaction` — Transactions de vente
-- `user_account` — Utilisateurs
+- `sales_transaction` — Sales transactions
+- `user_account` — Users
 
-### `pct_analytics` — Données analytiques
+### `pct_analytics` — Analytical Data
 
-Géré par dbt. Contient des vues matérialisées :
+Managed by dbt. Contains materialized views:
 
-- **Staging** : `stg_sales`, `stg_product`, `stg_store`, `stg_country`, `stg_price`, `stg_promotion`, `stg_product_family`
-- **Intermediate** : `int_sales_enriched`
-- **Marts** : `obt_sales`, `kpi_price_performance`
+- **Staging**: `stg_sales`, `stg_product`, `stg_store`, `stg_country`, `stg_price`, `stg_promotion`, `stg_product_family`
+- **Intermediate**: `int_sales_enriched`
+- **Marts**: `obt_sales`, `kpi_price_performance`, `kpi_promo_performance`
 
 ---
 
-## 4. Organisation du code
+## 4. Code Organization
 
 ```
 princing-control-tower/
-├── backend/              # API FastAPI + migrations Alembic
-│   ├── app/              # Code applicatif (routes, modèles, schémas)
-│   ├── alembic/          # Migrations de schéma pct_core
-│   ├── tests/            # Tests unitaires et intégration
+├── backend/              # FastAPI API + Alembic migrations
+│   ├── app/              # Application code (routes, models, schemas)
+│   ├── alembic/          # pct_core schema migrations
+│   ├── tests/            # Unit and integration tests
 │   └── docker-compose.yml
-├── data/                 # Couche data
-│   ├── dbt/              # Projet dbt (staging, intermediate, marts)
-│   ├── generated/        # Fichiers CSV générés
-│   └── generation/       # Scripts de génération de données
-├── docs/                 # Documentation complète
-│   ├── 01_functional/    # Cahier des charges
-│   ├── 02_data_model/    # MCD, MLD, MPD
-│   ├── 03_architecture/  # Architecture, flux, choix techniques
+├── data/                 # Data layer
+│   ├── dbt/              # dbt project (staging, intermediate, marts)
+│   ├── generated/        # Generated CSV files
+│   └── generation/       # Data generation scripts
+├── docs/                 # Full documentation
+│   ├── 01_functional/    # Functional specification
+│   ├── 02_data_model/    # CDM, LDM, PDM
+│   ├── 03_architecture/  # Architecture, flows, technical choices
 │   ├── 04_agilite/       # Backlog, epics, user stories
-│   └── 05_runbook/       # Installation, déploiement, monitoring
-└── frontend/             # Application Django (à venir)
+│   └── 05_runbook/       # Installation, deployment, monitoring
+└── frontend/             # Django application (upcoming)
 ```
 
 ---
 
-## 5. Communication entre composants
+## 5. Inter-component Communication
 
-| Source | Destination | Protocole | Description |
+| Source | Destination | Protocol | Description |
 |---|---|---|---|
-| Frontend | Backend | HTTP REST | Consommation des endpoints API |
-| Backend | PostgreSQL | SQL (asyncpg) | CRUD sur `pct_core` |
-| dbt | PostgreSQL | SQL | Lecture `pct_core`, écriture `pct_analytics` |
-| Scripts génération | PostgreSQL | SQL (psycopg2) | Insertion des données simulées |
+| Frontend | Backend | HTTP REST | API endpoint consumption |
+| Backend | PostgreSQL | SQL (asyncpg) | CRUD on `pct_core` |
+| dbt | PostgreSQL | SQL | Read `pct_core`, write `pct_analytics` |
+| Generation scripts | PostgreSQL | SQL (psycopg2) | Simulated data insertion |
 
 ---
 
-## 6. Principes d'architecture
+## 6. Architecture Principles
 
-- **Séparation des responsabilités** : chaque composant a un rôle unique
-- **Couche analytique en lecture seule** : dbt ne modifie jamais `pct_core`
-- **Données simulées reproductibles** : seed fixe pour la génération
-- **Migrations versionnées** : Alembic pour toute modification de schéma
-- **API stateless** : pas de session côté serveur
+- **Separation of concerns**: each component has a single role
+- **Read-only analytical layer**: dbt never modifies `pct_core`
+- **Reproducible simulated data**: fixed seed for generation
+- **Versioned migrations**: Alembic for all schema changes
+- **Stateless API**: no server-side sessions
