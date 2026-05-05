@@ -5,6 +5,8 @@ from app.models.product_family import ProductFamily
 from app.models.promotion import Promotion
 from app.models.sales_transaction import SalesTransaction
 from app.models.price_change_request import PriceChangeRequest
+from app.models.audit_log import AuditLog
+from app.models.price_history import PriceHistory
 
 __all__ = [
     "Base", 
@@ -13,5 +15,7 @@ __all__ = [
     "Price", 
     "Promotion", 
     "SalesTransaction",
-    "PriceChangeRequest"
+    "PriceChangeRequest",
+    "AuditLog",
+    "PriceHistory"
 ]
