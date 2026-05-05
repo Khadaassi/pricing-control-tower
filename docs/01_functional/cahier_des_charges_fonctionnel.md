@@ -98,6 +98,9 @@ When a price exists at both country and store level, the store price constitutes
 
 - **Change request** — Request concerning a product or geographic scope, subject to validation before application.
 
+In the MVP, a single administrator user can create, validate, and apply a price change request.
+In a future evolution, rights will be restricted to authorized managers, with mandatory validation by a distinct role.
+
 ---
 
 ## 6. Business Rules
