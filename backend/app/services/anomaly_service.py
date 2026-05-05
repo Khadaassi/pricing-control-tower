@@ -1,11 +1,10 @@
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.obt_sales import ObtSales
 from app.schemas.anomaly import BusinessAnomalyRead
-
 
 LOW_PROMOTION_REVENUE = "LOW_PROMOTION_REVENUE"
 
