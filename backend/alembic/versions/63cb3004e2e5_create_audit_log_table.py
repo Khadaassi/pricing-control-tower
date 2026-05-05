@@ -34,7 +34,7 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(
             ["price_change_request_id"],
-            ["pct_core.price_change_request.request_id"],
+            ["pct_core.price_change_request.id"],
             name="fk_audit_log_price_change_request",
         ),
         sa.ForeignKeyConstraint(
