@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import HTTPException, status as http_status
 from sqlalchemy import select
@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models.audit_log import AuditLog
 from app.models.price import Price
 from app.models.price_change_request import PriceChangeRequest
+from app.models.price_history import PriceHistory
 from app.models.product import Product
 from app.models.store import Store
 from app.models.country import Country
@@ -163,6 +164,158 @@ def list_price_change_requests(
     )
 
     return list(db.scalars(query).all())
+def approve_and_apply_price_change_request(
+    db: Session,
+    price_change_request_id: int,
+    performed_by_user_id: int,
+) -> PriceChangeRequest:
+    price_change_request = db.scalar(
+        select(PriceChangeRequest).where(
+            PriceChangeRequest.id == price_change_request_id
+        )
+    )
+
+    if price_change_request is None:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="Price change request not found",
+        )
+
+    if price_change_request.status != "PENDING":
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT,
+            detail="Only PENDING price change requests can be approved and applied",
+        )
+
+    performer = db.scalar(
+        select(UserAccount).where(UserAccount.id == performed_by_user_id)
+    )
+    if performer is None:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="Performing user not found",
+        )
+
+    current_price = db.scalar(
+        select(Price).where(Price.id == price_change_request.current_price_id)
+    )
+
+    if current_price is None:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="Current price not found",
+        )
+
+    if current_price.product_id != price_change_request.product_id:
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT,
+            detail="Current price product does not match request product",
+        )
+
+    if current_price.country_id != price_change_request.country_id:
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT,
+            detail="Current price country does not match request country",
+        )
+
+    if current_price.store_id != price_change_request.store_id:
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT,
+            detail="Current price store does not match request store",
+        )
+
+    if current_price.price_type != "STANDARD":
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT,
+            detail="Only STANDARD prices can be changed through this workflow",
+        )
+
+    if current_price.status != "ACTIVE":
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT,
+            detail="Only ACTIVE prices can be changed through this workflow",
+        )
+
+    requested_effective_date = price_change_request.requested_effective_date
+
+    if requested_effective_date <= current_price.effective_from:
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT,
+            detail=(
+                "Requested effective date must be after the current price "
+                "effective start date"
+            ),
+        )
+
+    if (
+        current_price.effective_to is not None
+        and current_price.effective_to < requested_effective_date
+    ):
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT,
+            detail="Current price is already closed before the requested effective date",
+        )
+
+    new_price_scope = (
+        "STORE"
+        if price_change_request.store_id is not None
+        else "COUNTRY"
+    )
+
+    current_price.effective_to = requested_effective_date - timedelta(days=1)
+
+    new_price = Price(
+        product_id=price_change_request.product_id,
+        country_id=price_change_request.country_id,
+        store_id=price_change_request.store_id,
+        price_scope=new_price_scope,
+        price_type="STANDARD",
+        amount=price_change_request.requested_price_amount,
+        effective_from=requested_effective_date,
+        effective_to=None,
+        status="ACTIVE",
+        promotion_id=None,
+    )
+
+    db.add(new_price)
+    db.flush()
+
+    price_change_request.status = "APPLIED"
+
+    price_history = PriceHistory(
+        price_change_request_id=price_change_request.id,
+        previous_price_id=current_price.id,
+        new_price_id=new_price.id,
+        old_price_amount=price_change_request.old_price_amount,
+        new_price_amount=price_change_request.requested_price_amount,
+        changed_by_user_id=performed_by_user_id,
+    )
+
+    db.add(price_history)
+
+    audit_log = AuditLog(
+        price_change_request_id=price_change_request.id,
+        action_type="REQUEST_APPLIED",
+        performed_by_user_id=performed_by_user_id,
+        description=(
+            "Price change request approved and applied. "
+            f"Request ID: {price_change_request.id}, "
+            f"Product ID: {price_change_request.product_id}, "
+            f"Country ID: {price_change_request.country_id}, "
+            f"Store ID: {price_change_request.store_id}, "
+            f"Previous price ID: {current_price.id}, "
+            f"New price ID: {new_price.id}, "
+            f"Old price amount: {price_change_request.old_price_amount}, "
+            f"New price amount: {price_change_request.requested_price_amount}, "
+            f"Effective date: {requested_effective_date}."
+        ),
+    )
+
+    db.add(audit_log)
+    db.commit()
+    db.refresh(price_change_request)
+
+    return price_change_request
 
 def get_current_applicable_standard_price(
     db: Session,
