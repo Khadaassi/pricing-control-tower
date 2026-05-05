@@ -69,6 +69,8 @@ def create_price_change_request(
         product_id=payload.product_id,
         country_id=payload.country_id,
         store_id=payload.store_id,
+        as_of_date=payload.requested_effective_date,
+
     )
 
     if current_price is None:
@@ -323,16 +325,20 @@ def get_current_applicable_standard_price(
     product_id: int,
     country_id: int,
     store_id: int | None,
+    as_of_date: date | None = None,
 ) -> Price | None:
-    today = date.today()
+    reference_date = as_of_date or date.today()
 
     base_conditions = [
         Price.product_id == product_id,
         Price.country_id == country_id,
         Price.price_type == "STANDARD",
         Price.status == "ACTIVE",
-        Price.effective_from <= today,
-        (Price.effective_to.is_(None) | (Price.effective_to >= today)),
+        Price.effective_from <= reference_date,
+        (
+            Price.effective_to.is_(None)
+            | (Price.effective_to >= reference_date)
+        ),
     ]
 
     if store_id is not None:

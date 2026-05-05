@@ -3,10 +3,12 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.schemas.price_change_request import (
+    PriceChangeRequestApprove,
     PriceChangeRequestCreate,
     PriceChangeRequestRead,
 )
 from app.services.price_change_request_service import (
+    approve_and_apply_price_change_request,
     create_price_change_request,
     list_price_change_requests,
 )
@@ -27,6 +29,22 @@ def create_price_change_request_endpoint(
     db: Session = Depends(get_db),
 ) -> PriceChangeRequestRead:
     return create_price_change_request(db=db, payload=payload)
+
+@router.post(
+    "/{price_change_request_id}/approve",
+    response_model=PriceChangeRequestRead,
+    status_code=status.HTTP_200_OK,
+)
+def approve_price_change_request_endpoint(
+    price_change_request_id: int,
+    payload: PriceChangeRequestApprove,
+    db: Session = Depends(get_db),
+) -> PriceChangeRequestRead:
+    return approve_and_apply_price_change_request(
+        db=db,
+        price_change_request_id=price_change_request_id,
+        performed_by_user_id=payload.approved_by_user_id,
+    )
 
 @router.get(
     "",
