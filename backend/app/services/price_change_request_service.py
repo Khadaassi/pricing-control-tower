@@ -275,6 +275,7 @@ def approve_and_apply_price_change_request(
         effective_to=None,
         status="ACTIVE",
         promotion_id=None,
+        created_by=performed_by_user_id,
     )
 
     db.add(new_price)
@@ -288,14 +289,14 @@ def approve_and_apply_price_change_request(
         new_price_id=new_price.id,
         old_price_amount=price_change_request.old_price_amount,
         new_price_amount=price_change_request.requested_price_amount,
-        changed_by_user_id=performed_by_user_id,
+        applied_by_user_id=performed_by_user_id,
     )
 
     db.add(price_history)
 
     audit_log = AuditLog(
         price_change_request_id=price_change_request.id,
-        action_type="REQUEST_APPLIED",
+        action_type="PRICE_APPLIED",
         performed_by_user_id=performed_by_user_id,
         description=(
             "Price change request approved and applied. "
