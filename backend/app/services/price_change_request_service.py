@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status as http_status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -25,7 +25,7 @@ def create_price_change_request(
     )
     if product is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Product not found",
         )
 
@@ -34,7 +34,7 @@ def create_price_change_request(
     )
     if country is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Country not found",
         )
 
@@ -43,7 +43,7 @@ def create_price_change_request(
     )
     if requester is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Requesting user not found",
         )
 
@@ -53,13 +53,13 @@ def create_price_change_request(
         )
         if store is None:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="Store not found",
             )
 
         if store.country_id != payload.country_id:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail="Store does not belong to selected country",
             )
 
@@ -72,7 +72,7 @@ def create_price_change_request(
 
     if current_price is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Current applicable standard price not found",
         )
 
@@ -113,6 +113,56 @@ def create_price_change_request(
 
     return price_change_request
 
+def list_price_change_requests(
+    db: Session,
+    status: str | None = None,
+    product_id: int | None = None,
+    country_id: int | None = None,
+    store_id: int | None = None,
+    requested_by_user_id: int | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> list[PriceChangeRequest]:
+    allowed_statuses = {
+        "PENDING",
+        "APPROVED",
+        "REJECTED",
+        "APPLIED",
+        "FAILED",
+    }
+
+    if status is not None and status not in allowed_statuses:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="Invalid price change request status",
+        )
+
+    query = select(PriceChangeRequest)
+
+    if status is not None:
+        query = query.where(PriceChangeRequest.status == status)
+
+    if product_id is not None:
+        query = query.where(PriceChangeRequest.product_id == product_id)
+
+    if country_id is not None:
+        query = query.where(PriceChangeRequest.country_id == country_id)
+
+    if store_id is not None:
+        query = query.where(PriceChangeRequest.store_id == store_id)
+
+    if requested_by_user_id is not None:
+        query = query.where(
+            PriceChangeRequest.requested_by_user_id == requested_by_user_id
+        )
+
+    query = (
+        query.order_by(PriceChangeRequest.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+
+    return list(db.scalars(query).all())
 
 def get_current_applicable_standard_price(
     db: Session,
@@ -153,3 +203,4 @@ def get_current_applicable_standard_price(
         )
 
     return db.scalar(query)
+
