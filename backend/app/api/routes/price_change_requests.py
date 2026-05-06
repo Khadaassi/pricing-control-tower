@@ -6,13 +6,13 @@ from app.schemas.price_change_request import (
     PriceChangeRequestApprove,
     PriceChangeRequestCreate,
     PriceChangeRequestRead,
-    PriceChangeRequestReject
+    PriceChangeRequestReject,
 )
 from app.services.price_change_request_service import (
     approve_and_apply_price_change_request,
     create_price_change_request,
     list_price_change_requests,
-    reject_price_change_request
+    reject_price_change_request,
 )
 
 router = APIRouter(

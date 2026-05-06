@@ -5,6 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 from app.models.product_family import ProductFamily
+from app.models.product_image import ProductImage
 
 
 class Product(Base):
