@@ -8,6 +8,7 @@ from .routes.promotions import router as promotions_router
 from .routes.sales import router as sales_router
 from .routes.technical import router as technical_router
 from .routes.price_change_requests import router as price_change_requests_router
+from .routes.price_history import router as price_history_router
 
 api_router = APIRouter()
 
@@ -19,3 +20,4 @@ api_router.include_router(sales_router)
 api_router.include_router(kpis_router)
 api_router.include_router(anomalies_router)
 api_router.include_router(price_change_requests_router)
+api_router.include_router(price_history_router)

@@ -435,7 +435,55 @@ Returns the updated price change request with `status: "APPROVED"` and `approved
 
 ---
 
-# 10. POST /price-change-requests/{id}/reject
+
+# 11. GET /price-history
+
+## Business purpose
+
+Retrieve the history of price changes for audit and traceability.
+
+---
+
+## Query parameters
+
+| Parameter           | Type    | Description                |
+| ------------------- | ------- | -------------------------- |
+| price_change_request_id | int | Filter by request id       |
+| previous_price_id   | int     | Filter by previous price   |
+| new_price_id        | int     | Filter by new price        |
+| applied_by_user_id  | int     | Filter by user             |
+| ...                 | ...     | ...                        |
+
+---
+
+## Response structure
+
+```json
+[
+  {
+    "id": 1,
+    "price_change_request_id": 42,
+    "previous_price_id": 10,
+    "new_price_id": 11,
+    "old_price_amount": 99.99,
+    "new_price_amount": 89.99,
+    "applied_by_user_id": 2,
+    "applied_at": "2026-05-06T10:00:00Z",
+    "created_at": "2026-05-06T10:00:00Z"
+  }
+]
+```
+
+---
+
+# Changelog
+
+## Sprint 4
+
+- The PriceHistoryRead schema was aligned with other models:
+    - Field `history_id` renamed to `id`.
+    - Only database fields are exposed (removed product_id, country_id, store_id from schema).
+    - Added docstring for clarity and maintainability.
 
 ## Business purpose
 
