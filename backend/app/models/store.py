@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .country import Country
+
 from datetime import date
 
 from sqlalchemy import Date, ForeignKey, Integer, String
