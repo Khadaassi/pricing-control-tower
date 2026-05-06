@@ -208,3 +208,9 @@ pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python,macos
 .env
+frontend/theme/static_src/node_modules/
+node_modules/
+__pycache__/
+*.pyc
+frontend/db.sqlite3
+db.sqlite3
