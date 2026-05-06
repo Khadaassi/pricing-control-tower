@@ -72,7 +72,24 @@ class PriceChangeRequest(Base):
         ),
         nullable=False,
     )
+    rejection_reason: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
 
+    rejected_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "pct_core.user_account.id",
+            name="fk_price_change_request_rejected_by_user",
+        ),
+        nullable=True,
+    )
+
+    rejected_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

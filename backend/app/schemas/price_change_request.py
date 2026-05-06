@@ -8,7 +8,6 @@ class PriceChangeRequestCreate(BaseModel):
     product_id: int = Field(gt=0)
     country_id: int = Field(gt=0)
     store_id: int | None = Field(default=None, gt=0)
-    current_price_id: int = Field(gt=0)
 
     requested_price_amount: Decimal = Field(gt=0, max_digits=10, decimal_places=2)
     justification: str = Field(min_length=1)
@@ -42,7 +41,10 @@ class PriceChangeRequestRead(BaseModel):
     requested_effective_date: date
 
     requested_by_user_id: int
-
+    rejection_reason: str | None = None
+    rejected_by_user_id: int | None = None
+    rejected_at: datetime | None = None
+    
     created_at: datetime
     updated_at: datetime
 

@@ -319,6 +319,244 @@ MVP rule: flag promotions whose total revenue is **below a configurable threshol
 
 ---
 
+# 7. POST /price-change-requests
+
+## Business purpose
+
+Create a new price change request to initiate a pricing workflow.
+
+---
+
+## Request body
+
+```json
+{
+  "product_id": 1,
+  "price_id": 10,
+  "requested_by_user_id": 1,
+  "new_amount": 89.99,
+  "reason": "Align price with competitor"
+}
+```
+
+---
+
+## Response structure
+
+```json
+{
+  "id": 1,
+  "product_id": 1,
+  "price_id": 10,
+  "requested_by_user_id": 1,
+  "new_amount": 89.99,
+  "reason": "Align price with competitor",
+  "status": "PENDING",
+  "created_at": "2026-05-01T10:00:00Z",
+  "approved_at": null,
+  "rejection_reason": null,
+  "rejected_by_user_id": null,
+  "rejected_at": null
+}
+```
+
+---
+
+# 8. GET /price-change-requests
+
+## Business purpose
+
+List all price change requests with optional filters.
+
+---
+
+## Query parameters
+
+| Parameter | Type   | Description                            |
+| --------- | ------ | -------------------------------------- |
+| status    | string | Filter by status (PENDING, APPROVED, REJECTED) |
+
+---
+
+## Response structure
+
+```json
+[
+  {
+    "id": 1,
+    "product_id": 1,
+    "price_id": 10,
+    "requested_by_user_id": 1,
+    "new_amount": 89.99,
+    "reason": "Align price with competitor",
+    "status": "PENDING",
+    "created_at": "2026-05-01T10:00:00Z",
+    "approved_at": null,
+    "rejection_reason": null,
+    "rejected_by_user_id": null,
+    "rejected_at": null
+  }
+]
+```
+
+---
+
+# 9. POST /price-change-requests/{id}/approve
+
+## Business purpose
+
+Approve a pending price change request and apply the new price.
+
+---
+
+## Request body
+
+```json
+{
+  "approved_by_user_id": 2
+}
+```
+
+---
+
+## Response structure
+
+Returns the updated price change request with `status: "APPROVED"` and `approved_at` timestamp.
+
+---
+
+## Error cases
+
+| HTTP Code | Condition                              |
+| --------- | -------------------------------------- |
+| 404       | Price change request not found         |
+| 409       | Request is not in PENDING status       |
+| 404       | approved_by_user_id does not exist     |
+
+---
+
+
+# 11. GET /price-history
+
+## Business purpose
+
+Retrieve the history of price changes for audit and traceability.
+
+---
+
+## Query parameters
+
+| Parameter           | Type    | Description                |
+| ------------------- | ------- | -------------------------- |
+| price_change_request_id | int | Filter by request id       |
+| previous_price_id   | int     | Filter by previous price   |
+| new_price_id        | int     | Filter by new price        |
+| applied_by_user_id  | int     | Filter by user             |
+| ...                 | ...     | ...                        |
+
+---
+
+## Response structure
+
+```json
+[
+  {
+    "id": 1,
+    "price_change_request_id": 42,
+    "previous_price_id": 10,
+    "new_price_id": 11,
+    "old_price_amount": 99.99,
+    "new_price_amount": 89.99,
+    "applied_by_user_id": 2,
+    "applied_at": "2026-05-06T10:00:00Z",
+    "created_at": "2026-05-06T10:00:00Z"
+  }
+]
+```
+
+---
+
+# Changelog
+
+## Sprint 4
+
+- The PriceHistoryRead schema was aligned with other models:
+    - Field `history_id` renamed to `id`.
+    - Only database fields are exposed (removed product_id, country_id, store_id from schema).
+    - Added docstring for clarity and maintainability.
+
+## Business purpose
+
+Reject a pending price change request with a mandatory reason.
+
+Used for:
+
+* pricing governance
+* documenting why a request was denied
+* maintaining audit trail
+
+---
+
+## Request body
+
+```json
+{
+  "rejected_by_user_id": 2,
+  "reason": "Price reduction too aggressive for current margin targets"
+}
+```
+
+---
+
+## Validation rules
+
+| Field               | Rule                              |
+| ------------------- | --------------------------------- |
+| rejected_by_user_id | Must be > 0, must exist in system |
+| reason              | Must not be empty after trimming  |
+
+---
+
+## Response structure
+
+```json
+{
+  "id": 1,
+  "product_id": 1,
+  "price_id": 10,
+  "requested_by_user_id": 1,
+  "new_amount": 89.99,
+  "reason": "Align price with competitor",
+  "status": "REJECTED",
+  "created_at": "2026-05-01T10:00:00Z",
+  "approved_at": null,
+  "rejection_reason": "Price reduction too aggressive for current margin targets",
+  "rejected_by_user_id": 2,
+  "rejected_at": "2026-05-02T09:15:00Z"
+}
+```
+
+---
+
+## Error cases
+
+| HTTP Code | Condition                              |
+| --------- | -------------------------------------- |
+| 404       | Price change request not found         |
+| 409       | Request is not in PENDING status       |
+| 404       | rejected_by_user_id does not exist     |
+| 400       | Reason is empty or blank               |
+
+---
+
+## Side effects
+
+* Status updated to `REJECTED`
+* `rejection_reason`, `rejected_by_user_id`, `rejected_at` populated
+* Audit log entry created with `action_type = REQUEST_REJECTED`
+
+---
+
 # Design principles
 
 * Simple REST endpoints
@@ -332,6 +570,5 @@ MVP rule: flag promotions whose total revenue is **below a configurable threshol
 # Next evolutions
 
 * Add filters and pagination improvements
-* Add write endpoints (price changes)
 * Add authentication and roles
 * Add AI assistant integration
