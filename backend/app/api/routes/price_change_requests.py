@@ -6,11 +6,13 @@ from app.schemas.price_change_request import (
     PriceChangeRequestApprove,
     PriceChangeRequestCreate,
     PriceChangeRequestRead,
+    PriceChangeRequestReject
 )
 from app.services.price_change_request_service import (
     approve_and_apply_price_change_request,
     create_price_change_request,
     list_price_change_requests,
+    reject_price_change_request
 )
 
 router = APIRouter(
@@ -69,4 +71,21 @@ def get_price_change_requests_endpoint(
         requested_by_user_id=requested_by_user_id,
         limit=limit,
         offset=offset,
+    )
+
+@router.post(
+    "/{price_change_request_id}/reject",
+    response_model=PriceChangeRequestRead,
+    status_code=status.HTTP_200_OK,
+)
+def reject_price_change_request_endpoint(
+    price_change_request_id: int,
+    payload: PriceChangeRequestReject,
+    db: Session = Depends(get_db),
+) -> PriceChangeRequestRead:
+    return reject_price_change_request(
+        db=db,
+        price_change_request_id=price_change_request_id,
+        rejected_by_user_id=payload.rejected_by_user_id,
+        reason=payload.reason,
     )
