@@ -41,7 +41,10 @@ class PriceChangeRequestRead(BaseModel):
     requested_effective_date: date
 
     requested_by_user_id: int
-
+    rejection_reason: str | None = None
+    rejected_by_user_id: int | None = None
+    rejected_at: datetime | None = None
+    
     created_at: datetime
     updated_at: datetime
 

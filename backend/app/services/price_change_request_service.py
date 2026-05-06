@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timezone, timedelta
 
 from fastapi import HTTPException, status as http_status
 from sqlalchemy import select
@@ -319,6 +319,79 @@ def approve_and_apply_price_change_request(
     db.refresh(price_change_request)
 
     return price_change_request
+
+def reject_price_change_request(
+    db: Session,
+    price_change_request_id: int,
+    rejected_by_user_id: int,
+    reason: str,
+) -> PriceChangeRequest:
+    price_change_request = db.scalar(
+        select(PriceChangeRequest).where(
+            PriceChangeRequest.id == price_change_request_id
+        )
+    )
+
+    if price_change_request is None:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="Price change request not found",
+        )
+
+    if price_change_request.status != "PENDING":
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT,
+            detail="Only PENDING price change requests can be rejected",
+        )
+
+    rejected_by_user = db.scalar(
+        select(UserAccount).where(UserAccount.id == rejected_by_user_id)
+    )
+
+    if rejected_by_user is None:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail="Rejecting user not found",
+        )
+
+    cleaned_reason = reason.strip()
+
+    if not cleaned_reason:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="Rejection reason must not be empty",
+        )
+
+    try:
+        price_change_request.status = "REJECTED"
+        price_change_request.rejection_reason = cleaned_reason
+        price_change_request.rejected_by_user_id = rejected_by_user_id
+        price_change_request.rejected_at = datetime.now(timezone.utc)
+
+        audit_log = AuditLog(
+            price_change_request_id=price_change_request.id,
+            action_type="REQUEST_REJECTED",
+            performed_by_user_id=rejected_by_user_id,
+            description=(
+                "Price change request rejected. "
+                f"Request ID: {price_change_request.id}, "
+                f"Product ID: {price_change_request.product_id}, "
+                f"Country ID: {price_change_request.country_id}, "
+                f"Store ID: {price_change_request.store_id}, "
+                f"Current price ID: {price_change_request.current_price_id}, "
+                f"Reason: {cleaned_reason}."
+            ),
+        )
+
+        db.add(audit_log)
+        db.commit()
+        db.refresh(price_change_request)
+
+        return price_change_request
+
+    except Exception:
+        db.rollback()
+        raise
 
 def get_current_applicable_standard_price(
     db: Session,
