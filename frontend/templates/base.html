@@ -1,0 +1,39 @@
+{% load static tailwind_tags %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Pricing Control Tower{% endblock %}</title>
+    {% tailwind_css %}
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body class="min-h-screen bg-slate-100 text-slate-900">
+    <div class="min-h-screen">
+        <header class="border-b border-slate-200 bg-white">
+            <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">
+                        Pricing Control Tower
+                    </p>
+                    <h1 class="text-xl font-semibold text-slate-900">
+                        Frontend MVP
+                    </h1>
+                </div>
+
+                <div class="text-sm text-slate-500">
+                    Django frontend
+                </div>
+            </div>
+        </header>
+
+        <main class="mx-auto max-w-7xl px-6 py-8">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

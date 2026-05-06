@@ -1,22 +1,21 @@
-{% load static tailwind_tags %}
+{% extends "base.html" %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Pricing Control Tower</title>
-    {% tailwind_css %}
-</head>
-<body class="bg-slate-100">
-    <main class="min-h-screen flex items-center justify-center">
-        <section class="rounded-xl bg-white p-8 shadow">
-            <h1 class="text-3xl font-bold text-slate-900">
-                Pricing Control Tower
-            </h1>
-            <p class="mt-4 text-slate-600">
-                Django frontend with Tailwind is running.
-            </p>
-        </section>
-    </main>
-</body>
-</html>
+{% block title %}Home | Pricing Control Tower{% endblock %}
+
+{% block content %}
+<section class="rounded-xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
+    <div class="max-w-3xl">
+        <p class="text-sm font-medium text-slate-500">
+            Frontend setup
+        </p>
+
+        <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+            Pricing Control Tower
+        </h2>
+
+        <p class="mt-4 text-slate-600">
+            Django frontend with Tailwind is running.
+        </p>
+    </div>
+</section>
+{% endblock %}
