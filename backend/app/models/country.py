@@ -4,7 +4,6 @@ from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
-from app.models.store import Store
 
 
 class Country(Base):
