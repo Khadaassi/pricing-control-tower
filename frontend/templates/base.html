@@ -5,18 +5,78 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Pricing Control Tower{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{% static 'theme/static/favicon.png' %}" />
     {% tailwind_css %}
+    {% block extra_head %}{% endblock %}
 </head>
-<body class="min-h-screen bg-slate-100 text-slate-900">
-    {% if messages %}
-        <div class="mb-6 space-y-3">
-            {% for message in messages %}
-                <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-                    {{ message }}
+<body class="min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100">
+    <a href="#main-content" class="sr-only focus:not-sr-only absolute top-2 left-2 z-50 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 rounded">Aller au contenu principal</a>
+    <div class="min-h-screen flex flex-col">
+        <header class="border-b border-slate-200 bg-white dark:bg-slate-800" role="banner">
+            <div class="mx-auto max-w-7xl px-6">
+                <div class="flex items-center justify-between py-4">
+                    <div>
+                        <a href="{% url 'core:home' %}" class="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                            Pricing Control Tower
+                        </a>
+                        <p class="text-sm text-slate-500 dark:text-slate-400">
+                            Frontend MVP
+                        </p>
+                    </div>
+                    <nav aria-label="Main navigation">
+                        <ul class="flex flex-wrap items-center gap-2 text-sm font-medium">
+                            <li>
+                                <a href="{% url 'core:dashboard' %}" class="rounded-lg px-3 py-2 text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white">Dashboard</a>
+                            </li>
+                            <li>
+                                <a href="{% url 'core:products' %}" class="rounded-lg px-3 py-2 text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white">Products</a>
+                            </li>
+                            <li>
+                                <a href="{% url 'core:prices' %}" class="rounded-lg px-3 py-2 text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white">Prices</a>
+                            </li>
+                            <li>
+                                <a href="{% url 'core:promotions' %}" class="rounded-lg px-3 py-2 text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white">Promotions</a>
+                            </li>
+                            <li>
+                                <a href="{% url 'core:price_change_requests' %}" class="rounded-lg bg-slate-900 px-3 py-2 text-white hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300">Pricing requests</a>
+                            </li>
+                            <li>
+                                <a href="{% url 'core:price_history' %}" class="rounded-lg px-3 py-2 text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white">Price history</a>
+                            </li>
+                        </ul>
+                    </nav>
                 </div>
-            {% endfor %}
-        </div>
-    {% endif %}
-    {% block content %}{% endblock %}
+            </div>
+        </header>
+            <main id="main-content" class="flex-1 mx-auto max-w-7xl px-6 py-8" tabindex="-1">
+            <div id="global-loader" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40">
+                <div class="h-12 w-12 animate-spin rounded-full border-4 border-slate-300 border-t-slate-900 dark:border-slate-700 dark:border-t-slate-100"></div>
+            </div>
+            {% if messages %}
+                <div class="mb-6 space-y-3">
+                    {% for message in messages %}
+                        {% if message.tags == "error" %}
+                            <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-400 dark:bg-red-900/20 dark:text-red-200">{{ message }}</div>
+                        {% else %}
+                            <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-400 dark:bg-green-900/20 dark:text-green-200">{{ message }}</div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% block content %}{% endblock %}
+        </main>
+        <footer class="border-t border-slate-200 bg-white dark:bg-slate-800 dark:border-slate-700 text-center py-4 text-xs text-slate-500 dark:text-slate-400">
+            <div class="mx-auto max-w-7xl px-6">
+                &copy; {{ now|date:'Y' }} Pricing Control Tower. Tous droits réservés.
+            </div>
+        </footer>
+    </div>
+    {% block extra_scripts %}{% endblock %}
+    <script>
+        // Dark mode toggle (optionnel, à activer si besoin)
+        // function toggleDarkMode() {
+        //     document.documentElement.classList.toggle('dark');
+        // }
+    </script>
 </body>
 </html>

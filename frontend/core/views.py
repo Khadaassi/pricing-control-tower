@@ -1,10 +1,10 @@
-from decimal import Decimal, InvalidOperation
-
-from django.views.generic import TemplateView
-
-from services.api_client import ApiClientError, api_get, api_post
 from django.contrib import messages
 from django.shortcuts import redirect
+
+from django.views.generic import TemplateView
+from decimal import Decimal, InvalidOperation
+
+from services.api_client import ApiClientError, api_get, api_post
 from core.forms import PriceChangeRequestForm
 
 class HomeView(TemplateView):
@@ -244,7 +244,7 @@ class PriceChangeRequestsView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["api_error"] = None
+        context["api_error"] = kwargs.get("api_error")
         context["price_change_requests"] = []
 
         try:
@@ -272,6 +272,76 @@ class PriceChangeRequestsView(TemplateView):
         ]
 
         return context
+
+    def post(self, request, *args, **kwargs):
+        action = request.POST.get("action")
+        price_change_request_id = request.POST.get("request_id")
+
+        if not price_change_request_id:
+            messages.error(request, "Missing pricing request identifier.")
+            return redirect("core:price_change_requests")
+
+        if action == "approve":
+            return self.approve_request(price_change_request_id)
+
+        if action == "reject":
+            return self.reject_request(request, price_change_request_id)
+
+        messages.error(request, "Unknown workflow action.")
+        return redirect("core:price_change_requests")
+
+    def approve_request(self, price_change_request_id):
+        payload = {
+            "approved_by_user_id": 1,
+        }
+
+        try:
+            api_post(
+                f"/price-change-requests/{price_change_request_id}/approve",
+                payload=payload,
+            )
+        except ApiClientError as exc:
+            messages.error(
+                self.request,
+                f"Pricing request could not be approved: {exc}",
+            )
+            return redirect("core:price_change_requests")
+
+        messages.success(
+            self.request,
+            f"Pricing request #{price_change_request_id} approved successfully.",
+        )
+        return redirect("core:price_change_requests")
+
+    def reject_request(self, request, price_change_request_id):
+        reason = request.POST.get("reason", "").strip()
+
+        if not reason:
+            messages.error(request, "A rejection reason is required.")
+            return redirect("core:price_change_requests")
+
+        payload = {
+            "rejected_by_user_id": 1,
+            "reason": reason,
+        }
+
+        try:
+            api_post(
+                f"/price-change-requests/{price_change_request_id}/reject",
+                payload=payload,
+            )
+        except ApiClientError as exc:
+            messages.error(
+                request,
+                f"Pricing request could not be rejected: {exc}",
+            )
+            return redirect("core:price_change_requests")
+
+        messages.success(
+            request,
+            f"Pricing request #{price_change_request_id} rejected successfully.",
+        )
+        return redirect("core:price_change_requests")
 
     @staticmethod
     def get_scope(store_id):
@@ -307,3 +377,44 @@ class PriceChangeRequestCreateView(TemplateView):
 
         messages.success(request, "Pricing request created successfully.")
         return redirect("core:price_change_requests")
+
+class PriceHistoryView(TemplateView):
+    template_name = "core/price_history.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["api_error"] = None
+        context["price_history"] = []
+
+        try:
+            history_items = api_get("/price-history")
+        except ApiClientError as exc:
+            context["api_error"] = str(exc)
+            return context
+
+        context["price_history"] = [
+            {
+                "history_id": item.get("history_id") or "N/A",
+                "price_change_request_id": item.get("price_change_request_id") or "N/A",
+                "product_id": item.get("product_id") or "N/A",
+                "scope": self.get_scope(item.get("store_id")),
+                "country_id": item.get("country_id") or "N/A",
+                "store_id": item.get("store_id") or "N/A",
+                "previous_price_id": item.get("previous_price_id") or "N/A",
+                "new_price_id": item.get("new_price_id") or "N/A",
+                "old_price_amount": item.get("old_price_amount") or "N/A",
+                "new_price_amount": item.get("new_price_amount") or "N/A",
+                "applied_by_user_id": item.get("applied_by_user_id") or "N/A",
+                "applied_at": item.get("applied_at") or "N/A",
+            }
+            for item in history_items
+        ]
+
+        return context
+
+    @staticmethod
+    def get_scope(store_id):
+        if store_id is None:
+            return "Country price change"
+
+        return "Store price change"
