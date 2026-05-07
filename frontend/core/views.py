@@ -377,3 +377,44 @@ class PriceChangeRequestCreateView(TemplateView):
 
         messages.success(request, "Pricing request created successfully.")
         return redirect("core:price_change_requests")
+
+class PriceHistoryView(TemplateView):
+    template_name = "core/price_history.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["api_error"] = None
+        context["price_history"] = []
+
+        try:
+            history_items = api_get("/price-history")
+        except ApiClientError as exc:
+            context["api_error"] = str(exc)
+            return context
+
+        context["price_history"] = [
+            {
+                "history_id": item.get("history_id") or "N/A",
+                "price_change_request_id": item.get("price_change_request_id") or "N/A",
+                "product_id": item.get("product_id") or "N/A",
+                "scope": self.get_scope(item.get("store_id")),
+                "country_id": item.get("country_id") or "N/A",
+                "store_id": item.get("store_id") or "N/A",
+                "previous_price_id": item.get("previous_price_id") or "N/A",
+                "new_price_id": item.get("new_price_id") or "N/A",
+                "old_price_amount": item.get("old_price_amount") or "N/A",
+                "new_price_amount": item.get("new_price_amount") or "N/A",
+                "applied_by_user_id": item.get("applied_by_user_id") or "N/A",
+                "applied_at": item.get("applied_at") or "N/A",
+            }
+            for item in history_items
+        ]
+
+        return context
+
+    @staticmethod
+    def get_scope(store_id):
+        if store_id is None:
+            return "Country price change"
+
+        return "Store price change"

@@ -8,6 +8,7 @@ from .views import (
     PricesView,
     ProductsView,
     PromotionsView,
+    PriceHistoryView,
 )
 
 app_name = "core"
@@ -28,4 +29,5 @@ urlpatterns = [
         PriceChangeRequestCreateView.as_view(),
         name="price_change_request_create",
     ),
+    path("price-history/", PriceHistoryView.as_view(), name="price_history"),
 ]
