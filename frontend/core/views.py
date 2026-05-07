@@ -126,6 +126,60 @@ class ProductsView(TemplateView):
 class PricesView(TemplateView):
     template_name = "core/prices.html"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["api_error"] = None
+        context["prices"] = []
+
+        try:
+            prices = api_get("/prices")
+        except ApiClientError as exc:
+            context["api_error"] = str(exc)
+            return context
+
+        context["prices"] = [
+            {
+                "product_code": price.get("product_code") or "N/A",
+                "product_name": price.get("product_name") or "N/A",
+                "scope": price.get("price_scope") or "N/A",
+                "scope_label": self.get_scope_label(price.get("price_scope")),
+                "type": price.get("price_type") or "N/A",
+                "amount": self.format_amount(
+                    price.get("amount"),
+                    price.get("currency_code"),
+                ),
+                "country_id": price.get("country_id") or "N/A",
+                "store_id": price.get("store_id") or "N/A",
+                "effective_from": price.get("effective_from") or "N/A",
+                "effective_to": price.get("effective_to") or "Open-ended",
+                "status": price.get("status") or "N/A",
+                "promotion_id": price.get("promotion_id") or "N/A",
+            }
+            for price in prices
+        ]
+
+        return context
+
+    @staticmethod
+    def get_scope_label(scope):
+        if scope == "COUNTRY":
+            return "Country price"
+
+        if scope == "STORE":
+            return "Store price"
+
+        return "Unknown scope"
+
+    @staticmethod
+    def format_amount(amount, currency_code):
+        if amount is None:
+            return "N/A"
+
+        if currency_code:
+            return f"{amount} {currency_code}"
+
+        return str(amount)
+
 
 class PromotionsView(TemplateView):
     template_name = "core/promotions.html"
