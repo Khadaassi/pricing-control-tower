@@ -184,6 +184,57 @@ class PricesView(TemplateView):
 class PromotionsView(TemplateView):
     template_name = "core/promotions.html"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["api_error"] = None
+        context["promotions"] = []
+
+        try:
+            promotions = api_get("/promotions")
+        except ApiClientError as exc:
+            context["api_error"] = str(exc)
+            return context
+
+        context["promotions"] = [
+            {
+                "code": promotion.get("code") or "N/A",
+                "name": promotion.get("name") or "N/A",
+                "description": promotion.get("description") or "N/A",
+                "discount_type": promotion.get("discount_type") or "N/A",
+                "discount_value": self.format_discount_value(
+                    promotion.get("discount_type"),
+                    promotion.get("discount_value"),
+                ),
+                "product_id": promotion.get("product_id") or "N/A",
+                "scope": self.get_scope(promotion.get("store_id")),
+                "country_id": promotion.get("country_id") or "N/A",
+                "store_id": promotion.get("store_id") or "N/A",
+                "start_date": promotion.get("start_date") or "N/A",
+                "end_date": promotion.get("end_date") or "N/A",
+                "status": "Active" if promotion.get("active") is True else "Inactive",
+            }
+            for promotion in promotions
+        ]
+
+        return context
+
+    @staticmethod
+    def get_scope(store_id):
+        if store_id is None:
+            return "Country promotion"
+
+        return "Store promotion"
+
+    @staticmethod
+    def format_discount_value(discount_type, discount_value):
+        if discount_value is None:
+            return "N/A"
+
+        if discount_type == "PERCENTAGE":
+            return f"{discount_value}%"
+
+        return str(discount_value)
+
 
 class PriceChangeRequestsView(TemplateView):
     template_name = "core/price_change_requests.html"

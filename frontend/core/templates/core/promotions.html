@@ -3,13 +3,173 @@
 {% block title %}Promotions | Pricing Control Tower{% endblock %}
 
 {% block content %}
-<section class="rounded-xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
-    <p class="text-sm font-medium text-slate-500">Promotional activity</p>
-    <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-        Promotions
-    </h2>
-    <p class="mt-4 text-slate-600">
-        This page will display active and historical promotions retrieved from the FastAPI backend.
-    </p>
-</section>
+<div class="space-y-8">
+    <section class="rounded-xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
+        <div class="max-w-3xl">
+            <p class="text-sm font-medium text-slate-500">Promotional activity</p>
+
+            <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+                Promotions
+            </h2>
+
+            <p class="mt-4 text-slate-600">
+                Country and store promotions retrieved from the FastAPI backend.
+            </p>
+        </div>
+    </section>
+
+    {% if api_error %}
+        <section class="rounded-xl border border-red-200 bg-red-50 p-6">
+            <h3 class="text-base font-semibold text-red-900">
+                API connection error
+            </h3>
+            <p class="mt-2 text-sm text-red-700">
+                The promotion list could not be loaded.
+            </p>
+            <p class="mt-2 text-sm text-red-600">
+                {{ api_error }}
+            </p>
+        </section>
+    {% elif promotions %}
+        <section class="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
+            <div class="border-b border-slate-200 px-6 py-4">
+                <h3 class="text-base font-semibold text-slate-900">
+                    Promotion list
+                </h3>
+                <p class="mt-1 text-sm text-slate-500">
+                    {{ promotions|length }} promotions available.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Promotion
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Scope
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Discount
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Product
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Country
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Store
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Period
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Status
+                            </th>
+                        </tr>
+                    </thead>
+
+                    <tbody class="divide-y divide-slate-100 bg-white">
+                        {% for promotion in promotions %}
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-6 py-4 text-sm text-slate-700">
+                                    <div class="font-medium text-slate-900">
+                                        {{ promotion.name }}
+                                    </div>
+                                    <div class="mt-1 text-xs font-medium text-slate-500">
+                                        {{ promotion.code }}
+                                    </div>
+                                    <div class="mt-1 max-w-md text-xs text-slate-500">
+                                        {{ promotion.description }}
+                                    </div>
+                                </td>
+
+                                <td class="whitespace-nowrap px-6 py-4 text-sm">
+                                    {% if promotion.scope == "Country promotion" %}
+                                        <span class="inline-flex rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-600/20">
+                                            Country promotion
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex rounded-full bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-purple-600/20">
+                                            Store promotion
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <td class="whitespace-nowrap px-6 py-4 text-sm">
+                                    <div>
+                                        {% if promotion.discount_type == "PERCENTAGE" %}
+                                            <span class="inline-flex rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-green-600/20">
+                                                PERCENTAGE
+                                            </span>
+                                        {% elif promotion.discount_type == "FIXED_PRICE" %}
+                                            <span class="inline-flex rounded-full bg-orange-50 px-2 py-1 text-xs font-medium text-orange-700 ring-1 ring-orange-600/20">
+                                                FIXED PRICE
+                                            </span>
+                                        {% else %}
+                                            <span class="inline-flex rounded-full bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-500/20">
+                                                {{ promotion.discount_type }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="mt-2 text-sm font-medium text-slate-900">
+                                        {{ promotion.discount_value }}
+                                    </div>
+                                </td>
+
+                                <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-700">
+                                    Product #{{ promotion.product_id }}
+                                </td>
+
+                                <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-700">
+                                    Country #{{ promotion.country_id }}
+                                </td>
+
+                                <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-700">
+                                    {% if promotion.store_id == "N/A" %}
+                                        N/A
+                                    {% else %}
+                                        Store #{{ promotion.store_id }}
+                                    {% endif %}
+                                </td>
+
+                                <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-700">
+                                    <div>{{ promotion.start_date }}</div>
+                                    <div class="text-xs text-slate-500">
+                                        to {{ promotion.end_date }}
+                                    </div>
+                                </td>
+
+                                <td class="whitespace-nowrap px-6 py-4 text-sm">
+                                    {% if promotion.status == "Active" %}
+                                        <span class="inline-flex rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-green-600/20">
+                                            Active
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex rounded-full bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-500/20">
+                                            Inactive
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% else %}
+        <section class="rounded-xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
+            <h3 class="text-base font-semibold text-slate-900">
+                No promotions available
+            </h3>
+            <p class="mt-2 text-sm text-slate-500">
+                The API responded successfully but no promotion was returned.
+            </p>
+        </section>
+    {% endif %}
+</div>
 {% endblock %}
