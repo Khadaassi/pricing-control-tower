@@ -11,9 +11,15 @@
     {% if messages %}
         <div class="mb-6 space-y-3">
             {% for message in messages %}
-                <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-                    {{ message }}
-                </div>
+                {% if message.tags == "error" %}
+                    <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                        {{ message }}
+                    </div>
+                {% else %}
+                    <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                        {{ message }}
+                    </div>
+                {% endif %}
             {% endfor %}
         </div>
     {% endif %}

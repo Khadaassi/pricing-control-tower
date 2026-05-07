@@ -73,6 +73,9 @@
                                 Justification
                             </th>
                         </tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Actions
+                        </th>
                     </thead>
 
                     <tbody class="divide-y divide-slate-100 bg-white">
@@ -163,6 +166,43 @@
                                         {{ request.justification }}
                                     </p>
                                 </td>
+                                   <td class="px-6 py-4 text-sm">
+                                       {% if request.status == "PENDING" %}
+                                           <div class="space-y-3">
+                                               <form method="post">
+                                                   {% csrf_token %}
+                                                   <input type="hidden" name="action" value="approve">
+                                                   <input type="hidden" name="request_id" value="{{ request.id }}">
+
+                                                   <button type="submit" class="w-full rounded-lg bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700">
+                                                       Approve
+                                                   </button>
+                                               </form>
+
+                                               <form method="post" class="space-y-2">
+                                                   {% csrf_token %}
+                                                   <input type="hidden" name="action" value="reject">
+                                                   <input type="hidden" name="request_id" value="{{ request.id }}">
+
+                                                   <textarea
+                                                       name="reason"
+                                                       rows="2"
+                                                       required
+                                                       placeholder="Rejection reason"
+                                                       class="w-48 rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-700 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                                                   ></textarea>
+
+                                                   <button type="submit" class="w-full rounded-lg bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700">
+                                                       Reject
+                                                   </button>
+                                               </form>
+                                           </div>
+                                       {% else %}
+                                           <span class="text-xs text-slate-400">
+                                               No action available
+                                           </span>
+                                       {% endif %}
+                                   </td>
                             </tr>
                         {% endfor %}
                     </tbody>

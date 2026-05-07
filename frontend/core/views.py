@@ -1,10 +1,10 @@
-from decimal import Decimal, InvalidOperation
-
-from django.views.generic import TemplateView
-
-from services.api_client import ApiClientError, api_get, api_post
 from django.contrib import messages
 from django.shortcuts import redirect
+
+from django.views.generic import TemplateView
+from decimal import Decimal, InvalidOperation
+
+from services.api_client import ApiClientError, api_get, api_post
 from core.forms import PriceChangeRequestForm
 
 class HomeView(TemplateView):
@@ -244,7 +244,7 @@ class PriceChangeRequestsView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["api_error"] = None
+        context["api_error"] = kwargs.get("api_error")
         context["price_change_requests"] = []
 
         try:
@@ -272,6 +272,76 @@ class PriceChangeRequestsView(TemplateView):
         ]
 
         return context
+
+    def post(self, request, *args, **kwargs):
+        action = request.POST.get("action")
+        price_change_request_id = request.POST.get("request_id")
+
+        if not price_change_request_id:
+            messages.error(request, "Missing pricing request identifier.")
+            return redirect("core:price_change_requests")
+
+        if action == "approve":
+            return self.approve_request(price_change_request_id)
+
+        if action == "reject":
+            return self.reject_request(request, price_change_request_id)
+
+        messages.error(request, "Unknown workflow action.")
+        return redirect("core:price_change_requests")
+
+    def approve_request(self, price_change_request_id):
+        payload = {
+            "approved_by_user_id": 1,
+        }
+
+        try:
+            api_post(
+                f"/price-change-requests/{price_change_request_id}/approve",
+                payload=payload,
+            )
+        except ApiClientError as exc:
+            messages.error(
+                self.request,
+                f"Pricing request could not be approved: {exc}",
+            )
+            return redirect("core:price_change_requests")
+
+        messages.success(
+            self.request,
+            f"Pricing request #{price_change_request_id} approved successfully.",
+        )
+        return redirect("core:price_change_requests")
+
+    def reject_request(self, request, price_change_request_id):
+        reason = request.POST.get("reason", "").strip()
+
+        if not reason:
+            messages.error(request, "A rejection reason is required.")
+            return redirect("core:price_change_requests")
+
+        payload = {
+            "rejected_by_user_id": 1,
+            "reason": reason,
+        }
+
+        try:
+            api_post(
+                f"/price-change-requests/{price_change_request_id}/reject",
+                payload=payload,
+            )
+        except ApiClientError as exc:
+            messages.error(
+                request,
+                f"Pricing request could not be rejected: {exc}",
+            )
+            return redirect("core:price_change_requests")
+
+        messages.success(
+            request,
+            f"Pricing request #{price_change_request_id} rejected successfully.",
+        )
+        return redirect("core:price_change_requests")
 
     @staticmethod
     def get_scope(store_id):
