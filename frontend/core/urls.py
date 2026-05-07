@@ -9,6 +9,7 @@ from .views import (
     ProductsView,
     PromotionsView,
     PriceHistoryView,
+    AnomaliesView,
 )
 
 app_name = "core"
@@ -30,4 +31,5 @@ urlpatterns = [
         name="price_change_request_create",
     ),
     path("price-history/", PriceHistoryView.as_view(), name="price_history"),
+    path("anomalies/", AnomaliesView.as_view(), name="anomalies"),
 ]

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Anomalies | Pricing Control Tower{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <section class="rounded-xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
+        <div class="max-w-3xl">
+            <p class="text-sm font-medium text-slate-500">Monitoring</p>
+
+            <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+                Anomalies
+            </h2>
+
+            <p class="mt-4 text-slate-600">
+                Detected pricing and promotion anomalies retrieved from the FastAPI backend.
+            </p>
+        </div>
+    </section>
+
+    {% if api_error %}
+        <section class="rounded-xl border border-red-200 bg-red-50 p-6">
+            <h3 class="text-base font-semibold text-red-900">
+                API connection error
+            </h3>
+            <p class="mt-2 text-sm text-red-700">
+                The anomalies could not be loaded.
+            </p>
+            <p class="mt-2 text-sm text-red-600">
+                {{ api_error }}
+            </p>
+        </section>
+    {% elif anomalies %}
+        <section class="grid gap-4 lg:grid-cols-2">
+            {% for anomaly in anomalies %}
+                <article class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <p class="text-sm font-medium text-slate-500">
+                                {{ anomaly.anomaly_type }}
+                            </p>
+
+                            <h3 class="mt-2 text-lg font-semibold text-slate-900">
+                                {{ anomaly.message }}
+                            </h3>
+                        </div>
+
+                        <div>
+                            {% if anomaly.severity == "HIGH" %}
+                                <span class="inline-flex rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-red-600/20">
+                                    HIGH
+                                </span>
+                            {% elif anomaly.severity == "MEDIUM" %}
+                                <span class="inline-flex rounded-full bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-yellow-600/20">
+                                    MEDIUM
+                                </span>
+                            {% elif anomaly.severity == "LOW" %}
+                                <span class="inline-flex rounded-full bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-500/20">
+                                    LOW
+                                </span>
+                            {% else %}
+                                <span class="inline-flex rounded-full bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-500/20">
+                                    {{ anomaly.severity }}
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <dl class="mt-6 grid gap-4 sm:grid-cols-2">
+                        <div class="rounded-lg bg-slate-50 p-4">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                Promotion
+                            </dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">
+                                Promotion #{{ anomaly.promotion_id }}
+                            </dd>
+                        </div>
+
+                        <div class="rounded-lg bg-slate-50 p-4">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                Product
+                            </dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">
+                                Product #{{ anomaly.product_id }}
+                            </dd>
+                        </div>
+
+                        <div class="rounded-lg bg-slate-50 p-4">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                Store
+                            </dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">
+                                {% if anomaly.store_id == "N/A" %}
+                                    N/A
+                                {% else %}
+                                    Store #{{ anomaly.store_id }}
+                                {% endif %}
+                            </dd>
+                        </div>
+
+                        <div class="rounded-lg bg-slate-50 p-4">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                Sales count
+                            </dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">
+                                {{ anomaly.sales_count }}
+                            </dd>
+                        </div>
+
+                        <div class="rounded-lg bg-slate-50 p-4">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                Total quantity
+                            </dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">
+                                {{ anomaly.total_quantity }}
+                            </dd>
+                        </div>
+
+                        <div class="rounded-lg bg-slate-50 p-4">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                Revenue vs threshold
+                            </dt>
+                            <dd class="mt-1 text-sm font-semibold text-slate-900">
+                                {{ anomaly.total_revenue }} / {{ anomaly.threshold }}
+                            </dd>
+                        </div>
+                    </dl>
+                </article>
+            {% endfor %}
+        </section>
+    {% else %}
+        <section class="rounded-xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
+            <h3 class="text-base font-semibold text-slate-900">
+                No anomalies detected
+            </h3>
+            <p class="mt-2 text-sm text-slate-500">
+                The API responded successfully and no anomaly was returned.
+            </p>
+        </section>
+    {% endif %}
+</div>
+{% endblock %}

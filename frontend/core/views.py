@@ -418,3 +418,35 @@ class PriceHistoryView(TemplateView):
             return "Country price change"
 
         return "Store price change"
+    
+class AnomaliesView(TemplateView):
+    template_name = "core/anomalies.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["api_error"] = None
+        context["anomalies"] = []
+
+        try:
+            anomalies = api_get("/anomalies")
+        except ApiClientError as exc:
+            context["api_error"] = str(exc)
+            return context
+
+        context["anomalies"] = [
+            {
+                "anomaly_type": anomaly.get("anomaly_type") or "N/A",
+                "severity": anomaly.get("severity") or "N/A",
+                "message": anomaly.get("message") or "N/A",
+                "promotion_id": anomaly.get("promotion_id") or "N/A",
+                "product_id": anomaly.get("product_id") or "N/A",
+                "store_id": anomaly.get("store_id") or "N/A",
+                "sales_count": anomaly.get("sales_count") or 0,
+                "total_quantity": anomaly.get("total_quantity") or 0,
+                "total_revenue": anomaly.get("total_revenue") or "N/A",
+                "threshold": anomaly.get("threshold") or "N/A",
+            }
+            for anomaly in anomalies
+        ]
+
+        return context
