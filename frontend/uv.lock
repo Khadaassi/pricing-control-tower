@@ -181,12 +181,14 @@ source = { virtual = "." }
 dependencies = [
     { name = "django" },
     { name = "django-tailwind", extra = ["cookiecutter", "honcho", "reload"] },
+    { name = "requests" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "django", specifier = ">=6.0.5" },
     { name = "django-tailwind", extras = ["cookiecutter", "honcho", "reload"], specifier = ">=4.4.2" },
+    { name = "requests", specifier = ">=2.33.1" },
 ]
 
 [[package]]
