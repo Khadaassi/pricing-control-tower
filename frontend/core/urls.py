@@ -4,6 +4,7 @@ from .views import (
     DashboardView,
     HomeView,
     PriceChangeRequestsView,
+    PriceChangeRequestCreateView,
     PricesView,
     ProductsView,
     PromotionsView,
@@ -21,5 +22,10 @@ urlpatterns = [
         "price-change-requests/",
         PriceChangeRequestsView.as_view(),
         name="price_change_requests",
+    ),
+    path(
+        "price-change-requests/new/",
+        PriceChangeRequestCreateView.as_view(),
+        name="price_change_request_create",
     ),
 ]

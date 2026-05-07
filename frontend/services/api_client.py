@@ -53,8 +53,30 @@ def api_post(endpoint: str, payload: dict[str, Any] | None = None) -> Any:
     except requests.exceptions.Timeout as exc:
         raise ApiConnectionError("FastAPI backend request timed out.") from exc
     except requests.exceptions.HTTPError as exc:
-        raise ApiResponseError(
-            f"FastAPI backend returned an error: {response.status_code}"
-        ) from exc
+        raise ApiResponseError(extract_api_error_message(response)) from exc
     except requests.exceptions.JSONDecodeError as exc:
         raise ApiResponseError("FastAPI backend returned invalid JSON.") from exc
+    
+def extract_api_error_message(response: requests.Response) -> str:
+    try:
+        error_payload = response.json()
+    except requests.exceptions.JSONDecodeError:
+        return f"FastAPI backend returned an error: {response.status_code}"
+
+    detail = error_payload.get("detail")
+
+    if isinstance(detail, str):
+        return detail
+
+    if isinstance(detail, list):
+        messages = []
+
+        for error in detail:
+            location = error.get("loc", [])
+            field_name = location[-1] if location else "field"
+            message = error.get("msg", "Invalid value")
+            messages.append(f"{field_name}: {message}")
+
+        return " | ".join(messages)
+
+    return f"FastAPI backend returned an error: {response.status_code}"

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Create pricing request | Pricing Control Tower{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <section class="rounded-xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
+        <div class="max-w-3xl">
+            <p class="text-sm font-medium text-slate-500">Pricing workflow</p>
+
+            <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+                Create pricing request
+            </h2>
+
+            <p class="mt-4 text-slate-600">
+                Submit a price change request for approval. The frontend creates a request only and never applies a price change directly.
+            </p>
+        </div>
+    </section>
+
+    {% if api_error %}
+        <section class="rounded-xl border border-red-200 bg-red-50 p-6">
+            <h3 class="text-base font-semibold text-red-900">
+                API validation error
+            </h3>
+            <p class="mt-2 text-sm text-red-700">
+                The pricing request could not be created.
+            </p>
+            <p class="mt-2 text-sm text-red-600">
+                {{ api_error }}
+            </p>
+        </section>
+    {% endif %}
+
+    <section class="rounded-xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <div class="grid gap-6 md:grid-cols-2">
+                {% for field in form %}
+                    <div class="{% if field.name == 'justification' %}md:col-span-2{% endif %}">
+                        <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-slate-700">
+                            {{ field.label }}
+                        </label>
+
+                        <div class="mt-2">
+                            {{ field }}
+                        </div>
+
+                        {% if field.help_text %}
+                            <p class="mt-1 text-xs text-slate-500">
+                                {{ field.help_text }}
+                            </p>
+                        {% endif %}
+
+                        {% if field.errors %}
+                            <div class="mt-2 text-sm text-red-600">
+                                {{ field.errors }}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="flex items-center justify-end gap-3 border-t border-slate-200 pt-6">
+                <a href="{% url 'core:price_change_requests' %}" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">
+                    Cancel
+                </a>
+
+                <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
+                    Create request
+                </button>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}

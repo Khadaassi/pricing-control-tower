@@ -3,13 +3,60 @@
 {% block title %}Dashboard | Pricing Control Tower{% endblock %}
 
 {% block content %}
-<section class="rounded-xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
-    <p class="text-sm font-medium text-slate-500">Overview</p>
-    <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-        Dashboard
-    </h2>
-    <p class="mt-4 text-slate-600">
-        This page will display pricing, sales and performance indicators from the FastAPI backend.
-    </p>
-</section>
+<div class="space-y-8">
+    <section class="rounded-xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
+        <div class="max-w-3xl">
+            <p class="text-sm font-medium text-slate-500">Overview</p>
+
+            <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+                Dashboard
+            </h2>
+
+            <p class="mt-4 text-slate-600">
+                High-level pricing and sales performance indicators retrieved from the FastAPI backend.
+            </p>
+        </div>
+    </section>
+
+    {% if api_error %}
+        <section class="rounded-xl border border-red-200 bg-red-50 p-6">
+            <h3 class="text-base font-semibold text-red-900">
+                API connection error
+            </h3>
+            <p class="mt-2 text-sm text-red-700">
+                The dashboard data could not be loaded.
+            </p>
+            <p class="mt-2 text-sm text-red-600">
+                {{ api_error }}
+            </p>
+        </section>
+    {% else %}
+        <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {% for card in kpi_cards %}
+                <article class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                    <p class="text-sm font-medium text-slate-500">
+                        {{ card.label }}
+                    </p>
+
+                    <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">
+                        {{ card.value }}
+                    </p>
+
+                    <p class="mt-3 text-sm text-slate-500">
+                        {{ card.description }}
+                    </p>
+                </article>
+            {% empty %}
+                <article class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                    <p class="text-sm font-medium text-slate-500">
+                        No KPI available
+                    </p>
+                    <p class="mt-3 text-sm text-slate-600">
+                        The API responded successfully but did not return dashboard indicators.
+                    </p>
+                </article>
+            {% endfor %}
+        </section>
+    {% endif %}
+</div>
 {% endblock %}

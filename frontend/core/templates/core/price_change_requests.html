@@ -3,13 +3,181 @@
 {% block title %}Pricing requests | Pricing Control Tower{% endblock %}
 
 {% block content %}
-<section class="rounded-xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
-    <p class="text-sm font-medium text-slate-500">Pricing workflow</p>
-    <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-        Pricing requests
-    </h2>
-    <p class="mt-4 text-slate-600">
-        This page will allow users to create, review, approve and reject price change requests.
-    </p>
-</section>
+<div class="space-y-8">
+    <section class="rounded-xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
+        <div class="max-w-3xl">
+            <p class="text-sm font-medium text-slate-500">Pricing workflow</p>
+
+            <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+                Pricing requests
+            </h2>
+
+            <p class="mt-4 text-slate-600">
+                Price change requests retrieved from the FastAPI backend.
+            </p>
+        </div>
+    </section>
+
+    {% if api_error %}
+        <section class="rounded-xl border border-red-200 bg-red-50 p-6">
+            <h3 class="text-base font-semibold text-red-900">
+                API connection error
+            </h3>
+            <p class="mt-2 text-sm text-red-700">
+                The pricing requests could not be loaded.
+            </p>
+            <p class="mt-2 text-sm text-red-600">
+                {{ api_error }}
+            </p>
+        </section>
+    {% elif price_change_requests %}
+        <section class="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
+            <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+                <div>
+                    <h3 class="text-base font-semibold text-slate-900">
+                        Request list
+                    </h3>
+                    <p class="mt-1 text-sm text-slate-500">
+                        {{ price_change_requests|length }} pricing requests available.
+                    </p>
+                </div>
+
+                <a href="{% url 'core:price_change_request_create' %}" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
+                    Create request
+                </a>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Request
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Product
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Scope
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Price change
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Effective date
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Status
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Justification
+                            </th>
+                        </tr>
+                    </thead>
+
+                    <tbody class="divide-y divide-slate-100 bg-white">
+                        {% for request in price_change_requests %}
+                            <tr class="hover:bg-slate-50">
+                                <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-700">
+                                    <div class="font-medium text-slate-900">
+                                        Request #{{ request.id }}
+                                    </div>
+                                    <div class="mt-1 text-xs text-slate-500">
+                                        Created at {{ request.created_at }}
+                                    </div>
+                                </td>
+
+                                <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-700">
+                                    Product #{{ request.product_id }}
+                                </td>
+
+                                <td class="whitespace-nowrap px-6 py-4 text-sm">
+                                    {% if request.scope == "Country request" %}
+                                        <span class="inline-flex rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-600/20">
+                                            Country request
+                                        </span>
+                                        <div class="mt-2 text-xs text-slate-500">
+                                            Country #{{ request.country_id }}
+                                        </div>
+                                    {% else %}
+                                        <span class="inline-flex rounded-full bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-purple-600/20">
+                                            Store request
+                                        </span>
+                                        <div class="mt-2 text-xs text-slate-500">
+                                            Country #{{ request.country_id }} · Store #{{ request.store_id }}
+                                        </div>
+                                    {% endif %}
+                                </td>
+
+                                <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-700">
+                                    <div>
+                                        <span class="text-slate-500">Old:</span>
+                                        <span class="font-medium text-slate-900">{{ request.old_price_amount }}</span>
+                                    </div>
+                                    <div class="mt-1">
+                                        <span class="text-slate-500">New:</span>
+                                        <span class="font-medium text-slate-900">{{ request.requested_price_amount }}</span>
+                                    </div>
+                                </td>
+
+                                <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-700">
+                                    {{ request.requested_effective_date }}
+                                </td>
+
+                                <td class="whitespace-nowrap px-6 py-4 text-sm">
+                                    {% if request.status == "PENDING" %}
+                                        <span class="inline-flex rounded-full bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-yellow-600/20">
+                                            PENDING
+                                        </span>
+                                    {% elif request.status == "APPLIED" %}
+                                        <span class="inline-flex rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-green-600/20">
+                                            APPLIED
+                                        </span>
+                                    {% elif request.status == "REJECTED" %}
+                                        <span class="inline-flex rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-red-600/20">
+                                            REJECTED
+                                        </span>
+                                    {% elif request.status == "APPROVED" %}
+                                        <span class="inline-flex rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-600/20">
+                                            APPROVED
+                                        </span>
+                                    {% elif request.status == "FAILED" %}
+                                        <span class="inline-flex rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-red-600/20">
+                                            FAILED
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex rounded-full bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-500/20">
+                                            {{ request.status }}
+                                        </span>
+                                    {% endif %}
+
+                                    {% if request.rejection_reason != "N/A" %}
+                                        <p class="mt-2 max-w-xs text-xs text-red-700">
+                                            {{ request.rejection_reason }}
+                                        </p>
+                                    {% endif %}
+                                </td>
+
+                                <td class="px-6 py-4 text-sm text-slate-700">
+                                    <p class="max-w-md">
+                                        {{ request.justification }}
+                                    </p>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% else %}
+        <section class="rounded-xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
+            <h3 class="text-base font-semibold text-slate-900">
+                No pricing requests available
+            </h3>
+            <p class="mt-2 text-sm text-slate-500">
+                The API responded successfully but no pricing request was returned.
+            </p>
+        </section>
+    {% endif %}
+</div>
 {% endblock %}

@@ -3,13 +3,118 @@
 {% block title %}Products | Pricing Control Tower{% endblock %}
 
 {% block content %}
-<section class="rounded-xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
-    <p class="text-sm font-medium text-slate-500">Product catalog</p>
-    <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-        Products
-    </h2>
-    <p class="mt-4 text-slate-600">
-        This page will display products retrieved from the FastAPI backend.
-    </p>
-</section>
+<div class="space-y-8">
+    <section class="rounded-xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
+        <div class="max-w-3xl">
+            <p class="text-sm font-medium text-slate-500">Product catalog</p>
+
+            <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+                Products
+            </h2>
+
+            <p class="mt-4 text-slate-600">
+                Product catalog retrieved from the FastAPI backend.
+            </p>
+        </div>
+    </section>
+
+    {% if api_error %}
+        <section class="rounded-xl border border-red-200 bg-red-50 p-6">
+            <h3 class="text-base font-semibold text-red-900">
+                API connection error
+            </h3>
+            <p class="mt-2 text-sm text-red-700">
+                The product catalog could not be loaded.
+            </p>
+            <p class="mt-2 text-sm text-red-600">
+                {{ api_error }}
+            </p>
+        </section>
+    {% elif products %}
+        <section class="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
+            <div class="border-b border-slate-200 px-6 py-4">
+                <h3 class="text-base font-semibold text-slate-900">
+                    Product list
+                </h3>
+                <p class="mt-1 text-sm text-slate-500">
+                    {{ products|length }} products available.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Code
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Product
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Brand
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Model
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Family
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Status
+                            </th>
+                        </tr>
+                    </thead>
+
+                    <tbody class="divide-y divide-slate-100 bg-white">
+                        {% for product in products %}
+                            <tr class="hover:bg-slate-50">
+                                <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-900">
+                                    {{ product.code }}
+                                </td>
+                                <td class="px-6 py-4 text-sm text-slate-700">
+                                    <div class="font-medium text-slate-900">
+                                        {{ product.name }}
+                                    </div>
+                                    <div class="mt-1 max-w-md text-xs text-slate-500">
+                                        {{ product.description }}
+                                    </div>
+                                </td>
+                                <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-700">
+                                    {{ product.brand }}
+                                </td>
+                                <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-700">
+                                    {{ product.model }}
+                                </td>
+                                <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-700">
+                                    {{ product.family_name }}
+                                </td>
+                                <td class="whitespace-nowrap px-6 py-4 text-sm">
+                                    {% if product.status == "Active" %}
+                                        <span class="inline-flex rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-green-600/20">
+                                            Active
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex rounded-full bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-500/20">
+                                            Inactive
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% else %}
+        <section class="rounded-xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
+            <h3 class="text-base font-semibold text-slate-900">
+                No products available
+            </h3>
+            <p class="mt-2 text-sm text-slate-500">
+                The API responded successfully but no product was returned.
+            </p>
+        </section>
+    {% endif %}
+</div>
 {% endblock %}
