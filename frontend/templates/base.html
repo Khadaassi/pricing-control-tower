@@ -1,0 +1,508 @@
+{% load static tailwind_tags %}
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Pricing Control Tower{% endblock %}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    {% tailwind_css %}
+
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        :root {
+            --pct-sidebar: #071225;
+            --pct-sidebar-soft: #0b1b35;
+            --pct-sidebar-hover: rgba(255, 255, 255, 0.08);
+            --pct-purple: #5b2cff;
+            --pct-purple-dark: #3b18c9;
+            --pct-blue: #2563eb;
+            --pct-bg: #f7f8fc;
+        }
+
+        .pct-sidebar {
+            background:
+                radial-gradient(circle at 20% 0%, rgba(91, 44, 255, 0.26), transparent 28%),
+                radial-gradient(circle at 100% 100%, rgba(37, 99, 235, 0.18), transparent 32%),
+                linear-gradient(180deg, #081326 0%, #061021 52%, #050b18 100%);
+        }
+
+        .pct-sidebar::after {
+            content: "";
+            position: absolute;
+            inset: auto -40px 0 -40px;
+            height: 180px;
+            pointer-events: none;
+            opacity: 0.45;
+            background:
+                repeating-radial-gradient(
+                    ellipse at bottom,
+                    rgba(91, 44, 255, 0.35) 0,
+                    rgba(91, 44, 255, 0.35) 1px,
+                    transparent 2px,
+                    transparent 10px
+                );
+            transform: rotate(-8deg);
+        }
+
+        .pct-logo-mark {
+            background: conic-gradient(from 210deg, #7c3aed, #4f46e5, #2563eb, #7c3aed);
+        }
+
+        .pct-nav-active {
+            color: #ffffff;
+            background: linear-gradient(135deg, #5b2cff 0%, #3b82f6 100%);
+            box-shadow: 0 12px 28px rgba(91, 44, 255, 0.36);
+        }
+
+        .pct-nav-link {
+            transition: background-color 150ms ease, color 150ms ease, transform 150ms ease;
+        }
+
+        .pct-nav-link:hover:not(.pct-nav-active) {
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+        }
+
+        .pct-topbar {
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(18px);
+        }
+
+        .pct-search {
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+        }
+
+        .pct-mobile-sidebar {
+            transform: translateX(-100%);
+            transition: transform 180ms ease;
+        }
+
+        .pct-mobile-sidebar.is-open {
+            transform: translateX(0);
+        }
+
+        .pct-overlay {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 180ms ease;
+        }
+
+        .pct-overlay.is-open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .sidebar-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .sidebar-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .sidebar-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.16);
+            border-radius: 999px;
+        }
+    </style>
+
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body class="h-full bg-[#f7f8fc] text-slate-950 antialiased">
+
+<a href="#main-content"
+   class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-xl focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-slate-900 focus:shadow-lg">
+    Skip to content
+</a>
+
+<div id="sidebar-overlay"
+     class="pct-overlay fixed inset-0 z-40 bg-slate-950/40 lg:hidden"
+     aria-hidden="true"></div>
+
+<div class="min-h-screen">
+
+    <!-- Desktop sidebar -->
+    <aside class="pct-sidebar fixed inset-y-0 left-0 z-50 hidden w-64 flex-col overflow-hidden lg:flex">
+
+        <!-- Brand -->
+        <div class="relative z-10 flex h-20 shrink-0 items-center gap-3 px-6">
+            <a href="{% url 'core:dashboard' %}" class="flex items-center gap-3">
+                <div class="pct-logo-mark flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-lg shadow-violet-950/30">
+                    <div class="h-5 w-5 rounded-full border-[5px] border-white border-r-transparent"></div>
+                </div>
+                <div class="leading-tight">
+                    <p class="text-[13px] font-extrabold uppercase tracking-wide text-white">Pricing</p>
+                    <p class="text-[13px] font-extrabold uppercase tracking-wide text-white">Control Tower</p>
+                </div>
+            </a>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="sidebar-scroll relative z-10 flex flex-1 flex-col gap-1 overflow-y-auto px-4 py-3">
+
+            <p class="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                Workspace
+            </p>
+
+            <a href="{% url 'core:dashboard' %}"
+               class="pct-nav-link flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold
+               {% if request.resolver_match.url_name == 'dashboard' or request.resolver_match.url_name == 'home' %}pct-nav-active{% else %}text-slate-300{% endif %}">
+                <svg class="h-5 w-5 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.5h6.75v6.75H3.75V4.5zM13.5 4.5h6.75v6.75H13.5V4.5zM3.75 14.25h6.75V21H3.75v-6.75zM13.5 14.25h6.75V21H13.5v-6.75z"/>
+                </svg>
+                Dashboard
+            </a>
+
+            <a href="{% url 'core:products' %}"
+               class="pct-nav-link flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold
+               {% if request.resolver_match.url_name == 'products' %}pct-nav-active{% else %}text-slate-300{% endif %}">
+                <svg class="h-5 w-5 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25l-9-4.5-9 4.5 9 4.5 9-4.5z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 8.25v7.5l9 4.5 9-4.5v-7.5M12 12.75v7.5"/>
+                </svg>
+                Products
+            </a>
+
+            <a href="{% url 'core:prices' %}"
+               class="pct-nav-link flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold
+               {% if request.resolver_match.url_name == 'prices' %}pct-nav-active{% else %}text-slate-300{% endif %}">
+                <svg class="h-5 w-5 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.169.659 1.591l8.682 8.682a2.25 2.25 0 003.182 0l4.318-4.318a2.25 2.25 0 000-3.182L11.159 3.66A2.25 2.25 0 009.568 3z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 6.75h.008v.008H6.75V6.75z"/>
+                </svg>
+                Prices
+            </a>
+
+            <a href="{% url 'core:promotions' %}"
+               class="pct-nav-link flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold
+               {% if request.resolver_match.url_name == 'promotions' %}pct-nav-active{% else %}text-slate-300{% endif %}">
+                <svg class="h-5 w-5 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 4.5L4.5 19.5"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16.5 18.75a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/>
+                </svg>
+                Promotions
+            </a>
+
+            <a href="{% url 'core:anomalies' %}"
+               class="pct-nav-link flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold
+               {% if request.resolver_match.url_name == 'anomalies' %}pct-nav-active{% else %}text-slate-300{% endif %}">
+                <svg class="h-5 w-5 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4.25m0 3.25h.008v.008H12V16.5z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                </svg>
+                Anomalies
+            </a>
+
+            <p class="px-3 pb-2 pt-5 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                Workflow
+            </p>
+
+            <a href="{% url 'core:price_change_requests' %}"
+               class="pct-nav-link flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold
+               {% if request.resolver_match.url_name == 'price_change_requests' or request.resolver_match.url_name == 'price_change_request_create' %}pct-nav-active{% else %}text-slate-300{% endif %}">
+                <svg class="h-5 w-5 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75l2.25 2.25L15 9.75"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 3.75h9A2.25 2.25 0 0118.75 6v12A2.25 2.25 0 0116.5 20.25h-9A2.25 2.25 0 015.25 18V6A2.25 2.25 0 017.5 3.75z"/>
+                </svg>
+                Pricing Requests
+            </a>
+
+            <a href="{% url 'core:price_history' %}"
+               class="pct-nav-link flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold
+               {% if request.resolver_match.url_name == 'price_history' %}pct-nav-active{% else %}text-slate-300{% endif %}">
+                <svg class="h-5 w-5 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5v5l3.25 2"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-2.64-6.36"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 3v5.25h-5.25"/>
+                </svg>
+                Price History
+            </a>
+
+            <div class="mt-auto rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-lg shadow-violet-950/30">
+                        <svg class="h-5 w-5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846A4.5 4.5 0 005.096 12.813L2.25 12l2.846-.813A4.5 4.5 0 008.187 8.096L9 5.25l.813 2.846a4.5 4.5 0 003.091 3.091L15.75 12l-2.846.813a4.5 4.5 0 00-3.091 3.091z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-white">AI Insights</p>
+                        <p class="mt-0.5 text-xs text-slate-400">Decision support only</p>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Mobile sidebar -->
+    <aside id="mobile-sidebar"
+           class="pct-sidebar pct-mobile-sidebar fixed inset-y-0 left-0 z-50 flex w-72 flex-col overflow-hidden lg:hidden"
+           aria-label="Mobile navigation">
+
+        <div class="relative z-10 flex h-20 shrink-0 items-center justify-between px-6">
+            <a href="{% url 'core:dashboard' %}" class="flex items-center gap-3">
+                <div class="pct-logo-mark flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-lg shadow-violet-950/30">
+                    <div class="h-5 w-5 rounded-full border-[5px] border-white border-r-transparent"></div>
+                </div>
+                <div class="leading-tight">
+                    <p class="text-[13px] font-extrabold uppercase tracking-wide text-white">Pricing</p>
+                    <p class="text-[13px] font-extrabold uppercase tracking-wide text-white">Control Tower</p>
+                </div>
+            </a>
+
+            <button type="button"
+                    id="close-sidebar"
+                    class="flex h-10 w-10 items-center justify-center rounded-xl text-slate-300 hover:bg-white/10 hover:text-white"
+                    aria-label="Close navigation">
+                <svg class="h-5 w-5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <nav class="sidebar-scroll relative z-10 flex flex-1 flex-col gap-1 overflow-y-auto px-4 py-3">
+            <a href="{% url 'core:dashboard' %}"
+               class="pct-nav-link flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold
+               {% if request.resolver_match.url_name == 'dashboard' or request.resolver_match.url_name == 'home' %}pct-nav-active{% else %}text-slate-300{% endif %}">
+                <svg class="h-5 w-5 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.5h6.75v6.75H3.75V4.5zM13.5 4.5h6.75v6.75H13.5V4.5zM3.75 14.25h6.75V21H3.75v-6.75zM13.5 14.25h6.75V21H13.5v-6.75z"/>
+                </svg>
+                Dashboard
+            </a>
+
+            <a href="{% url 'core:products' %}"
+               class="pct-nav-link flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold {% if request.resolver_match.url_name == 'products' %}pct-nav-active{% else %}text-slate-300{% endif %}">
+                <svg class="h-5 w-5 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25l-9-4.5-9 4.5 9 4.5 9-4.5z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 8.25v7.5l9 4.5 9-4.5v-7.5M12 12.75v7.5"/>
+                </svg>
+                Products
+            </a>
+
+            <a href="{% url 'core:prices' %}"
+               class="pct-nav-link flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold {% if request.resolver_match.url_name == 'prices' %}pct-nav-active{% else %}text-slate-300{% endif %}">
+                <svg class="h-5 w-5 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.169.659 1.591l8.682 8.682a2.25 2.25 0 003.182 0l4.318-4.318a2.25 2.25 0 000-3.182L11.159 3.66A2.25 2.25 0 009.568 3z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 6.75h.008v.008H6.75V6.75z"/>
+                </svg>
+                Prices
+            </a>
+
+            <a href="{% url 'core:promotions' %}"
+               class="pct-nav-link flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold {% if request.resolver_match.url_name == 'promotions' %}pct-nav-active{% else %}text-slate-300{% endif %}">
+                <svg class="h-5 w-5 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 4.5L4.5 19.5"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16.5 18.75a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/>
+                </svg>
+                Promotions
+            </a>
+
+            <a href="{% url 'core:anomalies' %}"
+               class="pct-nav-link flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold {% if request.resolver_match.url_name == 'anomalies' %}pct-nav-active{% else %}text-slate-300{% endif %}">
+                <svg class="h-5 w-5 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4.25m0 3.25h.008v.008H12V16.5z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                </svg>
+                Anomalies
+            </a>
+
+            <a href="{% url 'core:price_change_requests' %}"
+               class="pct-nav-link flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold {% if request.resolver_match.url_name == 'price_change_requests' or request.resolver_match.url_name == 'price_change_request_create' %}pct-nav-active{% else %}text-slate-300{% endif %}">
+                <svg class="h-5 w-5 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75l2.25 2.25L15 9.75"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 3.75h9A2.25 2.25 0 0118.75 6v12A2.25 2.25 0 0116.5 20.25h-9A2.25 2.25 0 015.25 18V6A2.25 2.25 0 017.5 3.75z"/>
+                </svg>
+                Pricing Requests
+            </a>
+
+            <a href="{% url 'core:price_history' %}"
+               class="pct-nav-link flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold {% if request.resolver_match.url_name == 'price_history' %}pct-nav-active{% else %}text-slate-300{% endif %}">
+                <svg class="h-5 w-5 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5v5l3.25 2"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-2.64-6.36"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 3v5.25h-5.25"/>
+                </svg>
+                Price History
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main area -->
+    <div class="lg:pl-64">
+
+        <!-- Top bar -->
+        <header class="pct-topbar sticky top-0 z-30 border-b border-slate-200">
+            <div class="flex h-20 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+
+                <div class="flex min-w-0 items-center gap-4">
+                    <button type="button"
+                            id="open-sidebar"
+                            class="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 lg:hidden"
+                            aria-label="Open navigation">
+                        <svg class="h-5 w-5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
+                        </svg>
+                    </button>
+
+                    <div class="min-w-0">
+                        <h1 class="truncate text-xl font-extrabold tracking-tight text-slate-950">
+                            {% block page_title %}{% endblock %}
+                        </h1>
+                        {% block page_subtitle %}
+                            <p class="mt-1 truncate text-sm text-slate-500"></p>
+                        {% endblock %}
+                    </div>
+                </div>
+
+                <div class="hidden min-w-0 flex-1 justify-center md:flex">
+                    <label for="global-search" class="sr-only">Search</label>
+                    <div class="pct-search flex w-full max-w-xl items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                        <svg class="h-5 w-5 shrink-0 text-slate-400" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z"/>
+                        </svg>
+                        <input id="global-search"
+                               type="search"
+                               class="w-full border-0 bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
+                               placeholder="Search products, SKUs, stores, promotions..."
+                               autocomplete="off">
+                        <kbd class="hidden rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-400 sm:inline-flex">
+                            ⌘ K
+                        </kbd>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button type="button"
+                            class="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50"
+                            aria-label="Notifications">
+                        <svg class="h-5 w-5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9a6 6 0 00-12 0v.75a8.967 8.967 0 01-2.312 6.022 23.848 23.848 0 005.455 1.31m5.714 0a3 3 0 11-5.714 0"/>
+                        </svg>
+                        <span class="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-violet-600 text-[10px] font-bold text-white shadow-sm">
+                            3
+                        </span>
+                    </button>
+                </div>
+
+            </div>
+        </header>
+
+        <!-- Page content -->
+        <main id="main-content" class="min-h-[calc(100vh-5rem)] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+
+            {% if messages %}
+                <div class="mb-6 space-y-3">
+                    {% for message in messages %}
+                        {% if message.tags == 'error' %}
+                            <div role="alert" class="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-sm">
+                                <svg class="mt-0.5 h-5 w-5 shrink-0 text-red-500" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12V16.5z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <div>
+                                    <p class="font-semibold text-red-900">Error</p>
+                                    <p class="mt-0.5">{{ message }}</p>
+                                </div>
+                            </div>
+                        {% elif message.tags == 'warning' %}
+                            <div role="alert" class="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm">
+                                <svg class="mt-0.5 h-5 w-5 shrink-0 text-amber-500" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12V16.5z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                                </svg>
+                                <div>
+                                    <p class="font-semibold text-amber-900">Warning</p>
+                                    <p class="mt-0.5">{{ message }}</p>
+                                </div>
+                            </div>
+                        {% elif message.tags == 'info' %}
+                            <div role="status" class="flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 shadow-sm">
+                                <svg class="mt-0.5 h-5 w-5 shrink-0 text-blue-500" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0zM12 8.25h.008v.008H12V8.25z"/>
+                                </svg>
+                                <div>
+                                    <p class="font-semibold text-blue-900">Information</p>
+                                    <p class="mt-0.5">{{ message }}</p>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div role="status" class="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-sm">
+                                <svg class="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <div>
+                                    <p class="font-semibold text-emerald-900">Success</p>
+                                    <p class="mt-0.5">{{ message }}</p>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const openButton = document.getElementById("open-sidebar");
+        const closeButton = document.getElementById("close-sidebar");
+        const sidebar = document.getElementById("mobile-sidebar");
+        const overlay = document.getElementById("sidebar-overlay");
+        const searchInput = document.getElementById("global-search");
+
+        function openSidebar() {
+            sidebar.classList.add("is-open");
+            overlay.classList.add("is-open");
+            document.body.style.overflow = "hidden";
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove("is-open");
+            overlay.classList.remove("is-open");
+            document.body.style.overflow = "";
+        }
+
+        if (openButton) {
+            openButton.addEventListener("click", openSidebar);
+        }
+
+        if (closeButton) {
+            closeButton.addEventListener("click", closeSidebar);
+        }
+
+        if (overlay) {
+            overlay.addEventListener("click", closeSidebar);
+        }
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") {
+                closeSidebar();
+            }
+
+            const isMacShortcut = event.metaKey && event.key.toLowerCase() === "k";
+            const isWindowsShortcut = event.ctrlKey && event.key.toLowerCase() === "k";
+
+            if ((isMacShortcut || isWindowsShortcut) && searchInput) {
+                event.preventDefault();
+                searchInput.focus();
+            }
+        });
+    });
+</script>
+
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

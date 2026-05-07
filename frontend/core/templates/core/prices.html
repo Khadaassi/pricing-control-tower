@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Prices | Pricing Control Tower{% endblock %}
+{% block page_title %}Prices{% endblock %}
+{% block page_subtitle %}<p class="text-xs text-gray-400">Current product prices across all countries and stores</p>{% endblock %}
+
+{% block content %}
+{% if api_error %}
+    {% include "core/partials/alert.html" with type="error" title="API connection error" message="The price list could not be loaded." detail=api_error show_retry=True %}
+{% elif prices %}
+    <div class="rounded-2xl border border-gray-100 bg-white shadow-sm">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div>
+                <p class="text-sm font-semibold text-gray-900">Price records</p>
+                <p class="text-xs text-gray-400">{{ prices|length }} record{{ prices|length|pluralize }}</p>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead>
+                    <tr class="border-b border-gray-100 bg-gray-50/60">
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Product</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Scope</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Type</th>
+                        <th scope="col" class="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-400">Amount</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Country</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Store</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Period</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for price in prices %}
+                    <tr class="hover:bg-gray-50/50" style="transition:background 0.1s;">
+                        <td class="px-6 py-4">
+                            <p class="text-sm font-semibold text-gray-900">{{ price.product_name }}</p>
+                            <p class="text-xs text-gray-400">{{ price.product_code }}</p>
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4">
+                            {% if price.scope == "COUNTRY" %}
+                                <span class="inline-flex rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{{ price.scope_label }}</span>
+                            {% elif price.scope == "STORE" %}
+                                <span class="inline-flex rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">{{ price.scope_label }}</span>
+                            {% else %}
+                                <span class="inline-flex rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">{{ price.scope_label }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4">
+                            {% if price.type == "PROMO" %}
+                                <span class="inline-flex rounded-lg bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">PROMO</span>
+                            {% else %}
+                                <span class="inline-flex rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">{{ price.type }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-bold tabular-nums text-gray-900">{{ price.amount }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">Country #{{ price.country_id }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                            {% if price.store_id == "N/A" %}N/A{% else %}Store #{{ price.store_id }}{% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                            <div>{{ price.effective_from }}</div>
+                            <div class="text-xs text-gray-400">to {{ price.effective_to }}</div>
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4">
+                            {% if price.status == "ACTIVE" %}
+                                <span class="inline-flex rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">ACTIVE</span>
+                            {% else %}
+                                <span class="inline-flex rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">{{ price.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% else %}
+    {% include "core/partials/empty_state.html" with title="No prices found" description="The API responded but no price records were returned." %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Products | Pricing Control Tower{% endblock %}
+{% block page_title %}Products{% endblock %}
+{% block page_subtitle %}<p class="text-xs text-gray-400">Full product catalog from the pricing backend</p>{% endblock %}
+
+{% block content %}
+{% if api_error %}
+    {% include "core/partials/alert.html" with type="error" title="API connection error" message="The product catalog could not be loaded." detail=api_error show_retry=True %}
+{% elif products %}
+    <div class="rounded-2xl border border-gray-100 bg-white shadow-sm">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div>
+                <p class="text-sm font-semibold text-gray-900">All products</p>
+                <p class="text-xs text-gray-400">{{ products|length }} product{{ products|length|pluralize }}</p>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead>
+                    <tr class="border-b border-gray-100 bg-gray-50/60">
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Code</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Product</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Brand</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Model</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Family</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for product in products %}
+                    <tr class="hover:bg-gray-50/50" style="transition:background 0.1s;">
+                        <td class="whitespace-nowrap px-6 py-4 text-sm font-mono font-medium text-gray-900">{{ product.code }}</td>
+                        <td class="px-6 py-4">
+                            <p class="text-sm font-semibold text-gray-900">{{ product.name }}</p>
+                            {% if product.description %}<p class="mt-0.5 max-w-xs text-xs text-gray-400 truncate">{{ product.description }}</p>{% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ product.brand }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ product.model }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ product.family_name }}</td>
+                        <td class="whitespace-nowrap px-6 py-4">
+                            {% if product.status == "Active" %}{% include "core/partials/status_badge.html" with status="ACTIVE" %}{% else %}{% include "core/partials/status_badge.html" with status="INACTIVE" %}{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% else %}
+    {% include "core/partials/empty_state.html" with title="No products found" description="The API responded but no products were returned." %}
+{% endif %}
+{% endblock %}
