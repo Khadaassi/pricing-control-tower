@@ -1,0 +1,56 @@
+{% load static %}
+<header class="sticky top-0 z-40 border-b border-slate-200 bg-white shadow-sm" role="banner">
+    <div class="mx-auto max-w-7xl px-6">
+        <div class="flex h-16 items-center justify-between">
+            <a href="{% url 'core:home' %}" class="flex items-center gap-2 text-slate-900 hover:text-slate-700">
+                <span class="text-[15px] font-bold tracking-tight">Pricing Control Tower</span>
+            </a>
+            <nav aria-label="Main navigation">
+                <ul class="flex items-center gap-0.5 text-[13px] font-medium">
+                    <li>
+                        <a href="{% url 'core:dashboard' %}"
+                           class="rounded-md px-3 py-2 transition-colors {% if request.resolver_match.url_name == 'dashboard' %}bg-blue-50 text-blue-700{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+                            Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'core:products' %}"
+                           class="rounded-md px-3 py-2 transition-colors {% if request.resolver_match.url_name == 'products' %}bg-blue-50 text-blue-700{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+                            Products
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'core:prices' %}"
+                           class="rounded-md px-3 py-2 transition-colors {% if request.resolver_match.url_name == 'prices' %}bg-blue-50 text-blue-700{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+                            Prices
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'core:promotions' %}"
+                           class="rounded-md px-3 py-2 transition-colors {% if request.resolver_match.url_name == 'promotions' %}bg-blue-50 text-blue-700{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+                            Promotions
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'core:price_change_requests' %}"
+                           class="rounded-md px-3 py-2 transition-colors {% if request.resolver_match.url_name == 'price_change_requests' or request.resolver_match.url_name == 'price_change_request_create' %}bg-blue-50 text-blue-700{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+                            Price Requests
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'core:price_history' %}"
+                           class="rounded-md px-3 py-2 transition-colors {% if request.resolver_match.url_name == 'price_history' %}bg-blue-50 text-blue-700{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+                            Price History
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'core:anomalies' %}"
+                           class="rounded-md px-3 py-2 transition-colors {% if request.resolver_match.url_name == 'anomalies' %}bg-blue-50 text-blue-700{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+                            Anomalies
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+</header>

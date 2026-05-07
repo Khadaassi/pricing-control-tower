@@ -1,142 +1,77 @@
 {% extends "base.html" %}
-
 {% block title %}Anomalies | Pricing Control Tower{% endblock %}
+{% block page_title %}Anomalies{% endblock %}
+{% block page_subtitle %}<p class="text-xs text-gray-400">Pricing anomalies flagged by the detection engine</p>{% endblock %}
 
 {% block content %}
-<div class="space-y-8">
-    <section class="rounded-xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
-        <div class="max-w-3xl">
-            <p class="text-sm font-medium text-slate-500">Monitoring</p>
-
-            <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-                Anomalies
-            </h2>
-
-            <p class="mt-4 text-slate-600">
-                Detected pricing and promotion anomalies retrieved from the FastAPI backend.
-            </p>
+{% if api_error %}
+    {% include "core/partials/alert.html" with type="error" title="API connection error" message="The anomaly list could not be loaded." detail=api_error show_retry=True %}
+{% elif anomalies %}
+    <div class="rounded-2xl border border-gray-100 bg-white shadow-sm">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div>
+                <p class="text-sm font-semibold text-gray-900">Top Anomalies</p>
+                <p class="text-xs text-gray-400">{{ anomalies|length }} anomal{{ anomalies|length|pluralize:"y,ies" }}</p>
+            </div>
         </div>
-    </section>
-
-    {% if api_error %}
-        <section class="rounded-xl border border-red-200 bg-red-50 p-6">
-            <h3 class="text-base font-semibold text-red-900">
-                API connection error
-            </h3>
-            <p class="mt-2 text-sm text-red-700">
-                The anomalies could not be loaded.
-            </p>
-            <p class="mt-2 text-sm text-red-600">
-                {{ api_error }}
-            </p>
-        </section>
-    {% elif anomalies %}
-        <section class="grid gap-4 lg:grid-cols-2">
-            {% for anomaly in anomalies %}
-                <article class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-                    <div class="flex items-start justify-between gap-4">
-                        <div>
-                            <p class="text-sm font-medium text-slate-500">
-                                {{ anomaly.anomaly_type }}
-                            </p>
-
-                            <h3 class="mt-2 text-lg font-semibold text-slate-900">
-                                {{ anomaly.message }}
-                            </h3>
-                        </div>
-
-                        <div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead>
+                    <tr class="border-b border-gray-100 bg-gray-50/60">
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Anomaly</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Product</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Type</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Impact</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Status</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Severity</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Detected at</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    {% for anomaly in anomalies %}
+                    <tr class="hover:bg-gray-50/50" style="transition:background 0.1s;">
+                        <td class="whitespace-nowrap px-6 py-4">
                             {% if anomaly.severity == "HIGH" %}
-                                <span class="inline-flex rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-red-600/20">
-                                    HIGH
-                                </span>
+                                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-red-100">
+                                    <svg class="h-4 w-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                                </div>
                             {% elif anomaly.severity == "MEDIUM" %}
-                                <span class="inline-flex rounded-full bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-yellow-600/20">
-                                    MEDIUM
-                                </span>
-                            {% elif anomaly.severity == "LOW" %}
-                                <span class="inline-flex rounded-full bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-500/20">
-                                    LOW
-                                </span>
+                                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100">
+                                    <svg class="h-4 w-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                                </div>
                             {% else %}
-                                <span class="inline-flex rounded-full bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-500/20">
-                                    {{ anomaly.severity }}
-                                </span>
+                                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100">
+                                    <svg class="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"/></svg>
+                                </div>
                             {% endif %}
-                        </div>
-                    </div>
-
-                    <dl class="mt-6 grid gap-4 sm:grid-cols-2">
-                        <div class="rounded-lg bg-slate-50 p-4">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">
-                                Promotion
-                            </dt>
-                            <dd class="mt-1 text-sm font-semibold text-slate-900">
-                                Promotion #{{ anomaly.promotion_id }}
-                            </dd>
-                        </div>
-
-                        <div class="rounded-lg bg-slate-50 p-4">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">
-                                Product
-                            </dt>
-                            <dd class="mt-1 text-sm font-semibold text-slate-900">
-                                Product #{{ anomaly.product_id }}
-                            </dd>
-                        </div>
-
-                        <div class="rounded-lg bg-slate-50 p-4">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">
-                                Store
-                            </dt>
-                            <dd class="mt-1 text-sm font-semibold text-slate-900">
-                                {% if anomaly.store_id == "N/A" %}
-                                    N/A
-                                {% else %}
-                                    Store #{{ anomaly.store_id }}
-                                {% endif %}
-                            </dd>
-                        </div>
-
-                        <div class="rounded-lg bg-slate-50 p-4">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">
-                                Sales count
-                            </dt>
-                            <dd class="mt-1 text-sm font-semibold text-slate-900">
-                                {{ anomaly.sales_count }}
-                            </dd>
-                        </div>
-
-                        <div class="rounded-lg bg-slate-50 p-4">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">
-                                Total quantity
-                            </dt>
-                            <dd class="mt-1 text-sm font-semibold text-slate-900">
-                                {{ anomaly.total_quantity }}
-                            </dd>
-                        </div>
-
-                        <div class="rounded-lg bg-slate-50 p-4">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">
-                                Revenue vs threshold
-                            </dt>
-                            <dd class="mt-1 text-sm font-semibold text-slate-900">
-                                {{ anomaly.total_revenue }} / {{ anomaly.threshold }}
-                            </dd>
-                        </div>
-                    </dl>
-                </article>
-            {% endfor %}
-        </section>
-    {% else %}
-        <section class="rounded-xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
-            <h3 class="text-base font-semibold text-slate-900">
-                No anomalies detected
-            </h3>
-            <p class="mt-2 text-sm text-slate-500">
-                The API responded successfully and no anomaly was returned.
-            </p>
-        </section>
-    {% endif %}
-</div>
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-900">#{{ anomaly.product_id }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ anomaly.anomaly_type }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500" style="max-width:220px;"><span class="truncate block" title="{{ anomaly.description }}">{{ anomaly.description }}</span></td>
+                        <td class="whitespace-nowrap px-6 py-4">
+                            {% if anomaly.is_resolved %}
+                                <span class="inline-flex rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Resolved</span>
+                            {% else %}
+                                <span class="inline-flex rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Open</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4">
+                            {% if anomaly.severity == "HIGH" %}
+                                <span class="inline-flex rounded-lg bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">High</span>
+                            {% elif anomaly.severity == "MEDIUM" %}
+                                <span class="inline-flex rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">Medium</span>
+                            {% else %}
+                                <span class="inline-flex rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">Low</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ anomaly.detected_at }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% else %}
+    {% include "core/partials/empty_state.html" with title="No anomalies detected" description="The system is clean — no pricing anomalies found." %}
+{% endif %}
 {% endblock %}

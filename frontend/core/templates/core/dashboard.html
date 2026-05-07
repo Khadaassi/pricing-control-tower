@@ -1,62 +1,49 @@
 {% extends "base.html" %}
 
 {% block title %}Dashboard | Pricing Control Tower{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}<p class="text-xs text-gray-400">Monitor pricing performance and request activity</p>{% endblock %}
 
 {% block content %}
-<div class="space-y-8">
-    <section class="rounded-xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
-        <div class="max-w-3xl">
-            <p class="text-sm font-medium text-slate-500">Overview</p>
 
-            <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-                Dashboard
-            </h2>
+{% if api_error %}
+    {% include "core/partials/alert.html" with type="error" title="API connection error" message="Dashboard data could not be loaded." detail=api_error show_retry=True %}
+{% elif kpi_cards %}
 
-            <p class="mt-4 text-slate-600">
-                High-level pricing and sales performance indicators retrieved from the FastAPI backend.
-            </p>
+    <!-- KPI Cards -->
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-5 mb-6">
+        {% for card in kpi_cards %}
+        <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+            <div class="mb-3 flex items-center justify-between">
+                <p class="text-xs font-medium text-gray-500">{{ card.label }}</p>
+                <div class="flex h-10 w-10 items-center justify-center rounded-full
+                    {% cycle 'kpi-icon-blue' 'kpi-icon-purple' 'kpi-icon-green' 'kpi-icon-amber' 'kpi-icon-red' %}">
+                    {% if forloop.counter == 1 %}
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"/></svg>
+                    {% elif forloop.counter == 2 %}
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/></svg>
+                    {% elif forloop.counter == 3 %}
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"/></svg>
+                    {% elif forloop.counter == 4 %}
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z"/></svg>
+                    {% else %}
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                    {% endif %}
+                </div>
+            </div>
+            <p class="text-2xl font-bold tracking-tight text-gray-900">{{ card.value }}</p>
+            {% if card.description %}
+                <p class="mt-1 flex items-center gap-1 text-xs text-emerald-600">
+                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18"/></svg>
+                    {{ card.description }}
+                </p>
+            {% endif %}
         </div>
-    </section>
+        {% endfor %}
+    </div>
 
-    {% if api_error %}
-        <section class="rounded-xl border border-red-200 bg-red-50 p-6">
-            <h3 class="text-base font-semibold text-red-900">
-                API connection error
-            </h3>
-            <p class="mt-2 text-sm text-red-700">
-                The dashboard data could not be loaded.
-            </p>
-            <p class="mt-2 text-sm text-red-600">
-                {{ api_error }}
-            </p>
-        </section>
-    {% else %}
-        <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {% for card in kpi_cards %}
-                <article class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-                    <p class="text-sm font-medium text-slate-500">
-                        {{ card.label }}
-                    </p>
+{% else %}
+    {% include "core/partials/empty_state.html" with title="No data available" description="The API responded but no KPI data was returned." %}
+{% endif %}
 
-                    <p class="mt-3 text-3xl font-bold tracking-tight text-slate-900">
-                        {{ card.value }}
-                    </p>
-
-                    <p class="mt-3 text-sm text-slate-500">
-                        {{ card.description }}
-                    </p>
-                </article>
-            {% empty %}
-                <article class="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-                    <p class="text-sm font-medium text-slate-500">
-                        No KPI available
-                    </p>
-                    <p class="mt-3 text-sm text-slate-600">
-                        The API responded successfully but did not return dashboard indicators.
-                    </p>
-                </article>
-            {% endfor %}
-        </section>
-    {% endif %}
-</div>
 {% endblock %}

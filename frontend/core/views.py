@@ -244,7 +244,7 @@ class PriceChangeRequestsView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["api_error"] = kwargs.get("api_error")
+        context["api_error"] = None
         context["price_change_requests"] = []
 
         try:
@@ -356,7 +356,7 @@ class PriceChangeRequestCreateView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["form"] = kwargs.get("form") or PriceChangeRequestForm()
-        context["api_error"] = kwargs.get("api_error")
+        context["api_error"] = None
         return context
 
     def post(self, request, *args, **kwargs):

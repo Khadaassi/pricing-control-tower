@@ -1,83 +1,92 @@
 {% extends "base.html" %}
-
-{% block title %}Create pricing request | Pricing Control Tower{% endblock %}
+{% block title %}New price request | Pricing Control Tower{% endblock %}
+{% block page_title %}New price request{% endblock %}
+{% block page_subtitle %}<p class="text-xs text-gray-400">Submit a price change for review and approval</p>{% endblock %}
 
 {% block content %}
-<div class="space-y-8">
-    <section class="rounded-xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
-        <div class="max-w-3xl">
-            <p class="text-sm font-medium text-slate-500">Pricing workflow</p>
 
-            <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">
-                Create pricing request
-            </h2>
+<div class="mb-5 flex items-center justify-end">
+    <a href="{% url 'core:price_change_requests' %}"
+       class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+        Back
+    </a>
+</div>
 
-            <p class="mt-4 text-slate-600">
-                Submit a price change request for approval. The frontend creates a request only and never applies a price change directly.
-            </p>
-        </div>
-    </section>
+{% if api_error %}
+    <div class="mb-5">{% include "core/partials/alert.html" with type="error" title="Submission error" message="The request could not be submitted." detail=api_error %}</div>
+{% endif %}
 
-    {% if api_error %}
-        <section class="rounded-xl border border-red-200 bg-red-50 p-6">
-            <h3 class="text-base font-semibold text-red-900">
-                API validation error
-            </h3>
-            <p class="mt-2 text-sm text-red-700">
-                The pricing request could not be created.
-            </p>
-            <p class="mt-2 text-sm text-red-600">
-                {{ api_error }}
-            </p>
-        </section>
-    {% endif %}
-
-    <section class="rounded-xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
-        <form method="post" class="space-y-6">
-            {% csrf_token %}
-
-            {% if form.non_field_errors %}
-                <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {{ form.non_field_errors }}
-                </div>
-            {% endif %}
-
-            <div class="grid gap-6 md:grid-cols-2">
-                {% for field in form %}
-                    <div class="{% if field.name == 'justification' %}md:col-span-2{% endif %}">
-                        <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-slate-700">
-                            {{ field.label }}
-                        </label>
-
-                        <div class="mt-2">
-                            {{ field }}
-                        </div>
-
-                        {% if field.help_text %}
-                            <p class="mt-1 text-xs text-slate-500">
-                                {{ field.help_text }}
-                            </p>
-                        {% endif %}
-
-                        {% if field.errors %}
-                            <div class="mt-2 text-sm text-red-600">
-                                {{ field.errors }}
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <div class="lg:col-span-2">
+        <div class="rounded-2xl border border-gray-100 bg-white shadow-sm">
+            <div class="border-b border-gray-100 px-6 py-4">
+                <p class="text-sm font-semibold text-gray-900">Request details</p>
+            </div>
+            <div class="px-6 py-6">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    <div class="space-y-5">
+                        {% for field in form %}
+                        <div>
+                            <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                                {{ field.label }}{% if field.field.required %}<span class="ml-0.5 text-red-500">*</span>{% endif %}
+                            </label>
+                            <div class="mt-1.5
+                                [&>input]:block [&>input]:w-full [&>input]:rounded-xl [&>input]:border [&>input]:border-gray-200 [&>input]:bg-gray-50 [&>input]:px-3 [&>input]:py-2.5 [&>input]:text-sm [&>input]:text-gray-900 [&>input]:placeholder:text-gray-400 [&>input]:focus:border-blue-500 [&>input]:focus:bg-white [&>input]:focus:outline-none [&>input]:focus:ring-1 [&>input]:focus:ring-blue-500
+                                [&>select]:block [&>select]:w-full [&>select]:rounded-xl [&>select]:border [&>select]:border-gray-200 [&>select]:bg-gray-50 [&>select]:px-3 [&>select]:py-2.5 [&>select]:text-sm [&>select]:text-gray-900 [&>select]:focus:border-blue-500 [&>select]:focus:bg-white [&>select]:focus:outline-none [&>select]:focus:ring-1 [&>select]:focus:ring-blue-500
+                                [&>textarea]:block [&>textarea]:w-full [&>textarea]:rounded-xl [&>textarea]:border [&>textarea]:border-gray-200 [&>textarea]:bg-gray-50 [&>textarea]:px-3 [&>textarea]:py-2.5 [&>textarea]:text-sm [&>textarea]:text-gray-900 [&>textarea]:placeholder:text-gray-400 [&>textarea]:focus:border-blue-500 [&>textarea]:focus:bg-white [&>textarea]:focus:outline-none [&>textarea]:focus:ring-1 [&>textarea]:focus:ring-blue-500 [&>textarea]:resize-none">
+                                {{ field }}
                             </div>
+                            {% if field.help_text %}<p class="mt-1 text-xs text-gray-500">{{ field.help_text }}</p>{% endif %}
+                            {% for error in field.errors %}<p class="mt-1 text-xs font-medium text-red-600">{{ error }}</p>{% endfor %}
+                        </div>
+                        {% endfor %}
+
+                        {% if form.non_field_errors %}
+                        <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                            {% for error in form.non_field_errors %}<p class="text-sm text-red-700">{{ error }}</p>{% endfor %}
+                        </div>
                         {% endif %}
+
+                        <div class="flex items-center gap-3 border-t border-gray-100 pt-5">
+                            <button type="submit"
+                                    class="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-sm"
+                                    style="background: #0f172a;">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/></svg>
+                                Submit request
+                            </button>
+                            <a href="{% url 'core:price_change_requests' %}"
+                               class="inline-flex items-center rounded-xl px-4 py-2.5 text-sm font-medium text-gray-500 hover:bg-gray-100">
+                                Cancel
+                            </a>
+                        </div>
                     </div>
-                {% endfor %}
+                </form>
             </div>
+        </div>
+    </div>
 
-            <div class="flex items-center justify-end gap-3 border-t border-slate-200 pt-6">
-                <a href="{% url 'core:price_change_requests' %}" class="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">
-                    Cancel
-                </a>
-
-                <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
-                    Create request
-                </button>
-            </div>
-        </form>
-    </section>
+    <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm self-start">
+        <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">How it works</p>
+        <ol class="mt-3 space-y-3">
+            <li class="flex items-start gap-3">
+                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);">1</span>
+                <p class="text-sm text-gray-600">Fill in the price change details and justification.</p>
+            </li>
+            <li class="flex items-start gap-3">
+                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);">2</span>
+                <p class="text-sm text-gray-600">Submitted as <strong class="font-semibold text-gray-700">Pending</strong> for review.</p>
+            </li>
+            <li class="flex items-start gap-3">
+                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);">3</span>
+                <p class="text-sm text-gray-600">A manager approves or rejects the request.</p>
+            </li>
+            <li class="flex items-start gap-3">
+                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-emerald-700 bg-emerald-100 text-emerald-700">4</span>
+                <p class="text-sm text-gray-600">If approved, new price applied on effective date.</p>
+            </li>
+        </ol>
+    </div>
 </div>
 {% endblock %}
