@@ -87,6 +87,41 @@ class DashboardView(TemplateView):
 class ProductsView(TemplateView):
     template_name = "core/products.html"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["api_error"] = None
+        context["products"] = []
+
+        try:
+            products = api_get("/products")
+        except ApiClientError as exc:
+            context["api_error"] = str(exc)
+            return context
+
+        context["products"] = [
+            {
+                "code": product.get("code") or "N/A",
+                "name": product.get("name") or "N/A",
+                "brand": product.get("brand") or "N/A",
+                "model": product.get("model") or "N/A",
+                "family_name": self.get_family_name(product),
+                "description": product.get("description") or "N/A",
+                "status": "Active" if product.get("active") is True else "Inactive",
+            }
+            for product in products
+        ]
+
+        return context
+
+    @staticmethod
+    def get_family_name(product):
+        family = product.get("family")
+
+        if not family:
+            return "N/A"
+
+        return family.get("name") or "N/A"
+
 
 class PricesView(TemplateView):
     template_name = "core/prices.html"
