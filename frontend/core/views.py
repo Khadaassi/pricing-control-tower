@@ -239,3 +239,41 @@ class PromotionsView(TemplateView):
 class PriceChangeRequestsView(TemplateView):
     template_name = "core/price_change_requests.html"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["api_error"] = None
+        context["price_change_requests"] = []
+
+        try:
+            requests = api_get("/price-change-requests")
+        except ApiClientError as exc:
+            context["api_error"] = str(exc)
+            return context
+
+        context["price_change_requests"] = [
+            {
+                "id": request.get("id") or "N/A",
+                "product_id": request.get("product_id") or "N/A",
+                "scope": self.get_scope(request.get("store_id")),
+                "country_id": request.get("country_id") or "N/A",
+                "store_id": request.get("store_id") or "N/A",
+                "old_price_amount": request.get("old_price_amount") or "N/A",
+                "requested_price_amount": request.get("requested_price_amount") or "N/A",
+                "status": request.get("status") or "N/A",
+                "justification": request.get("justification") or "N/A",
+                "requested_effective_date": request.get("requested_effective_date") or "N/A",
+                "rejection_reason": request.get("rejection_reason") or "N/A",
+                "created_at": request.get("created_at") or "N/A",
+            }
+            for request in requests
+        ]
+
+        return context
+
+    @staticmethod
+    def get_scope(store_id):
+        if store_id is None:
+            return "Country request"
+
+        return "Store request"
+
