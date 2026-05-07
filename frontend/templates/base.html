@@ -8,6 +8,15 @@
     {% tailwind_css %}
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900">
+    {% if messages %}
+        <div class="mb-6 space-y-3">
+            {% for message in messages %}
+                <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
     {% block content %}{% endblock %}
 </body>
 </html>

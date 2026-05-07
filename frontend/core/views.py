@@ -3,6 +3,9 @@ from decimal import Decimal, InvalidOperation
 from django.views.generic import TemplateView
 
 from services.api_client import ApiClientError, api_get
+from django.contrib import messages
+from django.shortcuts import redirect
+from core.forms import PriceChangeRequestForm
 
 class HomeView(TemplateView):
     template_name = "core/home.html"
@@ -277,3 +280,30 @@ class PriceChangeRequestsView(TemplateView):
 
         return "Store request"
 
+class PriceChangeRequestCreateView(TemplateView):
+    template_name = "core/price_change_request_form.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["form"] = kwargs.get("form") or PriceChangeRequestForm()
+        context["api_error"] = kwargs.get("api_error")
+        return context
+
+    def post(self, request, *args, **kwargs):
+        form = PriceChangeRequestForm(request.POST)
+
+        if not form.is_valid():
+            return self.render_to_response(self.get_context_data(form=form))
+
+        try:
+            api_post("/price-change-requests", payload=form.to_api_payload())
+        except ApiClientError as exc:
+            return self.render_to_response(
+                self.get_context_data(
+                    form=form,
+                    api_error=str(exc),
+                )
+            )
+
+        messages.success(request, "Pricing request created successfully.")
+        return redirect("core:price_change_requests")
