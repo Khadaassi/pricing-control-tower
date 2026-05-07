@@ -2,7 +2,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.views.generic import TemplateView
 
-from services.api_client import ApiClientError, api_get
+from services.api_client import ApiClientError, api_get, api_post
 from django.contrib import messages
 from django.shortcuts import redirect
 from core.forms import PriceChangeRequestForm
