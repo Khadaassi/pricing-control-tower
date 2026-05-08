@@ -53,7 +53,15 @@
                             {% endif %}
                             <p class="mt-1 text-sm font-bold tabular-nums text-gray-900">{{ promotion.discount_value }}</p>
                         </td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">Product #{{ promotion.product_id }}</td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                {% include "core/partials/product_image.html" with image_url=promotion.image_url image_alt=promotion.image_alt %}
+                                <div>
+                                    <p class="text-sm font-semibold text-gray-900">{{ promotion.product_name }}</p>
+                                    <p class="text-xs text-gray-400">{{ promotion.product_code }}</p>
+                                </div>
+                            </div>
+                        </td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">Country #{{ promotion.country_id }}</td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                             {% if promotion.store_id == "N/A" %}N/A{% else %}Store #{{ promotion.store_id }}{% endif %}

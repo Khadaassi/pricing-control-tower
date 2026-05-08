@@ -1,11 +1,56 @@
+from decimal import Decimal, InvalidOperation
+from typing import Any
+
 from django.contrib import messages
 from django.shortcuts import redirect
-
 from django.views.generic import TemplateView
-from decimal import Decimal, InvalidOperation
 
-from services.api_client import ApiClientError, api_get, api_post
 from core.forms import PriceChangeRequestForm
+from services.api_client import ApiClientError, api_get, api_post
+
+
+def build_product_lookup() -> dict[int, dict[str, Any]]:
+    try:
+        products = api_get("/products")
+    except ApiClientError:
+        return {}
+
+    return {
+        product["id"]: product
+        for product in products
+        if product.get("id") is not None
+    }
+
+
+def get_product_display(
+    product_id: int | None,
+    product_lookup: dict[int, dict[str, Any]],
+) -> dict[str, Any]:
+    if product_id is None:
+        return {
+            "product_code": "N/A",
+            "product_name": "N/A",
+            "image_url": None,
+            "image_alt": "Product image",
+        }
+
+    product = product_lookup.get(product_id)
+
+    if not product:
+        return {
+            "product_code": f"#{product_id}",
+            "product_name": f"Product #{product_id}",
+            "image_url": None,
+            "image_alt": "Product image",
+        }
+
+    return {
+        "product_code": product.get("code") or f"#{product_id}",
+        "product_name": product.get("name") or f"Product #{product_id}",
+        "image_url": product.get("image_url"),
+        "image_alt": product.get("image_alt") or product.get("name") or "Product image",
+    }
+
 
 class HomeView(TemplateView):
     template_name = "core/home.html"
@@ -86,7 +131,6 @@ class DashboardView(TemplateView):
             return str(value)
 
 
-
 class ProductsView(TemplateView):
     template_name = "core/products.html"
 
@@ -142,26 +186,35 @@ class PricesView(TemplateView):
             context["api_error"] = str(exc)
             return context
 
-        context["prices"] = [
-            {
-                "product_code": price.get("product_code") or "N/A",
-                "product_name": price.get("product_name") or "N/A",
-                "scope": price.get("price_scope") or "N/A",
-                "scope_label": self.get_scope_label(price.get("price_scope")),
-                "type": price.get("price_type") or "N/A",
-                "amount": self.format_amount(
-                    price.get("amount"),
-                    price.get("currency_code"),
-                ),
-                "country_id": price.get("country_id") or "N/A",
-                "store_id": price.get("store_id") or "N/A",
-                "effective_from": price.get("effective_from") or "N/A",
-                "effective_to": price.get("effective_to") or "Open-ended",
-                "status": price.get("status") or "N/A",
-                "promotion_id": price.get("promotion_id") or "N/A",
-            }
-            for price in prices
-        ]
+        product_lookup = build_product_lookup()
+
+        for price in prices:
+            product_display = get_product_display(
+                price.get("product_id"),
+                product_lookup,
+            )
+
+            context["prices"].append(
+                {
+                    "product_code": price.get("product_code") or product_display["product_code"],
+                    "product_name": price.get("product_name") or product_display["product_name"],
+                    "image_url": product_display["image_url"],
+                    "image_alt": product_display["image_alt"],
+                    "scope": price.get("price_scope") or "N/A",
+                    "scope_label": self.get_scope_label(price.get("price_scope")),
+                    "type": price.get("price_type") or "N/A",
+                    "amount": self.format_amount(
+                        price.get("amount"),
+                        price.get("currency_code"),
+                    ),
+                    "country_id": price.get("country_id") or "N/A",
+                    "store_id": price.get("store_id") or "N/A",
+                    "effective_from": price.get("effective_from") or "N/A",
+                    "effective_to": price.get("effective_to") or "Open-ended",
+                    "status": price.get("status") or "N/A",
+                    "promotion_id": price.get("promotion_id") or "N/A",
+                }
+            )
 
         return context
 
@@ -200,26 +253,37 @@ class PromotionsView(TemplateView):
             context["api_error"] = str(exc)
             return context
 
-        context["promotions"] = [
-            {
-                "code": promotion.get("code") or "N/A",
-                "name": promotion.get("name") or "N/A",
-                "description": promotion.get("description") or "N/A",
-                "discount_type": promotion.get("discount_type") or "N/A",
-                "discount_value": self.format_discount_value(
-                    promotion.get("discount_type"),
-                    promotion.get("discount_value"),
-                ),
-                "product_id": promotion.get("product_id") or "N/A",
-                "scope": self.get_scope(promotion.get("store_id")),
-                "country_id": promotion.get("country_id") or "N/A",
-                "store_id": promotion.get("store_id") or "N/A",
-                "start_date": promotion.get("start_date") or "N/A",
-                "end_date": promotion.get("end_date") or "N/A",
-                "status": "Active" if promotion.get("active") is True else "Inactive",
-            }
-            for promotion in promotions
-        ]
+        product_lookup = build_product_lookup()
+
+        for promotion in promotions:
+            product_display = get_product_display(
+                promotion.get("product_id"),
+                product_lookup,
+            )
+
+            context["promotions"].append(
+                {
+                    "code": promotion.get("code") or "N/A",
+                    "name": promotion.get("name") or "N/A",
+                    "description": promotion.get("description") or "N/A",
+                    "discount_type": promotion.get("discount_type") or "N/A",
+                    "discount_value": self.format_discount_value(
+                        promotion.get("discount_type"),
+                        promotion.get("discount_value"),
+                    ),
+                    "product_id": promotion.get("product_id") or "N/A",
+                    "product_code": product_display["product_code"],
+                    "product_name": product_display["product_name"],
+                    "image_url": product_display["image_url"],
+                    "image_alt": product_display["image_alt"],
+                    "scope": self.get_scope(promotion.get("store_id")),
+                    "country_id": promotion.get("country_id") or "N/A",
+                    "store_id": promotion.get("store_id") or "N/A",
+                    "start_date": promotion.get("start_date") or "N/A",
+                    "end_date": promotion.get("end_date") or "N/A",
+                    "status": "Active" if promotion.get("active") is True else "Inactive",
+                }
+            )
 
         return context
 
@@ -255,23 +319,34 @@ class PriceChangeRequestsView(TemplateView):
             context["api_error"] = str(exc)
             return context
 
-        context["price_change_requests"] = [
-            {
-                "id": request.get("id") or "N/A",
-                "product_id": request.get("product_id") or "N/A",
-                "scope": self.get_scope(request.get("store_id")),
-                "country_id": request.get("country_id") or "N/A",
-                "store_id": request.get("store_id") or "N/A",
-                "old_price_amount": request.get("old_price_amount") or "N/A",
-                "requested_price_amount": request.get("requested_price_amount") or "N/A",
-                "status": request.get("status") or "N/A",
-                "justification": request.get("justification") or "N/A",
-                "requested_effective_date": request.get("requested_effective_date") or "N/A",
-                "rejection_reason": request.get("rejection_reason") or "N/A",
-                "created_at": request.get("created_at") or "N/A",
-            }
-            for request in requests
-        ]
+        product_lookup = build_product_lookup()
+
+        for request in requests:
+            product_display = get_product_display(
+                request.get("product_id"),
+                product_lookup,
+            )
+
+            context["price_change_requests"].append(
+                {
+                    "id": request.get("id") or "N/A",
+                    "product_id": request.get("product_id") or "N/A",
+                    "product_code": product_display["product_code"],
+                    "product_name": product_display["product_name"],
+                    "image_url": product_display["image_url"],
+                    "image_alt": product_display["image_alt"],
+                    "scope": self.get_scope(request.get("store_id")),
+                    "country_id": request.get("country_id") or "N/A",
+                    "store_id": request.get("store_id") or "N/A",
+                    "old_price_amount": request.get("old_price_amount") or "N/A",
+                    "requested_price_amount": request.get("requested_price_amount") or "N/A",
+                    "status": request.get("status") or "N/A",
+                    "justification": request.get("justification") or "N/A",
+                    "requested_effective_date": request.get("requested_effective_date") or "N/A",
+                    "rejection_reason": request.get("rejection_reason") or "N/A",
+                    "created_at": request.get("created_at") or "N/A",
+                }
+            )
 
         return context
 
@@ -352,6 +427,7 @@ class PriceChangeRequestsView(TemplateView):
 
         return "Store request"
 
+
 class PriceChangeRequestCreateView(TemplateView):
     template_name = "core/price_change_request_form.html"
 
@@ -380,6 +456,7 @@ class PriceChangeRequestCreateView(TemplateView):
         messages.success(request, "Pricing request created successfully.")
         return redirect("core:price_change_requests")
 
+
 class PriceHistoryView(TemplateView):
     template_name = "core/price_history.html"
 
@@ -394,23 +471,36 @@ class PriceHistoryView(TemplateView):
             context["api_error"] = str(exc)
             return context
 
-        context["price_history"] = [
-            {
-                "history_id": item.get("history_id") or "N/A",
-                "price_change_request_id": item.get("price_change_request_id") or "N/A",
-                "product_id": item.get("product_id") or "N/A",
-                "scope": self.get_scope(item.get("store_id")),
-                "country_id": item.get("country_id") or "N/A",
-                "store_id": item.get("store_id") or "N/A",
-                "previous_price_id": item.get("previous_price_id") or "N/A",
-                "new_price_id": item.get("new_price_id") or "N/A",
-                "old_price_amount": item.get("old_price_amount") or "N/A",
-                "new_price_amount": item.get("new_price_amount") or "N/A",
-                "applied_by_user_id": item.get("applied_by_user_id") or "N/A",
-                "applied_at": item.get("applied_at") or "N/A",
-            }
-            for item in history_items
-        ]
+        product_lookup = build_product_lookup()
+
+        for item in history_items:
+            product_display = get_product_display(
+                item.get("product_id"),
+                product_lookup,
+            )
+
+            context["price_history"].append(
+                {
+                    "history_id": item.get("history_id") or "N/A",
+                    "price_change_request_id": item.get("price_change_request_id") or "N/A",
+                    "product_id": item.get("product_id") or "N/A",
+                    "product_code": product_display["product_code"],
+                    "product_name": product_display["product_name"],
+                    "image_url": product_display["image_url"],
+                    "image_alt": product_display["image_alt"],
+                    "scope": self.get_scope(item.get("store_id")),
+                    "country_id": item.get("country_id") or "N/A",
+                    "store_id": item.get("store_id") or "N/A",
+                    "previous_price_id": item.get("previous_price_id") or "N/A",
+                    "new_price_id": item.get("new_price_id") or "N/A",
+                    "old_price_amount": item.get("old_price_amount") or "N/A",
+                    "new_price_amount": item.get("new_price_amount") or "N/A",
+                    "applied_by_user_id": item.get("applied_by_user_id") or "N/A",
+                    "applied_at": item.get("applied_at") or "N/A",
+                    "created_at": item.get("created_at") or "N/A",
+                    "reason": f"Applied from request #{item.get('price_change_request_id')}",
+                }
+            )
 
         return context
 
@@ -420,7 +510,8 @@ class PriceHistoryView(TemplateView):
             return "Country price change"
 
         return "Store price change"
-    
+
+
 class AnomaliesView(TemplateView):
     template_name = "core/anomalies.html"
 
@@ -435,20 +526,34 @@ class AnomaliesView(TemplateView):
             context["api_error"] = str(exc)
             return context
 
-        context["anomalies"] = [
-            {
-                "anomaly_type": anomaly.get("anomaly_type") or "N/A",
-                "severity": anomaly.get("severity") or "N/A",
-                "message": anomaly.get("message") or "N/A",
-                "promotion_id": anomaly.get("promotion_id") or "N/A",
-                "product_id": anomaly.get("product_id") or "N/A",
-                "store_id": anomaly.get("store_id") or "N/A",
-                "sales_count": anomaly.get("sales_count") or 0,
-                "total_quantity": anomaly.get("total_quantity") or 0,
-                "total_revenue": anomaly.get("total_revenue") or "N/A",
-                "threshold": anomaly.get("threshold") or "N/A",
-            }
-            for anomaly in anomalies
-        ]
+        product_lookup = build_product_lookup()
+
+        for anomaly in anomalies:
+            product_display = get_product_display(
+                anomaly.get("product_id"),
+                product_lookup,
+            )
+
+            context["anomalies"].append(
+                {
+                    "anomaly_type": anomaly.get("anomaly_type") or "N/A",
+                    "severity": anomaly.get("severity") or "N/A",
+                    "message": anomaly.get("message") or "N/A",
+                    "description": anomaly.get("message") or "N/A",
+                    "promotion_id": anomaly.get("promotion_id") or "N/A",
+                    "product_id": anomaly.get("product_id") or "N/A",
+                    "product_code": product_display["product_code"],
+                    "product_name": product_display["product_name"],
+                    "image_url": product_display["image_url"],
+                    "image_alt": product_display["image_alt"],
+                    "store_id": anomaly.get("store_id") or "N/A",
+                    "sales_count": anomaly.get("sales_count") or 0,
+                    "total_quantity": anomaly.get("total_quantity") or 0,
+                    "total_revenue": anomaly.get("total_revenue") or "N/A",
+                    "threshold": anomaly.get("threshold") or "N/A",
+                    "is_resolved": False,
+                    "detected_at": "N/A",
+                }
+            )
 
         return context

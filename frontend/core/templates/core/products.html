@@ -14,52 +14,55 @@
                 <p class="text-xs text-gray-400">{{ products|length }} product{{ products|length|pluralize }}</p>
             </div>
         </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full">
-                <thead>
-                    <tr class="border-b border-gray-100 bg-gray-50/60">
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Image</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Code</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Product</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Brand</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Model</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Family</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Status</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
-                    {% for product in products %}
-                    <tr class="hover:bg-gray-50/50" style="transition:background 0.1s;">
-                        <td class="whitespace-nowrap px-6 py-4">
-                            {% if product.image_url %}
-                                <img
-                                    src="{{ product.image_url }}"
-                                    alt="{{ product.image_alt|default:product.name }}"
-                                    class="h-12 w-12 rounded-xl object-cover border border-gray-100 bg-gray-50"
-                                    loading="lazy"
-                                >
-                            {% else %}
-                                <div class="flex h-12 w-12 items-center justify-center rounded-xl border border-gray-100 bg-gray-50 text-[10px] text-gray-400">
-                                    No image
-                                </div>
-                            {% endif %}
-                        </td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm font-mono font-medium text-gray-900">{{ product.code }}</td>
-                        <td class="px-6 py-4">
-                            <p class="text-sm font-semibold text-gray-900">{{ product.name }}</p>
-                            {% if product.description %}<p class="mt-0.5 max-w-xs text-xs text-gray-400 truncate">{{ product.description }}</p>{% endif %}
-                        </td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ product.brand }}</td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ product.model }}</td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ product.family_name }}</td>
-                        <td class="whitespace-nowrap px-6 py-4">
-                            {% if product.status == "Active" %}{% include "core/partials/status_badge.html" with status="ACTIVE" %}{% else %}{% include "core/partials/status_badge.html" with status="INACTIVE" %}{% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+
+        <table class="w-full table-fixed">
+            <colgroup>
+                <col class="w-[40%]">  {# Product (image + name + code) #}
+                <col class="w-[15%]">  {# Brand #}
+                <col class="w-[30%]">  {# Model / Family #}
+                <col class="w-[15%]">  {# Status #}
+            </colgroup>
+            <thead>
+                <tr class="border-b border-gray-100 bg-gray-50/60">
+                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Product</th>
+                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Brand</th>
+                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Family</th>
+                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-50">
+                {% for product in products %}
+                <tr class="hover:bg-gray-50/50 transition-colors duration-100">
+
+                    {# Product : image + name + code #}
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3 min-w-0">
+                            {% include "core/partials/product_image.html" with image_url=product.image_url image_alt=product.image_alt %}
+                            <div class="min-w-0">
+                                <p class="text-sm font-semibold text-gray-900 truncate">{{ product.name }}</p>
+                                <p class="text-xs font-mono text-gray-400">{{ product.code }}</p>
+                            </div>
+                        </div>
+                    </td>
+
+                    {# Brand #}
+                    <td class="px-6 py-4 text-sm text-gray-500 truncate">{{ product.brand }}</td>
+
+                    {# Family #}
+                    <td class="px-6 py-4">
+                        <p class="text-sm text-gray-500 truncate">{{ product.family_name }}</p>
+                    </td>
+
+                    {# Status #}
+                    <td class="px-6 py-4">
+                        {% include "core/partials/status_badge.html" with status=product.status|upper %}
+                    </td>
+
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
     </div>
 {% else %}
     {% include "core/partials/empty_state.html" with title="No products found" description="The API responded but no products were returned." %}
