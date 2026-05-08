@@ -1,0 +1,52 @@
+[
+  {
+    "code": "MAGNETIC_ROWING_MACHINE",
+    "name": "Rameurs magnétiques",
+    "description": "Product family imported from fitnessboutique scraping."
+  },
+  {
+    "code": "ROWING_MACHINE",
+    "name": "Rameurs",
+    "description": "Product family imported from fitnessboutique scraping."
+  },
+  {
+    "code": "TREADMILL",
+    "name": "Tapis de course",
+    "description": "Product family imported from fitnessboutique scraping."
+  },
+  {
+    "code": "EXERCISE_BIKE",
+    "name": "Vélos d’appartement",
+    "description": "Product family imported from fitnessboutique scraping."
+  },
+  {
+    "code": "WEIGHT_BENCH_SIMPLE",
+    "name": "Bancs de musculation seuls",
+    "description": "Product family imported from fitnessboutique scraping."
+  },
+  {
+    "code": "WEIGHT_BENCH",
+    "name": "Bancs de musculation",
+    "description": "Product family imported from fitnessboutique scraping."
+  },
+  {
+    "code": "DUMBBELL_SPECIFIC",
+    "name": "Haltères spécifiques",
+    "description": "Product family imported from fitnessboutique scraping."
+  },
+  {
+    "code": "DUMBBELL_BAR",
+    "name": "Haltères et barres",
+    "description": "Product family imported from fitnessboutique scraping."
+  },
+  {
+    "code": "MUSCULATION_ACCESSORY",
+    "name": "Accessoires de musculation",
+    "description": "Product family imported from fitnessboutique scraping."
+  },
+  {
+    "code": "FITNESS_ACCESSORY",
+    "name": "Accessoires fitness",
+    "description": "Product family imported from fitnessboutique scraping."
+  }
+]
