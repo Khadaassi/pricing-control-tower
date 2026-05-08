@@ -9,9 +9,50 @@ class FitnessBoutiqueSpider(scrapy.Spider):
 
     allowed_domains = ["fitnessboutique.fr"]
 
-    start_urls = [
-        "https://www.fitnessboutique.fr/collections/musculation-accessoire"
-    ]
+    collection_configs = {
+        "https://www.fitnessboutique.fr/collections/musculation-accessoire": {
+            "category_code": "MUSCULATION_ACCESSORY",
+            "category_name": "Accessoires de musculation",
+        },
+        "https://www.fitnessboutique.fr/collections/accessoires-fitness": {
+            "category_code": "FITNESS_ACCESSORY",
+            "category_name": "Accessoires fitness",
+        },
+        "https://www.fitnessboutique.fr/collections/haltere": {
+            "category_code": "DUMBBELL_BAR",
+            "category_name": "Haltères et barres",
+        },
+        "https://www.fitnessboutique.fr/collections/poid-haltere-barres-et-halteres-specifiques": {
+            "category_code": "DUMBBELL_SPECIFIC",
+            "category_name": "Haltères spécifiques",
+        },
+        "https://www.fitnessboutique.fr/collections/banc-musculation": {
+            "category_code": "WEIGHT_BENCH",
+            "category_name": "Bancs de musculation",
+        },
+        "https://www.fitnessboutique.fr/collections/banc-musculation-seul": {
+            "category_code": "WEIGHT_BENCH_SIMPLE",
+            "category_name": "Bancs de musculation seuls",
+        },
+        "https://www.fitnessboutique.fr/collections/tapis-de-course": {
+            "category_code": "TREADMILL",
+            "category_name": "Tapis de course",
+        },
+        "https://www.fitnessboutique.fr/collections/velo-appartement": {
+            "category_code": "EXERCISE_BIKE",
+            "category_name": "Vélos d’appartement",
+        },
+        "https://www.fitnessboutique.fr/collections/rameur": {
+            "category_code": "ROWING_MACHINE",
+            "category_name": "Rameurs",
+        },
+        "https://www.fitnessboutique.fr/collections/rameur-magnetique": {
+            "category_code": "MAGNETIC_ROWING_MACHINE",
+            "category_name": "Rameurs magnétiques",
+        },
+    }
+
+    start_urls = list(collection_configs.keys())
 
     custom_settings = {
         "ROBOTSTXT_OBEY": True,
@@ -24,17 +65,26 @@ class FitnessBoutiqueSpider(scrapy.Spider):
     }
 
     source = "fitnessboutique"
-    category_code = "MUSCULATION_ACCESSORY"
-    category_name = "Accessoires de musculation"
 
     def parse(self, response):
-        self.logger.info("Parsing collection page: %s", response.url)
+        collection_url = self.get_collection_root_url(response.url)
+        collection_config = self.collection_configs.get(collection_url)
+
+        if collection_config is None:
+            self.logger.warning("No collection config found for URL: %s", response.url)
+            return
+
+        self.logger.info(
+            "Parsing collection page: %s | category=%s",
+            response.url,
+            collection_config["category_code"],
+        )
 
         products = response.css("product-card")
         self.logger.info("Found %s product cards on page", len(products))
 
         for product in products:
-            item = self.parse_product_card(product, response)
+            item = self.parse_product_card(product, response, collection_url, collection_config)
 
             if not self.is_valid_item(item):
                 self.logger.warning(
@@ -52,9 +102,9 @@ class FitnessBoutiqueSpider(scrapy.Spider):
             self.logger.info("Following next page: %s", next_page)
             yield response.follow(next_page, callback=self.parse)
         else:
-            self.logger.info("No next page found. Scraping completed.")
+            self.logger.info("No next page found for collection: %s", collection_url)
 
-    def parse_product_card(self, product, response):
+    def parse_product_card(self, product, response, collection_url, collection_config):
         external_product_id = self.clean_text(
             product.css("input.js-compare-checkbox::attr(data-product-id)").get()
         )
@@ -63,25 +113,11 @@ class FitnessBoutiqueSpider(scrapy.Spider):
             product.css("input.js-compare-checkbox::attr(data-product-url)").get()
         )
 
-        brand = self.clean_text(
-            product.css(".card__vendor::text").get()
-        )
-
-        name = self.clean_text(
-            product.css(".card__title a::text").get()
-        )
-
-        description = self.clean_text(
-            product.css(".card__subtitle::text").get()
-        )
-
-        price_text = self.clean_text(
-            product.css(".price__current::text").get()
-        )
-
-        original_price_text = self.clean_text(
-            product.css(".price__was::text").get()
-        )
+        brand = self.clean_text(product.css(".card__vendor::text").get())
+        name = self.clean_text(product.css(".card__title a::text").get())
+        description = self.clean_text(product.css(".card__subtitle::text").get())
+        price_text = self.clean_text(product.css(".price__current::text").get())
+        original_price_text = self.clean_text(product.css(".price__was::text").get())
 
         availability_text = self.clean_text(
             product.css(".product-inventory__status::text").get()
@@ -101,9 +137,10 @@ class FitnessBoutiqueSpider(scrapy.Spider):
 
         return {
             "source": self.source,
-            "collection_url": response.url,
-            "category_code": self.category_code,
-            "category_name": self.category_name,
+            "collection_url": collection_url,
+            "scraped_page_url": response.url,
+            "category_code": collection_config["category_code"],
+            "category_name": collection_config["category_name"],
             "external_product_id": external_product_id,
             "product_url": self.normalize_url(product_url, response),
             "brand": brand,
@@ -119,7 +156,6 @@ class FitnessBoutiqueSpider(scrapy.Spider):
 
     def get_next_page(self, response):
         page_links = response.css("a[href*='page=']::attr(href)").getall()
-
         current_page_number = self.extract_page_number(response.url)
 
         candidate_pages = []
@@ -142,6 +178,10 @@ class FitnessBoutiqueSpider(scrapy.Spider):
         )
 
         return next_page_url
+
+    @staticmethod
+    def get_collection_root_url(url):
+        return url.split("?")[0]
 
     @staticmethod
     def extract_page_number(url):
