@@ -110,6 +110,8 @@ class ProductsView(TemplateView):
                 "family_name": self.get_family_name(product),
                 "description": product.get("description") or "N/A",
                 "status": "Active" if product.get("active") is True else "Inactive",
+                "image_url": product.get("image_url"),
+                "image_alt": product.get("image_alt") or product.get("name") or "Product image",
             }
             for product in products
         ]

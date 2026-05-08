@@ -18,6 +18,7 @@
             <table class="min-w-full">
                 <thead>
                     <tr class="border-b border-gray-100 bg-gray-50/60">
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Image</th>
                         <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Code</th>
                         <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Product</th>
                         <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Brand</th>
@@ -29,6 +30,20 @@
                 <tbody class="divide-y divide-gray-50">
                     {% for product in products %}
                     <tr class="hover:bg-gray-50/50" style="transition:background 0.1s;">
+                        <td class="whitespace-nowrap px-6 py-4">
+                            {% if product.image_url %}
+                                <img
+                                    src="{{ product.image_url }}"
+                                    alt="{{ product.image_alt|default:product.name }}"
+                                    class="h-12 w-12 rounded-xl object-cover border border-gray-100 bg-gray-50"
+                                    loading="lazy"
+                                >
+                            {% else %}
+                                <div class="flex h-12 w-12 items-center justify-center rounded-xl border border-gray-100 bg-gray-50 text-[10px] text-gray-400">
+                                    No image
+                                </div>
+                            {% endif %}
+                        </td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm font-mono font-medium text-gray-900">{{ product.code }}</td>
                         <td class="px-6 py-4">
                             <p class="text-sm font-semibold text-gray-900">{{ product.name }}</p>
