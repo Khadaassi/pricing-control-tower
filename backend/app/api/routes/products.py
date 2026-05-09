@@ -16,7 +16,10 @@ def list_products(
     code: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    stmt = select(Product).options(selectinload(Product.family))
+    stmt = select(Product).options(
+        selectinload(Product.family),
+        selectinload(Product.images),
+    )
 
     if active is not None:
         stmt = stmt.where(Product.active == active)

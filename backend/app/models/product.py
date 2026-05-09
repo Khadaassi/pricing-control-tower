@@ -29,3 +29,26 @@ class Product(Base):
     )
 
     images: Mapped[list["ProductImage"]] = relationship(back_populates="product")
+    @property
+    def image_url(self) -> str | None:
+        if not self.images:
+            return None
+
+        main_image = sorted(
+            self.images,
+            key=lambda image: image.display_order,
+        )[0]
+
+        return main_image.image_url
+
+    @property
+    def image_alt(self) -> str | None:
+        if not self.images:
+            return None
+
+        main_image = sorted(
+            self.images,
+            key=lambda image: image.display_order,
+        )[0]
+
+        return main_image.alt_text

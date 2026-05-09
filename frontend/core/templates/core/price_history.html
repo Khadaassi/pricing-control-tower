@@ -1,17 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Price History | Pricing Control Tower{% endblock %}
-{% block page_title %}Price History{% endblock %}
-{% block page_subtitle %}<p class="text-xs text-gray-400">Audit trail of all price changes applied to products</p>{% endblock %}
+{% block title %}Historique des prix | Pricing Control Tower{% endblock %}
+{% block page_title %}Historique des prix{% endblock %}
+{% block page_subtitle %}<p class="text-xs text-gray-400">Historique de tous les changements de prix appliqués aux produits</p>{% endblock %}
 
 {% block content %}
 {% if api_error %}
-    {% include "core/partials/alert.html" with type="error" title="API connection error" message="The price history could not be loaded." detail=api_error show_retry=True %}
+    {% include "core/partials/alert.html" with type="error" title="Erreur de connexion à l’API" message="L’historique des prix n’a pas pu être chargé." detail=api_error show_retry=True %}
 {% elif price_history %}
     <div class="rounded-2xl border border-gray-100 bg-white shadow-sm">
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <div>
-                <p class="text-sm font-semibold text-gray-900">Change log</p>
-                <p class="text-xs text-gray-400">{{ price_history|length }} record{{ price_history|length|pluralize }}</p>
+                <p class="text-sm font-semibold text-gray-900">Journal des modifications</p>
+                <p class="text-xs text-gray-400">{{ price_history|length }} enregistrement{% if price_history|length > 1 %}s{% endif %}</p>
             </div>
         </div>
         <div class="overflow-x-auto">
@@ -19,22 +19,27 @@
                 <thead>
                     <tr class="border-b border-gray-100 bg-gray-50/60">
                         <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">ID</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Product</th>
-                        <th scope="col" class="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-400">Old price</th>
-                        <th scope="col" class="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-400">New price</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Changed at</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Reason</th>
-                    </tr>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Produit</th>
+                        <th scope="col" class="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-400">Ancien prix</th>
+                        <th scope="col" class="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-400">Nouveau prix</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Modifié le</th>                    </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
                     {% for entry in price_history %}
                     <tr class="hover:bg-gray-50/50" style="transition:background 0.1s;">
-                        <td class="whitespace-nowrap px-6 py-4 text-xs font-mono text-gray-400">#{{ entry.id }}</td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-900">#{{ entry.product_id }}</td>
-                        <td class="whitespace-nowrap px-6 py-4 text-right text-sm tabular-nums text-gray-400 line-through">{{ entry.old_price }}</td>
-                        <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-bold tabular-nums text-gray-900">{{ entry.new_price }}</td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ entry.changed_at }}</td>
-                        <td class="px-6 py-4 text-sm text-gray-500" style="max-width:260px;"><p class="truncate" title="{{ entry.reason }}">{{ entry.reason }}</p></td>
+                        <td class="whitespace-nowrap px-6 py-4 text-xs font-mono text-gray-400">#{{ entry.history_id }}</td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                {% include "core/partials/product_image.html" with image_url=entry.image_url image_alt=entry.image_alt %}
+                                <div>
+                                    <p class="text-sm font-semibold text-gray-900">{{ entry.product_name }}</p>
+                                    <p class="text-xs text-gray-400">{{ entry.product_code }}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-right text-sm tabular-nums text-gray-400 line-through">{{ entry.old_price_amount }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-bold tabular-nums text-gray-900">{{ entry.new_price_amount }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ entry.applied_at }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -42,6 +47,6 @@
         </div>
     </div>
 {% else %}
-    {% include "core/partials/empty_state.html" with title="No history yet" description="No price changes have been recorded." %}
+    {% include "core/partials/empty_state.html" with title="Aucun historique" description="Aucun changement de prix n’a été enregistré." %}
 {% endif %}
 {% endblock %}

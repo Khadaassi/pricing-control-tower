@@ -5,7 +5,7 @@ from django import forms
 
 class PriceChangeRequestForm(forms.Form):
     product_id = forms.IntegerField(
-        label="Product ID",
+        label="ID produit",
         min_value=1,
         widget=forms.NumberInput(
             attrs={
@@ -16,7 +16,7 @@ class PriceChangeRequestForm(forms.Form):
     )
 
     country_id = forms.IntegerField(
-        label="Country ID",
+        label="ID pays",
         min_value=1,
         widget=forms.NumberInput(
             attrs={
@@ -27,19 +27,19 @@ class PriceChangeRequestForm(forms.Form):
     )
 
     store_id = forms.IntegerField(
-        label="Store ID",
+        label="ID magasin",
         min_value=1,
         required=False,
         widget=forms.NumberInput(
             attrs={
                 "class": "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900",
-                "placeholder": "Leave empty for country price",
+                "placeholder": "Laisser vide pour un prix pays",
             }
         ),
     )
 
     requested_price_amount = forms.DecimalField(
-        label="Requested price amount",
+        label="Nouveau prix demandé",
         min_value=Decimal("0.01"),
         max_digits=12,
         decimal_places=2,
@@ -53,7 +53,7 @@ class PriceChangeRequestForm(forms.Form):
     )
 
     requested_effective_date = forms.DateField(
-        label="Requested effective date",
+        label="Date d'effet demandée",
         widget=forms.DateInput(
             attrs={
                 "type": "date",
@@ -63,7 +63,7 @@ class PriceChangeRequestForm(forms.Form):
     )
 
     requested_by_user_id = forms.IntegerField(
-        label="Requested by user ID",
+        label="ID utilisateur demandeur",
         min_value=1,
         initial=1,
         widget=forms.NumberInput(
@@ -80,7 +80,7 @@ class PriceChangeRequestForm(forms.Form):
             attrs={
                 "class": "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900",
                 "rows": 5,
-                "placeholder": "Explain why this price change is requested.",
+                "placeholder": "Expliquez pourquoi ce changement de prix est demandé.",
             }
         ),
     )
