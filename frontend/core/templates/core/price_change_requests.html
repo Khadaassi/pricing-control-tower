@@ -5,100 +5,263 @@
 
 {% block content %}
 
-<div class="mb-5 flex items-center justify-end">
-    <a href="{% url 'core:price_change_request_create' %}"
-       class="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 active:bg-slate-950">
-        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-        Nouvelle demande de changement de prix
-    </a>
-</div>
-
+{# ── Error state ── #}
 {% if api_error %}
-    {% include "core/partials/alert.html" with type="error" title="Erreur de connexion à l’API" message="Les demandes de changement de prix n’ont pas pu être chargées." detail=api_error show_retry=True %}
+    {% include "core/partials/alert.html" with type="error" title="Erreur de connexion à l'API" message="Les demandes de prix n'ont pas pu être chargées." detail=api_error show_retry=True %}
+
+{# ── Table ── #}
 {% elif price_change_requests %}
-    <div class="rounded-2xl border border-gray-100 bg-white shadow-sm">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+    <div class="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm ring-1 ring-gray-100">
+
+        {# Accent stripe #}
+        <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-violet-500 via-emerald-400 to-blue-300"></div>
+
+        {# Card header + filter pills + bouton nouvelle demande #}
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3.5 pt-5">
+            <div class="flex items-center gap-3">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+                    <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75l2.25 2.25L15 9.75"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 3.75h9A2.25 2.25 0 0118.75 6v12A2.25 2.25 0 0116.5 20.25h-9A2.25 2.25 0 015.25 18V6A2.25 2.25 0 017.5 3.75z"/>
+                    </svg>
+                </div>
             <div>
-                <p class="text-sm font-semibold text-gray-900">Toutes les demandes de changement de prix</p>
-                <p class="text-xs text-gray-400">{{ price_change_requests|length }} demande{% if price_change_requests|length > 1 %}s{% endif %} de changement de prix</p>
+                <p class="text-sm font-medium text-gray-900">
+                    Toutes les demandes
+                    {% if active_filters %}
+                        <span class="ml-2 inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+                            {{ active_filters|length }} filtre{% if active_filters|length > 1 %}s{% endif %}
+                        </span>
+                    {% endif %}
+                </p>
+                <p class="text-xs text-gray-400">
+                    {{ price_change_requests|length }} demande{% if price_change_requests|length > 1 %}s{% endif %}
+                </p>
+            </div>
+            </div>
+            <div class="flex items-center gap-2">
+                {# Status pills - now functional GET links #}
+                <div class="flex gap-1.5 text-xs font-medium">
+                    <a href="?"
+                       class="rounded-full px-3 py-1 {% if not active_filters.status %}bg-gray-900 text-white{% else %}border border-gray-200 text-gray-500 hover:bg-gray-50{% endif %}">
+                        Toutes
+                    </a>
+                    {% if active_filters.country_id %}
+                        <a href="?status=PENDING&country_id={{ active_filters.country_id }}"
+                    {% else %}
+                        <a href="?status=PENDING"
+                    {% endif %}
+                       class="rounded-full px-3 py-1 {% if active_filters.status == 'PENDING' %}bg-amber-500 text-white{% else %}border border-gray-200 text-gray-500 hover:bg-gray-50{% endif %}">
+                        En attente
+                    </a>
+                    {% if active_filters.country_id %}
+                        <a href="?status=APPROVED&country_id={{ active_filters.country_id }}"
+                    {% else %}
+                        <a href="?status=APPROVED"
+                    {% endif %}
+                       class="rounded-full px-3 py-1 {% if active_filters.status == 'APPROVED' %}bg-emerald-500 text-white{% else %}border border-gray-200 text-gray-500 hover:bg-gray-50{% endif %}">
+                        Approuvées
+                    </a>
+                    {% if active_filters.country_id %}
+                        <a href="?status=APPLIED&country_id={{ active_filters.country_id }}"
+                    {% else %}
+                        <a href="?status=APPLIED"
+                    {% endif %}
+                       class="rounded-full px-3 py-1 {% if active_filters.status == 'APPLIED' %}bg-blue-500 text-white{% else %}border border-gray-200 text-gray-500 hover:bg-gray-50{% endif %}">
+                        Appliquées
+                    </a>
+                    {% if active_filters.country_id %}
+                        <a href="?status=REJECTED&country_id={{ active_filters.country_id }}"
+                    {% else %}
+                        <a href="?status=REJECTED"
+                    {% endif %}
+                       class="rounded-full px-3 py-1 {% if active_filters.status == 'REJECTED' %}bg-red-500 text-white{% else %}border border-gray-200 text-gray-500 hover:bg-gray-50{% endif %}">
+                        Refusées
+                    </a>
+                </div>
+
+                {# Country filter form #}
+                <form method="get" class="flex items-center gap-1.5">
+                    {% if active_filters.status %}
+                        <input type="hidden" name="status" value="{{ active_filters.status }}">
+                    {% endif %}
+                    <select name="country_id" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400">
+                        <option value="">Tous les pays</option>
+                        {% for country in countries %}
+                            <option value="{{ country.id }}" {% if active_filters.country_id == country.id|stringformat:"s" %}selected{% endif %}>{{ country.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="inline-flex items-center gap-1 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-violet-700 active:scale-95">
+                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0016.803 15.803z"/>
+                        </svg>
+                        Filtrer
+                    </button>
+                    {% if active_filters.country_id %}
+                        <a href="?{% if active_filters.status %}status={{ active_filters.status }}{% endif %}" class="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-500 shadow-sm transition-colors hover:bg-gray-50">
+                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </a>
+                    {% endif %}
+                </form>
+
+                <a href="{% url 'core:price_change_request_create' %}"
+                   class="ml-4 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-85">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                    </svg>
+                    Nouvelle demande
+                </a>
             </div>
         </div>
+
         <div class="overflow-x-auto">
-            <table class="min-w-full table-auto">
+            <table class="w-full border-collapse" style="table-layout:fixed;">
+                <colgroup>
+                    <col style="width:88px">   {# Demande #}
+                    <col style="width:145px">  {# Produit #}
+                    <col style="width:88px">   {# Portée #}
+                    <col style="width:82px">   {# Changement #}
+                    <col style="width:78px">   {# Effet #}
+                    <col style="width:118px">  {# Statut #}
+                    <col style="width:100px">  {# Justification #}
+                    <col style="width:175px">  {# Actions #}
+                </colgroup>
                 <thead>
-                    <tr class="border-b border-gray-100 bg-gray-50/60">
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Demande</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Produit</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Portée</th>
-                        <th scope="col" class="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-400">Changement de prix</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Date d’effet</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Statut</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Justification</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Actions</th>
+                    <tr class="border-b border-gray-100 bg-gray-50/70">
+                        <th class="px-3 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-wider text-gray-400">Demande</th>
+                        <th class="px-3 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-wider text-gray-400">Produit</th>
+                        <th class="px-3 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-wider text-gray-400">Portée</th>
+                        <th class="px-3 py-2.5 text-right text-[10.5px] font-semibold uppercase tracking-wider text-gray-400">Changement</th>
+                        <th class="px-3 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-wider text-gray-400">Effet</th>
+                        <th class="px-3 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-wider text-gray-400">Statut</th>
+                        <th class="px-3 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-wider text-gray-400">Justification</th>
+                        <th class="px-3 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-wider text-gray-400">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
                     {% for request in price_change_requests %}
-                    <tr class="hover:bg-gray-50/50" style="transition:background 0.1s;">
-                        <td class="whitespace-nowrap px-6 py-4">
-                            <p class="text-sm font-semibold text-gray-900">PR-{{ request.id }}</p>
-                            <p class="font-mono text-[10px] text-gray-400">{{ request.created_at|slice:":10" }}</p>
+                    <tr class="transition-colors hover:bg-gray-50/60">
+
+                        {# ── Demande ── #}
+                        <td class="whitespace-nowrap px-3 py-3.5">
+                            <p class="text-sm font-medium text-gray-900">PR-{{ request.id }}</p>
+                            <p class="mt-0.5 font-mono text-[10px] text-gray-400">{{ request.created_at|slice:":10" }}</p>
                         </td>
-                        <td class="px-6 py-4">
-                            <div class="flex items-center gap-3">
+
+                        {# ── Produit ── #}
+                        <td class="px-3 py-3.5">
+                            <div class="flex items-center gap-2">
                                 {% include "core/partials/product_image.html" with image_url=request.image_url image_alt=request.image_alt %}
                                 <div>
-                                    <p class="text-sm font-semibold text-gray-900">{{ request.product_name }}</p>
-                                    <p class="text-xs text-gray-400">{{ request.product_code }}</p>
+                                    <p class="text-sm font-medium text-gray-900 leading-tight">{{ request.product_name }}</p>
+                                    <p class="font-mono text-[10px] text-gray-400">{{ request.product_code }}</p>
                                 </div>
                             </div>
                         </td>
-                        <td class="whitespace-nowrap px-6 py-4">
+
+                        {# ── Portée ── #}
+                        <td class="whitespace-nowrap px-3 py-3.5">
                             {% if request.scope == "Country request" %}
-                                <span class="inline-flex rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">Pays</span>
-                                <p class="mt-0.5 text-[10px] text-gray-400">P{{ request.country_id }}</p>
+                                <span class="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700">
+                                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 9m0 6v1.5"/></svg>
+                                    Pays
+                                </span>
+                                <p class="mt-1 text-[10px] text-gray-500 font-medium">{{ request.country_name }}</p>
                             {% else %}
-                                <span class="inline-flex rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">Magasin</span>
-                                <p class="mt-0.5 text-[10px] text-gray-400">P{{ request.country_id }} &middot; M{{ request.store_id }}</p>
+                                <span class="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-600">
+                                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a48.667 48.667 0 0 1 3-.349m3-.349v.349"/></svg>
+                                    Magasin
+                                </span>
+                                <p class="mt-1 text-[10px] text-gray-500 font-medium">{{ request.country_name }}</p>
                             {% endif %}
                         </td>
-                        <td class="whitespace-nowrap px-6 py-4 text-right">
-                            <p class="text-[11px] tabular-nums text-gray-400 line-through">{{ request.old_price_amount }}</p>
-                            <p class="text-sm font-bold tabular-nums text-gray-900">{{ request.requested_price_amount }}</p>
-                        </td>
-                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ request.requested_effective_date }}</td>
-                        <td class="whitespace-nowrap px-6 py-4">
-                            {% include "core/partials/status_badge.html" with status=request.status %}
-                            {% if request.rejection_reason != "N/A" %}
-                                <p class="mt-1 max-w-[130px] truncate text-[10px] text-red-500" title="{{ request.rejection_reason }}">{{ request.rejection_reason }}</p>
+
+                        {# ── Changement de prix ── #}
+                        <td class="whitespace-nowrap px-3 py-3.5 text-right">
+                            <p class="font-mono text-[11px] tabular-nums text-gray-400 line-through">{{ request.old_price_amount }}</p>
+                            <p class="font-mono text-sm font-semibold tabular-nums text-gray-900">{{ request.requested_price_amount }}</p>
+                            {% if request.price_delta_pct %}
+                                {% if request.price_delta_pct > 0 %}
+                                    <p class="text-[10px] tabular-nums text-green-600">▲ +{{ request.price_delta_pct }}%</p>
+                                {% else %}
+                                    <p class="text-[10px] tabular-nums text-red-500">▼ {{ request.price_delta_pct }}%</p>
+                                {% endif %}
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 text-sm text-gray-500" style="max-width:180px;"><p class="truncate" title="{{ request.justification }}">{{ request.justification }}</p></td>
-                        <td class="px-6 py-4" style="min-width:200px;">
+
+                        {# ── Date d'effet ── #}
+                        <td class="whitespace-nowrap px-3 py-3.5 text-xs text-gray-500">
+                            {{ request.requested_effective_date }}
+                        </td>
+
+                        {# ── Statut ── #}
+                        <td class="whitespace-nowrap px-3 py-3.5">
                             {% if request.status == "PENDING" %}
-                                <div class="flex flex-col gap-2">
-                                    <!-- Approve -->
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>En attente
+                                </span>
+                            {% elif request.status == "APPROVED" %}
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Approuvée
+                                </span>
+                            {% elif request.status == "APPLIED" %}
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-medium text-blue-700">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-blue-500"></span>Appliquée
+                                </span>
+                            {% elif request.status == "REJECTED" %}
+                                <div>
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-medium text-red-600">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>Refusée
+                                    </span>
+                                    {% if request.rejection_reason != "N/A" %}
+                                        <p class="mt-1 max-w-[110px] truncate text-[10px] text-red-400" title="{{ request.rejection_reason }}">
+                                            {{ request.rejection_reason }}
+                                        </p>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                {% include "core/partials/status_badge.html" with status=request.status %}
+                            {% endif %}
+                        </td>
+
+                        {# ── Justification ── #}
+                        <td class="px-3 py-3.5" style="max-width:110px;">
+                            <p class="truncate text-xs text-gray-500" title="{{ request.justification }}">
+                                {{ request.justification }}
+                            </p>
+                        </td>
+
+                        {# ── Actions ── #}
+                        <td class="px-3 py-2.5">
+                            {% if request.status == "PENDING" %}
+                                <div class="flex flex-col gap-1.5">
+                                    {# Approve #}
                                     <form method="post">
                                         {% csrf_token %}
                                         <input type="hidden" name="action" value="approve">
                                         <input type="hidden" name="request_id" value="{{ request.id }}">
                                         <button type="submit"
-                                                class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-600 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-600 hover:text-white active:bg-emerald-700">
-                                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                                                class="inline-flex w-full items-center justify-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-600 hover:text-white active:bg-emerald-700">
+                                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+                                            </svg>
                                             Approuver
                                         </button>
                                     </form>
-                                    <!-- Reject -->
-                                    <form method="post" class="flex flex-col gap-1.5">
+                                    {# Reject #}
+                                    <form method="post" class="flex gap-1">
                                         {% csrf_token %}
                                         <input type="hidden" name="action" value="reject">
                                         <input type="hidden" name="request_id" value="{{ request.id }}">
-                                             <input type="text" name="reason" required placeholder="Motif du refus"
-                                                 class="block w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs text-gray-900 placeholder:text-gray-400 focus:border-red-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-red-400">
+                                        <input type="text" name="reason" required placeholder="Motif…"
+                                               class="min-w-0 flex-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5 text-[11px] text-gray-900 placeholder:text-gray-400 focus:border-red-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-red-400">
                                         <button type="submit"
-                                                class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-600 hover:text-white active:bg-red-700">
-                                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                                            Refuser
+                                                class="inline-flex shrink-0 items-center justify-center rounded-md border border-red-200 bg-red-50 px-2 py-1.5 text-[11px] font-medium text-red-600 transition-colors hover:bg-red-600 hover:text-white active:bg-red-700">
+                                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                            </svg>
                                         </button>
                                     </form>
                                 </div>
@@ -106,28 +269,32 @@
                                 <span class="text-xs text-gray-300">&mdash;</span>
                             {% endif %}
                         </td>
+
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
+
+{# ── Empty state ── #}
 {% else %}
-    <div class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white py-16 text-center">
-        <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-            <svg class="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+    <div class="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-white py-20 text-center">
+        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+            <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/>
             </svg>
         </div>
-        <p class="mt-4 text-sm font-semibold text-gray-900">Aucune demande de changement de prix</p>
-        <p class="mt-1 text-sm text-gray-500">Créez la première demande de changement de prix pour commencer.</p>
-        <div class="mt-5">
-            <a href="{% url 'core:price_change_request_create' %}"
-               class="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 active:bg-slate-950">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                Nouvelle demande de changement de prix
-            </a>
-        </div>
+        <p class="mt-4 text-sm font-medium text-gray-900">Aucune demande pour le moment</p>
+        <p class="mt-1 text-sm text-gray-400">Créez la première demande de changement de prix.</p>
+        <a href="{% url 'core:price_change_request_create' %}"
+           class="mt-6 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-85">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+            </svg>
+            Nouvelle demande
+        </a>
     </div>
 {% endif %}
+
 {% endblock %}
