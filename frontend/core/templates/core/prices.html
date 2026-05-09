@@ -1,17 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Prices | Pricing Control Tower{% endblock %}
-{% block page_title %}Prices{% endblock %}
-{% block page_subtitle %}<p class="text-xs text-gray-400">Current product prices across all countries and stores</p>{% endblock %}
+{% block title %}Prix | Tour de Contrôle des Prix{% endblock %}
+{% block page_title %}Prix{% endblock %}
+{% block page_subtitle %}<p class="text-xs text-gray-400">Prix actuels des produits dans tous les pays et magasins</p>{% endblock %}
 
 {% block content %}
 {% if api_error %}
-    {% include "core/partials/alert.html" with type="error" title="API connection error" message="The price list could not be loaded." detail=api_error show_retry=True %}
+    {% include "core/partials/alert.html" with type="error" title="Erreur de connexion à l’API" message="La liste des prix n’a pas pu être chargée." detail=api_error show_retry=True %}
 {% elif prices %}
     <div class="rounded-2xl border border-gray-100 bg-white shadow-sm">
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <div>
-                <p class="text-sm font-semibold text-gray-900">Price records</p>
-                <p class="text-xs text-gray-400">{{ prices|length }} record{{ prices|length|pluralize }}</p>
+                <p class="text-sm font-semibold text-gray-900">Enregistrements de prix</p>
+                <p class="text-xs text-gray-400">{{ prices|length }} enregistrement{% if prices|length > 1 %}s{% endif %}</p>
             </div>
         </div>
 
@@ -25,11 +25,11 @@
             </colgroup>
             <thead>
                 <tr class="border-b border-gray-100 bg-gray-50/60">
-                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Product</th>
-                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Scope / Type</th>
-                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Location</th>
-                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Period</th>
-                    <th scope="col" class="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-400">Amount</th>
+                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Produit</th>
+                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Portée / Type</th>
+                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Lieu</th>
+                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Période</th>
+                    <th scope="col" class="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-400">Montant</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-50">
@@ -51,12 +51,12 @@
                     <td class="px-6 py-4">
                         <div class="flex flex-col gap-1">
                             {% if price.scope == "COUNTRY" %}
-                                <span class="inline-flex w-fit rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{{ price.scope_label }}</span>
+                                <span class="inline-flex w-fit rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">Pays</span>
                             {% else %}
                                 <span class="inline-flex w-fit rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">{{ price.scope_label }}</span>
                             {% endif %}
                             {% if price.type == "PROMO" %}
-                                <span class="inline-flex w-fit rounded-lg bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">PROMO</span>
+                                <span class="inline-flex w-fit rounded-lg bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">Promotion</span>
                             {% else %}
                                 <span class="inline-flex w-fit rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">{{ price.type }}</span>
                             {% endif %}
@@ -65,23 +65,23 @@
 
                     {# Country + Store #}
                     <td class="px-6 py-4">
-                        <p class="text-sm text-gray-500">Country #{{ price.country_id }}</p>
+                        <p class="text-sm text-gray-500">Pays n°{{ price.country_id }}</p>
                         {% if price.store_id != "N/A" %}
-                            <p class="text-xs text-gray-400">Store #{{ price.store_id }}</p>
+                            <p class="text-xs text-gray-400">Magasin n°{{ price.store_id }}</p>
                         {% endif %}
                     </td>
 
                     {# Period #}
                     <td class="px-6 py-4">
                         <p class="text-sm text-gray-500">{{ price.effective_from }}</p>
-                        <p class="text-xs text-gray-400">to {{ price.effective_to }}</p>
+                        <p class="text-xs text-gray-400">au {{ price.effective_to }}</p>
                     </td>
 
                     {# Amount + Status #}
                     <td class="px-6 py-4 text-right">
                         <p class="text-sm font-bold tabular-nums text-gray-900">{{ price.amount }}</p>
                         {% if price.status == "ACTIVE" %}
-                            <span class="inline-flex rounded-lg bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">ACTIVE</span>
+                            <span class="inline-flex rounded-lg bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">ACTIF</span>
                         {% else %}
                             <span class="inline-flex rounded-lg bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600">{{ price.status }}</span>
                         {% endif %}
@@ -94,6 +94,6 @@
 
     </div>
 {% else %}
-    {% include "core/partials/empty_state.html" with title="No prices found" description="The API responded but no price records were returned." %}
+    {% include "core/partials/empty_state.html" with title="Aucun prix trouvé" description="L’API a répondu mais aucun prix n’a été retourné." %}
 {% endif %}
 {% endblock %}

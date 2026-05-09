@@ -1,17 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Products | Pricing Control Tower{% endblock %}
-{% block page_title %}Products{% endblock %}
-{% block page_subtitle %}<p class="text-xs text-gray-400">Full product catalog from the pricing backend</p>{% endblock %}
+{% block title %}Produits | Tour de Contrôle des Prix{% endblock %}
+{% block page_title %}Produits{% endblock %}
+{% block page_subtitle %}<p class="text-xs text-gray-400">Catalogue complet des produits depuis le backend de tarification</p>{% endblock %}
 
 {% block content %}
 {% if api_error %}
-    {% include "core/partials/alert.html" with type="error" title="API connection error" message="The product catalog could not be loaded." detail=api_error show_retry=True %}
+    {% include "core/partials/alert.html" with type="error" title="Erreur de connexion à l’API" message="Le catalogue des produits n’a pas pu être chargé." detail=api_error show_retry=True %}
 {% elif products %}
     <div class="rounded-2xl border border-gray-100 bg-white shadow-sm">
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <div>
-                <p class="text-sm font-semibold text-gray-900">All products</p>
-                <p class="text-xs text-gray-400">{{ products|length }} product{{ products|length|pluralize }}</p>
+                <p class="text-sm font-semibold text-gray-900">Tous les produits</p>
+                <p class="text-xs text-gray-400">{{ products|length }} produit{% if products|length > 1 %}s{% endif %}</p>
             </div>
         </div>
 
@@ -24,10 +24,10 @@
             </colgroup>
             <thead>
                 <tr class="border-b border-gray-100 bg-gray-50/60">
-                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Product</th>
-                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Brand</th>
-                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Family</th>
-                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Status</th>
+                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Produit</th>
+                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Marque</th>
+                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Famille</th>
+                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Statut</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-50">
@@ -65,6 +65,6 @@
 
     </div>
 {% else %}
-    {% include "core/partials/empty_state.html" with title="No products found" description="The API responded but no products were returned." %}
+    {% include "core/partials/empty_state.html" with title="Aucun produit trouvé" description="L’API a répondu mais aucun produit n’a été retourné." %}
 {% endif %}
 {% endblock %}

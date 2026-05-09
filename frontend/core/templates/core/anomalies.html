@@ -1,30 +1,30 @@
 {% extends "base.html" %}
 {% block title %}Anomalies | Pricing Control Tower{% endblock %}
 {% block page_title %}Anomalies{% endblock %}
-{% block page_subtitle %}<p class="text-xs text-gray-400">Pricing anomalies flagged by the detection engine</p>{% endblock %}
+{% block page_subtitle %}<p class="text-xs text-gray-400">Anomalies tarifaires détectées par le moteur</p>{% endblock %}
 
 {% block content %}
 {% if api_error %}
-    {% include "core/partials/alert.html" with type="error" title="API connection error" message="The anomaly list could not be loaded." detail=api_error show_retry=True %}
+    {% include "core/partials/alert.html" with type="error" title="Erreur de connexion à l’API" message="La liste des anomalies n’a pas pu être chargée." detail=api_error show_retry=True %}
 {% elif anomalies %}
     <div class="rounded-2xl border border-gray-100 bg-white shadow-sm">
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <div>
-                <p class="text-sm font-semibold text-gray-900">Top Anomalies</p>
-                <p class="text-xs text-gray-400">{{ anomalies|length }} anomal{{ anomalies|length|pluralize:"y,ies" }}</p>
+                <p class="text-sm font-semibold text-gray-900">Principales anomalies</p>
+                <p class="text-xs text-gray-400">{{ anomalies|length }} anomalie{% if anomalies|length > 1 %}s{% endif %}</p>
             </div>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full">
                 <thead>
                     <tr class="border-b border-gray-100 bg-gray-50/60">
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Anomaly</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Product</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Anomalie</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Produit</th>
                         <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Type</th>
                         <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Impact</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Status</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Severity</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Detected at</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Statut</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Sévérité</th>
+                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Détectée le</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
@@ -58,18 +58,18 @@
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500" style="max-width:220px;"><span class="truncate block" title="{{ anomaly.description }}">{{ anomaly.description }}</span></td>
                         <td class="whitespace-nowrap px-6 py-4">
                             {% if anomaly.is_resolved %}
-                                <span class="inline-flex rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Resolved</span>
+                                <span class="inline-flex rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Résolue</span>
                             {% else %}
-                                <span class="inline-flex rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Open</span>
+                                <span class="inline-flex rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Ouverte</span>
                             {% endif %}
                         </td>
                         <td class="whitespace-nowrap px-6 py-4">
                             {% if anomaly.severity == "HIGH" %}
-                                <span class="inline-flex rounded-lg bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">High</span>
+                                <span class="inline-flex rounded-lg bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">Élevée</span>
                             {% elif anomaly.severity == "MEDIUM" %}
-                                <span class="inline-flex rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">Medium</span>
+                                <span class="inline-flex rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">Moyenne</span>
                             {% else %}
-                                <span class="inline-flex rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">Low</span>
+                                <span class="inline-flex rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">Faible</span>
                             {% endif %}
                         </td>
                         <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ anomaly.detected_at }}</td>
