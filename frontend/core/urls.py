@@ -6,6 +6,7 @@ from .views import (
     PriceChangeRequestsView,
     PriceChangeRequestCreateView,
     PricesView,
+    ProductPricesView,
     ProductsView,
     PromotionsView,
     PriceHistoryView,
@@ -18,6 +19,7 @@ urlpatterns = [
     path("", HomeView.as_view(), name="home"),
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("produits/", ProductsView.as_view(), name="products"),
+    path("produits/<int:product_id>/prix/", ProductPricesView.as_view(), name="product_prices"),
     path("prix/", PricesView.as_view(), name="prices"),
     path("promotions/", PromotionsView.as_view(), name="promotions"),
     path(

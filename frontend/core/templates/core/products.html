@@ -44,6 +44,39 @@
                     Filtres
                 </div>
                 <div class="h-5 w-px bg-gray-200 shrink-0"></div>
+
+                {# Recherche live (côté client) #}
+                <div class="relative flex items-center">
+                    <svg class="pointer-events-none absolute left-2.5 h-3 w-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0016.803 15.803z"/>
+                    </svg>
+                    <input id="product-search" type="text" placeholder="Nom ou code…"
+                           class="w-44 rounded-lg border border-gray-200 bg-white pl-7 pr-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400">
+                </div>
+
+                {# Famille (serveur) #}
+                <div class="flex items-center gap-2">
+                    <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Famille</label>
+                    <select name="product_family_id" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400">
+                        <option value="">Toutes</option>
+                        {% for fid, fname in families %}
+                            <option value="{{ fid }}" {% if active_filters.product_family_id == fid %}selected{% endif %}>{{ fname }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {# Marque (côté client) #}
+                <div class="flex items-center gap-2">
+                    <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Marque</label>
+                    <select id="brand-filter" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400">
+                        <option value="">Toutes</option>
+                        {% for brand in brands %}
+                            <option value="{{ brand }}">{{ brand }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {# Statut (serveur) #}
                 <div class="flex items-center gap-2">
                     <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Statut</label>
                     <select name="active" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400">
@@ -52,11 +85,9 @@
                         <option value="false" {% if active_filters.active == "false" %}selected{% endif %}>Inactif</option>
                     </select>
                 </div>
+
                 <div class="flex items-center gap-2 ml-auto">
                     <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-violet-700 active:scale-95">
-                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0016.803 15.803z"/>
-                        </svg>
                         Appliquer
                     </button>
                     {% if active_filters %}
@@ -71,51 +102,337 @@
             </form>
         </div>
 
-        <table class="w-full table-fixed">
-            <colgroup>
-                <col class="w-[42%]">
-                <col class="w-[18%]">
-                <col class="w-[25%]">
-                <col class="w-[15%]">
-            </colgroup>
-            <thead>
-                <tr class="border-b border-gray-100 bg-gray-50/60">
-                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Produit</th>
-                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Marque</th>
-                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Famille</th>
-                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Statut</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-50">
-                {% for product in products %}
-                <tr class="group hover:bg-violet-50/30 transition-colors duration-150">
+        {# Product grid #}
+        <div id="product-grid" class="p-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {% for product in products %}
+            <div class="product-card group relative flex flex-col rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-lg hover:border-violet-200 transition-all duration-200 overflow-hidden cursor-pointer"
+                 data-name="{{ product.name|lower }}"
+                 data-code="{{ product.code|lower }}"
+                 data-brand="{{ product.brand|lower }}"
+                 data-product-id="{{ product.id }}"
+                 data-product-name="{{ product.name }}"
+                 data-product-code="{{ product.code }}"
+                 data-product-brand="{{ product.brand }}"
+                 data-product-model="{{ product.model }}"
+                 data-product-family="{{ product.family_name }}"
+                 data-product-description="{{ product.description }}"
+                 data-product-status="{{ product.status }}"
+                 data-product-image="{{ product.image_url }}"
+                 data-product-image-alt="{{ product.image_alt }}"
+                 onclick="openProductModal(this)"
+                 role="button" tabindex="0"
+                 onkeydown="if(event.key==='Enter')openProductModal(this)">
 
-                    <td class="px-6 py-4">
-                        <div class="flex items-center gap-3 min-w-0">
-                            {% include "core/partials/product_image.html" with image_url=product.image_url image_alt=product.image_alt %}
-                            <div class="min-w-0">
-                                <p class="text-sm font-semibold text-gray-900 truncate group-hover:text-violet-700 transition-colors duration-150">{{ product.name }}</p>
-                                <p class="text-xs font-mono text-gray-400">{{ product.code }}</p>
+                {# Image area #}
+                <div class="relative aspect-square bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
+                    {% if product.image_url %}
+                        <img
+                            src="{{ product.image_url }}"
+                            alt="{{ product.image_alt }}"
+                            class="h-full w-full object-contain p-4 group-hover:scale-105 transition-transform duration-300 ease-out"
+                            loading="lazy"
+                            onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+                        >
+                        <div class="hidden h-full w-full items-center justify-center">
+                            <svg class="h-10 w-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+                            </svg>
+                        </div>
+                    {% else %}
+                        <div class="flex h-full w-full items-center justify-center">
+                            <svg class="h-10 w-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+                            </svg>
+                        </div>
+                    {% endif %}
+
+                    {# Status badge overlay #}
+                    <div class="absolute top-2 right-2">
+                        {% include "core/partials/status_badge.html" with status=product.status|upper %}
+                    </div>
+                </div>
+
+                {# Product info #}
+                <div class="flex flex-col gap-1 p-3 flex-1">
+                    <p class="text-sm font-semibold text-gray-900 group-hover:text-violet-700 transition-colors duration-150 line-clamp-2 leading-snug">{{ product.name }}</p>
+                    <p class="text-[10px] font-mono text-gray-400 truncate">{{ product.code }}</p>
+                    <div class="mt-auto pt-2 flex flex-wrap items-center gap-1.5">
+                        {% if product.brand %}
+                            <span class="inline-flex items-center rounded-md bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-600">{{ product.brand }}</span>
+                        {% endif %}
+                        {% if product.family_name %}
+                            <span class="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500 truncate max-w-full">{{ product.family_name }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+            {% endfor %}
+
+            {# Empty state when JS filters match nothing #}
+            <div id="no-results" class="col-span-full hidden flex-col items-center justify-center gap-3 py-16 text-center">
+                <svg class="h-10 w-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0016.803 15.803z"/>
+                </svg>
+                <p class="text-sm font-semibold text-gray-500">Aucun produit ne correspond aux filtres</p>
+                <p class="text-xs text-gray-400">Modifiez la recherche ou la marque sélectionnée.</p>
+            </div>
+        </div>
+
+        {# Product detail modal #}
+        <div id="product-modal" class="fixed inset-0 z-50 hidden" aria-modal="true" role="dialog">
+            {# Backdrop #}
+            <div id="modal-backdrop" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 opacity-0" onclick="closeProductModal()"></div>
+
+            {# Panel #}
+            <div id="modal-panel" class="absolute inset-y-0 right-0 flex w-full max-w-lg flex-col bg-white shadow-2xl translate-x-full transition-transform duration-300 ease-out">
+
+                {# Header #}
+                <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                    <h2 class="text-base font-semibold text-gray-900">Détail produit</h2>
+                    <button onclick="closeProductModal()" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                {# Scrollable body #}
+                <div class="flex-1 overflow-y-auto">
+
+                    {# Product hero #}
+                    <div class="flex gap-5 p-6 border-b border-gray-100">
+                        <div id="modal-image-wrap" class="h-28 w-28 shrink-0 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden flex items-center justify-center border border-gray-100">
+                            <img id="modal-image" src="" alt="" class="h-full w-full object-contain p-3" onerror="this.style.display='none';document.getElementById('modal-image-placeholder').style.display='flex'">
+                            <div id="modal-image-placeholder" class="hidden h-full w-full items-center justify-center">
+                                <svg class="h-8 w-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+                                </svg>
                             </div>
                         </div>
-                    </td>
+                        <div class="min-w-0 flex-1">
+                            <p id="modal-name" class="text-base font-bold text-gray-900 leading-snug"></p>
+                            <p id="modal-code" class="mt-1 font-mono text-xs text-gray-400"></p>
+                            <div id="modal-status-wrap" class="mt-3"></div>
+                        </div>
+                    </div>
 
-                    <td class="px-6 py-4">
-                        <span class="inline-flex items-center rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">{{ product.brand }}</span>
-                    </td>
+                    {# Product details grid #}
+                    <div class="grid grid-cols-2 gap-4 px-6 py-5 border-b border-gray-100">
+                        <div>
+                            <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Marque</p>
+                            <p id="modal-brand" class="mt-1 text-sm text-gray-700 font-medium"></p>
+                        </div>
+                        <div class="col-span-2">
+                            <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Famille</p>
+                            <p id="modal-family" class="mt-1 text-sm text-gray-700 font-medium"></p>
+                        </div>
+                        <div id="modal-desc-block" class="col-span-2 hidden">
+                            <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Description</p>
+                            <p id="modal-description" class="mt-1 text-sm text-gray-500 leading-relaxed"></p>
+                        </div>
+                    </div>
 
-                    <td class="px-6 py-4">
-                        <p class="text-sm text-gray-500 truncate">{{ product.family_name }}</p>
-                    </td>
+                    {# Prices section #}
+                    <div class="px-6 py-5">
+                        <div class="flex items-center gap-2 mb-4">
+                            <svg class="h-4 w-4 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <p class="text-sm font-semibold text-gray-900">Prix</p>
+                        </div>
 
-                    <td class="px-6 py-4">
-                        {% include "core/partials/status_badge.html" with status=product.status|upper %}
-                    </td>
+                        {# Loading state #}
+                        <div id="prices-loading" class="flex items-center gap-2 text-xs text-gray-400 py-4">
+                            <svg class="h-4 w-4 animate-spin text-violet-400" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                            </svg>
+                            Chargement des prix…
+                        </div>
 
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                        {# Error state #}
+                        <div id="prices-error" class="hidden rounded-lg bg-red-50 px-4 py-3 text-xs text-red-600"></div>
+
+                        {# Prices table #}
+                        <div id="prices-table-wrap" class="hidden overflow-hidden rounded-xl border border-gray-100">
+                            <table class="min-w-full text-xs">
+                                <thead>
+                                    <tr class="bg-gray-50/60 border-b border-gray-100">
+                                        <th class="px-3 py-2.5 text-left font-semibold uppercase tracking-wider text-gray-400">Type</th>
+                                        <th class="px-3 py-2.5 text-left font-semibold uppercase tracking-wider text-gray-400">Portée</th>
+                                        <th class="px-3 py-2.5 text-right font-semibold uppercase tracking-wider text-gray-400">Montant</th>
+                                        <th class="px-3 py-2.5 text-left font-semibold uppercase tracking-wider text-gray-400">Valide du</th>
+                                        <th class="px-3 py-2.5 text-left font-semibold uppercase tracking-wider text-gray-400">Statut</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="prices-tbody" class="divide-y divide-gray-50"></tbody>
+                            </table>
+                        </div>
+
+                        {# Empty prices #}
+                        <div id="prices-empty" class="hidden text-center py-8 text-sm text-gray-400">Aucun prix enregistré pour ce produit.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# JS live filter (search + brand) #}
+        <script>
+        (function () {
+            const searchInput = document.getElementById('product-search');
+            const brandSelect = document.getElementById('brand-filter');
+            const cards = document.querySelectorAll('.product-card');
+            const noResults = document.getElementById('no-results');
+
+            function applyFilters() {
+                const q = searchInput.value.toLowerCase().trim();
+                const brand = brandSelect.value.toLowerCase().trim();
+                let visible = 0;
+
+                cards.forEach(card => {
+                    const matchSearch = !q || card.dataset.name.includes(q) || card.dataset.code.includes(q);
+                    const matchBrand = !brand || card.dataset.brand === brand;
+                    const show = matchSearch && matchBrand;
+                    card.style.display = show ? '' : 'none';
+                    if (show) visible++;
+                });
+
+                noResults.style.display = visible === 0 ? 'flex' : 'none';
+            }
+
+            searchInput.addEventListener('input', applyFilters);
+            brandSelect.addEventListener('change', applyFilters);
+        })();
+
+        /* ── Product detail modal ── */
+        const modal   = document.getElementById('product-modal');
+        const panel   = document.getElementById('modal-panel');
+        const backdrop = document.getElementById('modal-backdrop');
+
+        function openProductModal(card) {
+            const d = card.dataset;
+
+            // Fill product info
+            const img = document.getElementById('modal-image');
+            const imgPlaceholder = document.getElementById('modal-image-placeholder');
+            if (d.productImage) {
+                img.src = d.productImage;
+                img.alt = d.productImageAlt || '';
+                img.style.display = '';
+                imgPlaceholder.style.display = 'none';
+            } else {
+                img.style.display = 'none';
+                imgPlaceholder.style.display = 'flex';
+            }
+
+            document.getElementById('modal-name').textContent = d.productName || '—';
+            document.getElementById('modal-code').textContent = d.productCode || '';
+            document.getElementById('modal-brand').textContent = d.productBrand || '—';
+            document.getElementById('modal-family').textContent = d.productFamily || '—';
+
+            const desc = d.productDescription || '';
+            const descBlock = document.getElementById('modal-desc-block');
+            if (desc) {
+                document.getElementById('modal-description').textContent = desc;
+                descBlock.classList.remove('hidden');
+            } else {
+                descBlock.classList.add('hidden');
+            }
+
+            // Status badge
+            const statusWrap = document.getElementById('modal-status-wrap');
+            const isActive = d.productStatus === 'Actif';
+            statusWrap.innerHTML = isActive
+                ? '<span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Actif</span>'
+                : '<span class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500"><span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span>Inactif</span>';
+
+            // Reset prices section
+            document.getElementById('prices-loading').style.display = 'flex';
+            document.getElementById('prices-error').classList.add('hidden');
+            document.getElementById('prices-table-wrap').classList.add('hidden');
+            document.getElementById('prices-empty').classList.add('hidden');
+            document.getElementById('prices-tbody').innerHTML = '';
+
+            // Show modal
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                backdrop.classList.remove('opacity-0');
+                panel.classList.remove('translate-x-full');
+            });
+            document.body.style.overflow = 'hidden';
+
+            // Fetch prices
+            const productId = d.productId;
+            if (!productId) {
+                document.getElementById('prices-loading').style.display = 'none';
+                document.getElementById('prices-empty').classList.remove('hidden');
+                return;
+            }
+
+            fetch(`/produits/${productId}/prix/`)
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('prices-loading').style.display = 'none';
+                    if (data.error) {
+                        const el = document.getElementById('prices-error');
+                        el.textContent = data.error;
+                        el.classList.remove('hidden');
+                        return;
+                    }
+                    if (!data.prices || data.prices.length === 0) {
+                        document.getElementById('prices-empty').classList.remove('hidden');
+                        return;
+                    }
+
+                    const statusColor = {
+                        'Actif': 'text-emerald-700 bg-emerald-50',
+                        'Inactif': 'text-gray-500 bg-gray-100',
+                        'Expiré': 'text-red-600 bg-red-50',
+                    };
+                    const typeColor = {
+                        'Standard': 'text-blue-700 bg-blue-50',
+                        'Promotionnel': 'text-amber-700 bg-amber-50',
+                    };
+
+                    const tbody = document.getElementById('prices-tbody');
+                    data.prices.forEach(p => {
+                        const sc = statusColor[p.status] || 'text-gray-500 bg-gray-100';
+                        const tc = typeColor[p.price_type] || 'text-gray-600 bg-gray-100';
+                        const dateRange = p.effective_to && p.effective_to !== '—'
+                            ? `${p.effective_from} → ${p.effective_to}`
+                            : `${p.effective_from}`;
+                        tbody.insertAdjacentHTML('beforeend', `
+                            <tr class="hover:bg-violet-50/20 transition-colors">
+                                <td class="px-3 py-2.5"><span class="inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${tc}">${p.price_type}</span></td>
+                                <td class="px-3 py-2.5 text-gray-600">${p.price_scope}</td>
+                                <td class="px-3 py-2.5 text-right font-bold tabular-nums text-gray-900">${p.amount} ${p.currency_code}</td>
+                                <td class="px-3 py-2.5 text-gray-500 whitespace-nowrap">${dateRange}</td>
+                                <td class="px-3 py-2.5"><span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${sc}">${p.status}</span></td>
+                            </tr>`);
+                    });
+
+                    document.getElementById('prices-table-wrap').classList.remove('hidden');
+                })
+                .catch(() => {
+                    document.getElementById('prices-loading').style.display = 'none';
+                    const el = document.getElementById('prices-error');
+                    el.textContent = 'Impossible de charger les prix.';
+                    el.classList.remove('hidden');
+                });
+        }
+
+        function closeProductModal() {
+            backdrop.classList.add('opacity-0');
+            panel.classList.add('translate-x-full');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.body.style.overflow = '';
+            }, 300);
+        }
+
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeProductModal(); });
+        </script>
 
     </div>
 {% else %}

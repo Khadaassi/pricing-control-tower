@@ -4,7 +4,9 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from django.contrib import messages
+from django.http import JsonResponse
 from django.shortcuts import redirect
+from django.views import View
 from django.views.generic import TemplateView
 
 from core.forms import PriceChangeRequestForm
@@ -260,34 +262,57 @@ class ProductsView(TemplateView):
         context["products"] = []
 
         active_val = self.request.GET.get("active", "").strip()
+        family_val = self.request.GET.get("product_family_id", "").strip()
         raw_filters = {}
         if active_val in ("true", "false"):
             raw_filters["active"] = active_val
+        if family_val.isdigit():
+            raw_filters["product_family_id"] = family_val
         context["active_filters"] = raw_filters
 
         api_params = dict(raw_filters) or None
 
         try:
-            products = api_get("/products", params=api_params)
+            products = api_get("/products", params={"active": raw_filters["active"]} if "active" in raw_filters else None)
         except ApiClientError as exc:
             context["api_error"] = str(exc)
             return context
 
-        context["products"] = [
-            {
+        built = []
+        families_seen: dict[str, str] = {}
+        brands_seen: set[str] = set()
+
+        for product in products:
+            family = product.get("family") or {}
+            family_id = str(family.get("id", ""))
+            family_name = family.get("name") or ""
+            if family_id and family_name:
+                families_seen[family_id] = family_name
+
+            brand = product.get("brand") or ""
+            if brand:
+                brands_seen.add(brand)
+
+            built.append({
+                "id": product.get("id"),
                 "code": product.get("code") or "Indisponible",
                 "name": product.get("name") or "Indisponible",
-                "brand": product.get("brand") or "Indisponible",
-                "model": product.get("model") or "Indisponible",
-                "family_name": self.get_family_name(product),
-                "description": product.get("description") or "Indisponible",
+                "brand": brand or "Indisponible",
+                "model": product.get("model") or "",
+                "family_id": family_id,
+                "family_name": family_name or "Indisponible",
+                "description": product.get("description") or "",
                 "status": "Actif" if product.get("active") is True else "Inactif",
-                "image_url": product.get("image_url"),
+                "image_url": product.get("image_url") or "",
                 "image_alt": product.get("image_alt") or product.get("name") or "Image produit",
-            }
-            for product in products
-        ]
+            })
 
+        if family_val.isdigit():
+            built = [p for p in built if p["family_id"] == family_val]
+
+        context["products"] = built
+        context["families"] = sorted(families_seen.items(), key=lambda x: x[1])
+        context["brands"] = sorted(brands_seen)
         return context
 
     @staticmethod
@@ -298,6 +323,36 @@ class ProductsView(TemplateView):
             return "Indisponible"
 
         return family.get("name") or "Indisponible"
+
+
+class ProductPricesView(View):
+    def get(self, _request, product_id):
+        try:
+            prices = api_get("/prices", params={"product_id": product_id})
+        except ApiClientError as exc:
+            return JsonResponse({"error": str(exc)}, status=502)
+
+        price_type_labels = {"STANDARD": "Standard", "PROMO": "Promotionnel"}
+        price_scope_labels = {"COUNTRY": "Pays", "STORE": "Magasin"}
+        status_labels = {"ACTIVE": "Actif", "INACTIVE": "Inactif", "EXPIRED": "Expiré"}
+
+        return JsonResponse({
+            "prices": [
+                {
+                    "price_type": price_type_labels.get(p.get("price_type", ""), p.get("price_type", "")),
+                    "price_scope": price_scope_labels.get(p.get("price_scope", ""), p.get("price_scope", "")),
+                    "amount": str(p.get("amount", "")),
+                    "currency_code": p.get("currency_code", "EUR"),
+                    "effective_from": p.get("effective_from", ""),
+                    "effective_to": p.get("effective_to") or "—",
+                    "status": status_labels.get(p.get("status", ""), p.get("status", "")),
+                    "country_id": p.get("country_id", ""),
+                    "store_id": p.get("store_id") or "—",
+                    "promotion_id": p.get("promotion_id") or "—",
+                }
+                for p in prices
+            ]
+        })
 
 
 class PricesView(TemplateView):
