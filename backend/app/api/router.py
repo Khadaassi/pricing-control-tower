@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from .routes.analytics_sales import router as analytics_sales_router
 from .routes.anomalies import router as anomalies_router
 from .routes.countries import router as countries_router
 from .routes.kpis import router as kpis_router
@@ -15,6 +16,7 @@ from .routes.technical import router as technical_router
 api_router = APIRouter()
 
 api_router.include_router(technical_router)
+api_router.include_router(analytics_sales_router)
 api_router.include_router(countries_router)
 api_router.include_router(stores_router)
 api_router.include_router(products_router)

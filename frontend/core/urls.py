@@ -1,11 +1,13 @@
 from django.urls import path
 
 from .views import (
+    AnalyticsSalesView,
     DashboardView,
     HomeView,
     PriceChangeRequestsView,
     PriceChangeRequestCreateView,
     PricesView,
+    ProductAnalyticsView,
     ProductPricesView,
     ProductsView,
     PromotionsView,
@@ -20,6 +22,7 @@ urlpatterns = [
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("produits/", ProductsView.as_view(), name="products"),
     path("produits/<int:product_id>/prix/", ProductPricesView.as_view(), name="product_prices"),
+    path("produits/<int:product_id>/analytique/", ProductAnalyticsView.as_view(), name="product_analytics"),
     path("prix/", PricesView.as_view(), name="prices"),
     path("promotions/", PromotionsView.as_view(), name="promotions"),
     path(
@@ -34,4 +37,5 @@ urlpatterns = [
     ),
     path("historique-prix/", PriceHistoryView.as_view(), name="price_history"),
     path("anomalies/", AnomaliesView.as_view(), name="anomalies"),
+    path("analytique/ventes/", AnalyticsSalesView.as_view(), name="analytics_sales"),
 ]

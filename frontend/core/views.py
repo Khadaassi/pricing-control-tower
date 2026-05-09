@@ -325,6 +325,15 @@ class ProductsView(TemplateView):
         return family.get("name") or "Indisponible"
 
 
+class ProductAnalyticsView(View):
+    def get(self, _request, product_id):
+        try:
+            data = api_get("/analytics/sales/summary", params={"product_id": product_id})
+        except ApiClientError as exc:
+            return JsonResponse({"error": str(exc)}, status=502)
+        return JsonResponse(data)
+
+
 class ProductPricesView(View):
     def get(self, _request, product_id):
         try:
@@ -761,6 +770,70 @@ class PriceHistoryView(TemplateView):
             return "Prix pays"
 
         return "Prix magasin"
+
+
+class AnalyticsSalesView(TemplateView):
+    template_name = "core/analytics_sales.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["api_error"] = None
+        context["sales"] = []
+        context["countries"] = build_country_choices()
+        context["stores"] = build_store_choices()
+
+        raw_filters = {}
+        product_id_val = self.request.GET.get("product_id", "").strip()
+        if product_id_val.isdigit():
+            raw_filters["product_id"] = product_id_val
+        store_id_val = self.request.GET.get("store_id", "").strip()
+        if store_id_val.isdigit():
+            raw_filters["store_id"] = store_id_val
+        country_id_val = self.request.GET.get("country_id", "").strip()
+        if country_id_val.isdigit():
+            raw_filters["country_id"] = country_id_val
+        is_promo_val = self.request.GET.get("is_promo", "").strip()
+        if is_promo_val in ("true", "false"):
+            raw_filters["is_promo"] = is_promo_val
+        context["active_filters"] = raw_filters
+
+        try:
+            sales = api_get("/analytics/sales", params=raw_filters or None)
+        except ApiClientError as exc:
+            context["api_error"] = str(exc)
+            return context
+
+        for row in sales:
+            revenue = row.get("revenue")
+            unit_price = row.get("unit_price")
+            price_amount = row.get("price_amount")
+            diff_rate = row.get("price_difference_rate")
+
+            context["sales"].append({
+                "transaction_id": row.get("transaction_id") or "N/A",
+                "transaction_day": str(row.get("transaction_day") or ""),
+                "product_code": row.get("product_code") or "N/A",
+                "product_name": row.get("product_name") or "N/A",
+                "brand": row.get("brand") or "",
+                "product_family_name": row.get("product_family_name") or "N/A",
+                "store_name": row.get("store_name") or "N/A",
+                "city": row.get("city") or "",
+                "country_name": row.get("country_name") or "N/A",
+                "price_scope": row.get("price_scope") or "",
+                "price_type": row.get("price_type") or "",
+                "currency_code": row.get("currency_code") or "EUR",
+                "price_amount": f"{price_amount}" if price_amount is not None else "N/A",
+                "unit_price": f"{unit_price}" if unit_price is not None else "N/A",
+                "price_difference_rate": f"{float(diff_rate)*100:.1f}%" if diff_rate is not None else "N/A",
+                "quantity": row.get("quantity") or 0,
+                "revenue": f"{float(revenue):,.2f}" if revenue is not None else "N/A",
+                "is_promo": row.get("is_promo", False),
+                "promotion_name": row.get("promotion_name") or "",
+                "discount_type": row.get("discount_type") or "",
+                "discount_value": row.get("discount_value"),
+            })
+
+        return context
 
 
 class AnomaliesView(TemplateView):
