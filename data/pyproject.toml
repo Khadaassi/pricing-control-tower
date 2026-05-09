@@ -3,9 +3,10 @@ name = "data"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "psycopg>=3.3.4",
     "psycopg-binary>=3.3.4",
     "scrapy>=2.15.2",
+    "dbt-postgres>=1.8.0",
 ]
