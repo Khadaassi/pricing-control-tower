@@ -2,17 +2,18 @@ from django.urls import path
 
 from .views import (
     AnalyticsSalesView,
+    AnomaliesView,
     DashboardView,
     HomeView,
     PriceChangeRequestsView,
     PriceChangeRequestCreateView,
     PricesView,
+    PriceHistoryView,
     ProductAnalyticsView,
     ProductPricesView,
     ProductsView,
+    PromotionDeactivateView,
     PromotionsView,
-    PriceHistoryView,
-    AnomaliesView,
 )
 
 app_name = "core"
@@ -25,6 +26,7 @@ urlpatterns = [
     path("produits/<int:product_id>/analytique/", ProductAnalyticsView.as_view(), name="product_analytics"),
     path("prix/", PricesView.as_view(), name="prices"),
     path("promotions/", PromotionsView.as_view(), name="promotions"),
+    path("promotions/<int:promotion_id>/deactivate/", PromotionDeactivateView.as_view(), name="promotion_deactivate"),
     path(
         "demandes-prix/",
         PriceChangeRequestsView.as_view(),

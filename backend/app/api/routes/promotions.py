@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -38,3 +38,16 @@ def list_promotions(
     stmt = stmt.order_by(Promotion.id.asc())
 
     return list(db.scalars(stmt).all())
+
+
+@router.patch("/{promotion_id}/deactivate", response_model=PromotionRead)
+def deactivate_promotion(promotion_id: int, db: Session = Depends(get_db)):
+    promotion = db.get(Promotion, promotion_id)
+    if promotion is None:
+        raise HTTPException(status_code=404, detail="Promotion not found")
+    if not promotion.active:
+        raise HTTPException(status_code=409, detail="Promotion is already inactive")
+    promotion.active = False
+    db.commit()
+    db.refresh(promotion)
+    return promotion

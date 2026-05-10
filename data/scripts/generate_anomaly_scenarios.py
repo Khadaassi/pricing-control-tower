@@ -35,12 +35,12 @@ CREATED_BY_USER_ID = 1
 CURRENCY_CODE = "EUR"
 ACTIVE_STATUS = "ACTIVE"
 
-ANOMALY_PROMO_START = date(2026, 3, 1)
-ANOMALY_PROMO_END = date(2026, 3, 31)
-PROMO_DAYS = (ANOMALY_PROMO_END - ANOMALY_PROMO_START).days + 1  # 31
+ANOMALY_PROMO_START = date(2025, 2, 1)
+ANOMALY_PROMO_END = date(2025, 3, 31)
+PROMO_DAYS = (ANOMALY_PROMO_END - ANOMALY_PROMO_START).days + 1  # 59
 
-BASELINE_START = date(2026, 2, 15)
-BASELINE_END = date(2026, 2, 28)
+BASELINE_START = date(2025, 1, 1)
+BASELINE_END = date(2025, 1, 14)
 BASELINE_DAYS = (BASELINE_END - BASELINE_START).days + 1  # 14
 
 # Fraction of baseline daily quantity → target uplift
@@ -185,7 +185,7 @@ def create_promotion(
             store_id, created_by, active,
             country_id, product_id
         )
-        values (%s, %s, %s, 'PERCENTAGE', %s, %s, %s, null, %s, false, %s, %s)
+        values (%s, %s, %s, 'PERCENTAGE', %s, %s, %s, null, %s, true, %s, %s)
         returning id;
         """,
         (

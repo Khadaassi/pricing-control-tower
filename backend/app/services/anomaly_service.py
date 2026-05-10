@@ -1,3 +1,4 @@
+from datetime import date as date_type
 from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy import select
@@ -5,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.kpi_promo_performance import KpiPromoPerformance
 from app.models.product_family import ProductFamily
+from app.models.promotion import Promotion
 from app.schemas.anomaly import BusinessAnomalyRead
 
 UNDERPERFORMING_PROMO = "UNDERPERFORMING_PROMO"
@@ -65,6 +67,14 @@ def _family_name_by_id(db: Session, family_id: int) -> str | None:
     return row
 
 
+def _active_promotion_ids(db: Session) -> set[int]:
+    """Retourne les IDs des promotions actives (non stoppées manuellement)."""
+    rows = db.execute(
+        select(Promotion.id).where(Promotion.active == True)
+    ).scalars().all()
+    return set(rows)
+
+
 def _quota_per_severity(limit: int) -> dict[str, int]:
     """
     Répartit le quota total entre les 3 niveaux de sévérité.
@@ -104,12 +114,16 @@ def _get_underperforming_promos(
     Les promotions NOT_COMPARABLE (nouveau produit, pas de baseline)
     sont exclues — elles sont traitées via la règle INEFFECTIVE_DISCOUNT.
     """
+    active_ids = _active_promotion_ids(db)
+
     def _base_query():
         q = (
             select(KpiPromoPerformance)
             .where(KpiPromoPerformance.promo_performance_flag != "NOT_COMPARABLE")
             .where(KpiPromoPerformance.revenue_uplift_rate.is_not(None))
         )
+        if active_ids:
+            q = q.where(KpiPromoPerformance.promotion_id.in_(active_ids))
         if promotion_id is not None:
             q = q.where(KpiPromoPerformance.promotion_id == promotion_id)
         if product_id is not None:
@@ -179,6 +193,7 @@ def _get_underperforming_promos(
                     f"CA total promo : {promo_revenue} € vs {expected_revenue} € attendu.{cannibal_note}"
                 ),
                 promotion_id=row.promotion_id,
+                promotion_active=row.promotion_id in active_ids,
                 product_id=row.product_id,
                 product_family_name=family_name,
                 store_id=row.store_id,
@@ -215,6 +230,8 @@ def _get_ineffective_discount_promos(
     - MEDIUM : remise effective entre -30 % et -50 %
     - HIGH   : remise effective ≥ 50 %
     """
+    active_ids = _active_promotion_ids(db)
+
     def _disc_base_query():
         q = (
             select(KpiPromoPerformance)
@@ -228,6 +245,8 @@ def _get_ineffective_discount_promos(
                 | (KpiPromoPerformance.promo_performance_flag == "NOT_COMPARABLE")
             )
         )
+        if active_ids:
+            q = q.where(KpiPromoPerformance.promotion_id.in_(active_ids))
         if promotion_id is not None:
             q = q.where(KpiPromoPerformance.promotion_id == promotion_id)
         if product_id is not None:
@@ -294,6 +313,7 @@ def _get_ineffective_discount_promos(
                     f"(avant : {baseline_price} €, pendant : {promo_price} €). {context}"
                 ),
                 promotion_id=row.promotion_id,
+                promotion_active=row.promotion_id in active_ids,
                 product_id=row.product_id,
                 product_family_name=family_name,
                 store_id=row.store_id,

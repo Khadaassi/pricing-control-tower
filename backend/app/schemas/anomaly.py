@@ -13,6 +13,8 @@ class BusinessAnomalyRead(BaseModel):
     product_family_name: str | None = None
     store_id: int | None = None
 
+    promotion_active: bool = True
+
     sales_count: int
     total_quantity: int
     total_revenue: Decimal
