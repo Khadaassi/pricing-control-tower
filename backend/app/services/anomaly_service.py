@@ -1,4 +1,3 @@
-from datetime import date as date_type
 from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy import select
@@ -47,7 +46,11 @@ def _uplift_severity(uplift_rate: Decimal, family_effect_flag: str | None) -> st
         return "HIGH"
 
     if uplift_rate <= _UPLIFT_MEDIUM or family_effect_flag == "CANNIBALIZATION":
-        return "HIGH" if family_effect_flag == "CANNIBALIZATION" and uplift_rate <= _UPLIFT_MEDIUM else "MEDIUM"
+        return (
+            "HIGH"
+            if family_effect_flag == "CANNIBALIZATION" and uplift_rate <= _UPLIFT_MEDIUM
+            else "MEDIUM"
+        )
 
     return "LOW"
 
@@ -70,7 +73,7 @@ def _family_name_by_id(db: Session, family_id: int) -> str | None:
 def _active_promotion_ids(db: Session) -> set[int]:
     """Retourne les IDs des promotions actives (non stoppées manuellement)."""
     rows = db.execute(
-        select(Promotion.id).where(Promotion.active == True)
+        select(Promotion.id).where(Promotion.active)
     ).scalars().all()
     return set(rows)
 
@@ -178,7 +181,8 @@ def _get_underperforming_promos(
         family_name = family_cache[row.product_family_id]
 
         cannibal_note = (
-            " De plus, les autres produits de la famille ont subi une baisse de CA (effet de cannibalisation)."
+            " De plus, les autres produits de la famille ont subi une baisse de CA "
+            "(effet de cannibalisation)."
             if row.family_effect_flag == "CANNIBALIZATION"
             else ""
         )
@@ -190,7 +194,8 @@ def _get_underperforming_promos(
                 message=(
                     f"La promotion {row.promotion_id} a généré {uplift_pct} % de CA par jour "
                     f"par rapport à la période sans promo (baseline : {baseline_daily} €/j). "
-                    f"CA total promo : {promo_revenue} € vs {expected_revenue} € attendu.{cannibal_note}"
+                    f"CA total promo : {promo_revenue} € vs {expected_revenue} € attendu."
+                    f"{cannibal_note}"
                 ),
                 promotion_id=row.promotion_id,
                 promotion_active=row.promotion_id in active_ids,
@@ -300,7 +305,10 @@ def _get_ineffective_discount_promos(
         context = (
             "Nouveau produit sans historique de vente — remise potentiellement erronée."
             if is_new_product
-            else f"Le volume vendu n'a pas augmenté malgré la remise (uplift quantité : {_round_decimal(_to_decimal(row.quantity_uplift_rate) * 100, '0.1')} %)."
+            else (
+                f"Le volume vendu n'a pas augmenté malgré la remise (uplift quantité : "
+                f"{_round_decimal(_to_decimal(row.quantity_uplift_rate) * 100, '0.1')} %)."
+            )
         )
 
         anomalies.append(

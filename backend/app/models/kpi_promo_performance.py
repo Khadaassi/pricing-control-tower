@@ -1,5 +1,5 @@
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
 
 from sqlalchemy import Date, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -53,7 +53,9 @@ class KpiPromoPerformance(Base):
     baseline_revenue: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
     baseline_daily_revenue: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
     baseline_daily_quantity: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
-    baseline_avg_selling_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    baseline_avg_selling_price: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 2), nullable=True
+    )
 
     # Uplift (signal principal d'anomalie)
     revenue_uplift_rate: Mapped[Decimal | None] = mapped_column(Numeric(10, 4), nullable=True)
@@ -62,10 +64,14 @@ class KpiPromoPerformance(Base):
     additional_revenue: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
 
     # Effet prix (signal secondaire)
-    avg_price_discount_effect_pct: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    avg_price_discount_effect_pct: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 2), nullable=True
+    )
 
     # Effet famille (cannibalization / halo)
-    family_revenue_variation_pct: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    family_revenue_variation_pct: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 2), nullable=True
+    )
     family_effect_flag: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     # Flag de performance calculé par dbt
