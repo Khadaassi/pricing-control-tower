@@ -94,10 +94,14 @@ The generated file is `data/generated/sales_transactions.csv` (~20,000 rows).
 
 ## 8. Run dbt
 
+Le projet `data/` utilise `uv` avec Python 3.12. Lancer depuis `data/dbt/` :
+
 ```bash
-cd data/dbt
-dbt run
+cd data
+uv run dbt run --select +obt_sales +kpi_price_performance +kpi_promo_performance
 ```
+
+> **Note** : Le fichier `data/.python-version` doit contenir `3.12.7` et `data/pyproject.toml` doit avoir `requires-python = ">=3.12"` et `dbt-postgres>=1.8.0` dans les dépendances.
 
 This creates views in the `pct_analytics` schema:
 - `stg_*` (staging)
@@ -128,7 +132,20 @@ Interactive documentation: `http://localhost:8000/docs`
 
 ---
 
-## 10. Quick Verifications
+## 10. Start the Frontend
+
+```bash
+cd frontend
+uv run python manage.py runserver 8001
+```
+
+Le frontend est accessible à `http://localhost:8001`.
+
+> Le frontend appelle le backend FastAPI sur `http://127.0.0.1:8000` (configurable via `FASTAPI_BASE_URL` dans `frontend/config/settings.py`).
+
+---
+
+## 11. Quick Verifications
 
 ```bash
 # API health
@@ -153,6 +170,7 @@ docker compose exec postgres psql -U pct_user -d pct \
 | Reference seed | `python data/generation/seed_reference_data.py` |
 | Sales generation | `python data/generation/generate_sales_dataset.py` |
 | Sales loading | `python data/generation/load_sales_transactions.py` |
-| dbt | `cd data/dbt && dbt run` |
-| dbt tests | `cd data/dbt && dbt test` |
-| API | `cd backend && uvicorn app.main:app --reload` |
+| dbt | `cd data && uv run dbt run --select +obt_sales +kpi_price_performance +kpi_promo_performance` |
+| dbt tests | `cd data && uv run dbt test` |
+| API | `cd backend && uvicorn app.main:app --reload --port 8000` |
+| Frontend | `cd frontend && uv run python manage.py runserver 8001` |

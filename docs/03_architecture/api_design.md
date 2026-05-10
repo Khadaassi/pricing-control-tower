@@ -478,6 +478,15 @@ Retrieve the history of price changes for audit and traceability.
 
 # Changelog
 
+## Sprint 5 (feature/expose_analytics)
+
+- Added `GET /analytics/sales` — enriched OBT rows from `pct_analytics.obt_sales` with product/store/country/is_promo/limit filters
+- Added `GET /analytics/sales/summary` — per-product aggregated KPIs (revenue, quantity, promo share, period)
+- New Django pages:
+  - `AnalyticsSalesView` → `/analytique/ventes/` — filterable analytics table
+  - `ProductAnalyticsView` → `/produits/<id>/analytique/` — JSON endpoint for product sidebar KPIs
+- Anomalies page redesigned: card grid with right-panel detail + actions (create price request, view analytics)
+
 ## Sprint 4
 
 - The PriceHistoryRead schema was aligned with other models:
@@ -554,6 +563,118 @@ Used for:
 * Status updated to `REJECTED`
 * `rejection_reason`, `rejected_by_user_id`, `rejected_at` populated
 * Audit log entry created with `action_type = REQUEST_REJECTED`
+
+---
+
+# 12. GET /analytics/sales
+
+## Business purpose
+
+Return enriched OBT rows directly from `pct_analytics.obt_sales`.
+
+Used for:
+
+* Ventes Analytiques page (full transaction detail with dbt enrichment)
+* Exploring price performance, promo classification, and geography in one place
+
+---
+
+## Query parameters
+
+| Parameter  | Type    | Description                               |
+| ---------- | ------- | ----------------------------------------- |
+| product_id | integer | Filter by product                         |
+| store_id   | integer | Filter by store                           |
+| country_id | integer | Filter by country                         |
+| is_promo   | boolean | Filter promotional / non-promo sales      |
+| limit      | integer | Max records returned (1–1000, default 100)|
+
+---
+
+## Response structure
+
+```json
+[
+  {
+    "transaction_id": 1,
+    "transaction_day": "2026-03-15",
+    "product_code": "SKU-001",
+    "product_name": "VTT Trail Pro",
+    "brand": "Trek",
+    "product_family_name": "Vélos",
+    "store_name": "Paris Nord",
+    "city": "Paris",
+    "country_name": "France",
+    "price_scope": "STORE",
+    "price_type": "PROMO",
+    "currency_code": "EUR",
+    "price_amount": "799.00",
+    "unit_price": "639.20",
+    "price_difference_rate": "-20.0%",
+    "quantity": 2,
+    "revenue": "1278.40",
+    "is_promo": true,
+    "promotion_name": "Summer Sale",
+    "discount_type": "PERCENTAGE",
+    "discount_value": 20.0
+  }
+]
+```
+
+---
+
+# 13. GET /analytics/sales/summary
+
+## Business purpose
+
+Return aggregated KPIs for a single product from `pct_analytics.obt_sales`.
+
+Used for:
+
+* Product detail sidebar — "Performances analytiques" section
+* Quick overview of a product's sales history without full row access
+
+---
+
+## Query parameters
+
+| Parameter  | Type    | Description              |
+| ---------- | ------- | ------------------------ |
+| product_id | integer | **Required.** Product ID |
+
+---
+
+## Response structure
+
+```json
+{
+  "product_id": 31,
+  "transaction_count": 142,
+  "total_quantity": 387,
+  "total_revenue": 45320.80,
+  "avg_selling_price": 319.16,
+  "promo_transactions": 58,
+  "promo_revenue": 16200.40,
+  "promo_share_pct": 40.8,
+  "first_sale_date": "2025-11-01",
+  "last_sale_date": "2026-04-30"
+}
+```
+
+---
+
+## KPI definitions
+
+| KPI               | Calculation                                         |
+| ----------------- | --------------------------------------------------- |
+| transaction_count | COUNT(*) on obt_sales for this product              |
+| total_quantity    | SUM(quantity)                                       |
+| total_revenue     | SUM(revenue)                                        |
+| avg_selling_price | AVG(unit_price)                                     |
+| promo_transactions| COUNT(*) WHERE is_promo = true                      |
+| promo_revenue     | SUM(revenue) WHERE is_promo = true                  |
+| promo_share_pct   | promo_transactions / transaction_count × 100        |
+| first/last_sale   | MIN/MAX(transaction_day)                            |
 
 ---
 

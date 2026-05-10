@@ -10,19 +10,19 @@
                     <li>
                         <a href="{% url 'core:dashboard' %}"
                            class="rounded-md px-3 py-2 transition-colors {% if request.resolver_match.url_name == 'dashboard' %}bg-blue-50 text-blue-700{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
-                            Dashboard
+                            Tableau de bord
                         </a>
                     </li>
                     <li>
                         <a href="{% url 'core:products' %}"
                            class="rounded-md px-3 py-2 transition-colors {% if request.resolver_match.url_name == 'products' %}bg-blue-50 text-blue-700{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
-                            Products
+                            Produits
                         </a>
                     </li>
                     <li>
                         <a href="{% url 'core:prices' %}"
                            class="rounded-md px-3 py-2 transition-colors {% if request.resolver_match.url_name == 'prices' %}bg-blue-50 text-blue-700{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
-                            Prices
+                            Prix
                         </a>
                     </li>
                     <li>
@@ -34,13 +34,13 @@
                     <li>
                         <a href="{% url 'core:price_change_requests' %}"
                            class="rounded-md px-3 py-2 transition-colors {% if request.resolver_match.url_name == 'price_change_requests' or request.resolver_match.url_name == 'price_change_request_create' %}bg-blue-50 text-blue-700{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
-                            Price Requests
+                            Demandes de prix
                         </a>
                     </li>
                     <li>
                         <a href="{% url 'core:price_history' %}"
                            class="rounded-md px-3 py-2 transition-colors {% if request.resolver_match.url_name == 'price_history' %}bg-blue-50 text-blue-700{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
-                            Price History
+                            Historique des prix
                         </a>
                     </li>
                     <li>

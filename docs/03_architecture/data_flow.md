@@ -98,19 +98,22 @@ The API exposes `pct_core` data via REST endpoints:
 - `GET /prices` — Standard and promotional prices
 - `GET /promotions` — Active and historical promotions
 
-#### Analytical Layer (Sprint 3)
+#### Analytical Layer
 
 The API also exposes `pct_analytics` data via dedicated endpoints:
 - `GET /sales` — Filterable listing of sales transactions (`pct_core.sales_transaction`)
 - `GET /kpis` — Aggregated KPIs computed dynamically from `pct_analytics.obt_sales`
 - `GET /anomalies` — Rule-based business anomaly detection from `pct_analytics.obt_sales`
+- `GET /analytics/sales` — Enriched OBT rows directly from `pct_analytics.obt_sales` with filters (product, store, country, is_promo, limit)
+- `GET /analytics/sales/summary` — Aggregated KPIs per product from `pct_analytics.obt_sales` (transaction count, total revenue, avg selling price, promo share, period)
 
 ```
 pct_analytics.obt_sales
         │
-        ├──▶ GET /kpis       → total_revenue, promo_share, AOV
-        │
-        └──▶ GET /anomalies  → underperforming promotions (LOW_PROMOTION_REVENUE)
+        ├──▶ GET /kpis                    → total_revenue, promo_share, AOV
+        ├──▶ GET /anomalies               → underperforming promotions (LOW_PROMOTION_REVENUE)
+        ├──▶ GET /analytics/sales         → enriched OBT rows (filterable)
+        └──▶ GET /analytics/sales/summary → per-product aggregated KPIs
 ```
 
 **Business logic implemented in services:**
@@ -118,16 +121,27 @@ pct_analytics.obt_sales
 | Service | Role |
 |---|---|
 | `kpi_service.py` | Dynamic KPI computation (count, sum, avg) with optional filters |
-| `anomaly_service.py` | Rule-based detection: promotions with revenue < configurable threshold |
-
-KPIs from `pct_analytics` are consumable via dedicated endpoints.
+| `anomaly_service.py` | Rule-based detection: promotions with revenue < configurable threshold (fixed at 500 € — see backlog for improvement) |
+| `routes/analytics_sales.py` | Raw SQL on `pct_analytics.obt_sales` — enriched rows + per-product summary |
 
 ### Frontend (Django)
 
 Consumes the REST API to display:
-- Dashboards
-- Product and price listings
-- Performance indicators
+- Dashboard (KPI cards, charts)
+- Product catalog with per-product analytics sidebar (prices + KPIs from `obt_sales`)
+- Price and promotion listings
+- Anomalies as interactive cards with detail panel and actions
+- **Ventes Analytiques** (`/analytique/ventes/`) — filterable table from `pct_analytics.obt_sales`
+
+```
+Django View              FastAPI endpoint           pct_analytics table
+─────────────────────────────────────────────────────────────────────
+AnalyticsSalesView   →   GET /analytics/sales    →  obt_sales
+ProductAnalyticsView →   GET /analytics/sales/   →  obt_sales
+                             summary?product_id=X
+AnomaliesView        →   GET /anomalies          →  obt_sales
+DashboardView        →   GET /kpis               →  obt_sales
+```
 
 ---
 
