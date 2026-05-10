@@ -724,7 +724,11 @@ class PriceChangeRequestCreateView(TemplateView):
             return self.render_to_response(self.get_context_data(form=form))
 
         try:
-            api_post("/price-change-requests", payload=form.to_api_payload())
+            payload = form.to_api_payload()
+            old_price = request.POST.get("old_price_amount", "").strip()
+            if old_price:
+                payload["old_price_amount"] = old_price
+            api_post("/price-change-requests", payload=payload)
         except ApiClientError as exc:
             return self.render_to_response(
                 self.get_context_data(form=form, api_error=str(exc))
