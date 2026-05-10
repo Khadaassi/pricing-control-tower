@@ -57,6 +57,16 @@
 | **Django** | Full-stack Python framework, server-side rendering (SSR), built-in admin |
 | **Tailwind CSS** | Utility-first CSS, rapid development, responsive design |
 
+### UI Language
+
+The application UI is entirely in **French**. This choice stems directly from the product data: products are scraped from a French-speaking e-commerce site (Fitness Boutique), and their names, families and descriptions are in French. Using an English UI would create a visual inconsistency between UI labels and displayed data.
+
+Translation scope:
+- Django templates (labels, titles, error/success messages, empty states, buttons)
+- Navigation sidebar (`base.html`) and mobile nav bar
+- Context strings in `views.py` (KPI labels, scopes, statuses)
+- No dependency on Django's `i18n` system — translations are hardcoded directly (MVP)
+
 ---
 
 ## 5. Infrastructure
@@ -88,3 +98,5 @@
 | Python generation rather than Faker | Full control over distribution and reproducibility (fixed seed) |
 | Stateless API | Scalability, simplicity, no session management |
 | backend/data/frontend separation | Deployment independence, clear responsibilities |
+| French UI language | Consistency with French product data scraped from Fitness Boutique |
+| Direct translation without Django i18n | MVP simplicity — single target language, no multilingual requirement |

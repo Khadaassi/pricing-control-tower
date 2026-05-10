@@ -44,3 +44,6 @@ class ProductRead(BaseModel):
     model: str | None
     active: bool
     family: ProductFamilyRead
+    image_url: str | None = None
+    image_alt: str | None = None
+    
