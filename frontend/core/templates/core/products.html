@@ -323,6 +323,11 @@
 
             searchInput.addEventListener('input', applyFilters);
             brandSelect.addEventListener('change', applyFilters);
+
+            window.handleGlobalSearch = function(q) {
+                searchInput.value = q;
+                applyFilters();
+            };
         })();
 
         /* ── Product detail modal ── */

@@ -117,9 +117,9 @@
                     <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Statut</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody class="divide-y divide-gray-50" id="prices-tbody-main">
                 {% for price in prices %}
-                <tr class="group hover:bg-sky-50/30 transition-colors duration-150 cursor-pointer"
+                <tr class="price-row group hover:bg-sky-50/30 transition-colors duration-150 cursor-pointer"
                     data-price-product="{{ price.product_name }}"
                     data-price-code="{{ price.product_code }}"
                     data-price-image="{{ price.image_url }}"
@@ -209,6 +209,16 @@
 
                 </tr>
                 {% endfor %}
+                <tr id="no-price-results" class="hidden">
+                    <td colspan="6" class="px-6 py-12 text-center">
+                        <div class="flex flex-col items-center gap-3 text-gray-400">
+                            <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0016.803 15.803z"/>
+                            </svg>
+                            <p class="text-sm font-semibold">Aucun prix ne correspond à la recherche</p>
+                        </div>
+                    </td>
+                </tr>
             </tbody>
         </table>
     </div>
@@ -300,6 +310,20 @@
 
 {% block extra_scripts %}
 <script>
+window.handleGlobalSearch = function(q) {
+    const rows = document.querySelectorAll('.price-row');
+    const noResults = document.getElementById('no-price-results');
+    let visible = 0;
+    rows.forEach(function(row) {
+        const name = (row.dataset.priceProduct || '').toLowerCase();
+        const code = (row.dataset.priceCode || '').toLowerCase();
+        const show = !q || name.includes(q) || code.includes(q);
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+    noResults.classList.toggle('hidden', visible > 0);
+};
+
 const modal    = document.getElementById('price-modal');
 const panel    = document.getElementById('price-panel');
 const backdrop = document.getElementById('price-backdrop');

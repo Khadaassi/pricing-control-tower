@@ -536,7 +536,7 @@
                         <input id="global-search"
                                type="search"
                                class="w-full border-0 bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
-                               placeholder="Rechercher produits, références, magasins, promotions..."
+                               placeholder="Rechercher produits, références..."
                                autocomplete="off">
                         <kbd class="hidden rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-400 sm:inline-flex">
                             ⌘ K
@@ -650,6 +650,15 @@
             const isSearch = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k";
             if (isSearch && searchInput) { e.preventDefault(); searchInput.focus(); }
         });
+
+        if (searchInput) {
+            searchInput.addEventListener("input", function () {
+                const q = this.value.toLowerCase().trim();
+                if (typeof window.handleGlobalSearch === "function") {
+                    window.handleGlobalSearch(q);
+                }
+            });
+        }
 
         // ── Desktop sidebar collapse ──────────────────────────────────────────
         const desktopSidebar = document.getElementById("desktop-sidebar");
