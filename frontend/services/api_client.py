@@ -57,6 +57,23 @@ def api_post(endpoint: str, payload: dict[str, Any] | None = None) -> Any:
     except requests.exceptions.JSONDecodeError as exc:
         raise ApiResponseError("FastAPI backend returned invalid JSON.") from exc
     
+def api_patch(endpoint: str, payload: dict[str, Any] | None = None) -> Any:
+    url = build_api_url(endpoint)
+
+    try:
+        response = requests.patch(url, json=payload, timeout=5)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.ConnectionError as exc:
+        raise ApiConnectionError("Unable to connect to FastAPI backend.") from exc
+    except requests.exceptions.Timeout as exc:
+        raise ApiConnectionError("FastAPI backend request timed out.") from exc
+    except requests.exceptions.HTTPError as exc:
+        raise ApiResponseError(extract_api_error_message(response)) from exc
+    except requests.exceptions.JSONDecodeError as exc:
+        raise ApiResponseError("FastAPI backend returned invalid JSON.") from exc
+
+
 def extract_api_error_message(response: requests.Response) -> str:
     try:
         error_payload = response.json()

@@ -10,7 +10,10 @@ class BusinessAnomalyRead(BaseModel):
 
     promotion_id: int
     product_id: int
+    product_family_name: str | None = None
     store_id: int | None = None
+
+    promotion_active: bool = True
 
     sales_count: int
     total_quantity: int

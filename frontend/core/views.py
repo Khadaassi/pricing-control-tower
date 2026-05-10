@@ -10,7 +10,7 @@ from django.views import View
 from django.views.generic import TemplateView
 
 from core.forms import PriceChangeRequestForm
-from services.api_client import ApiClientError, api_get, api_post
+from services.api_client import ApiClientError, ApiResponseError, api_get, api_patch, api_post
 
 
 def build_product_lookup() -> dict[int, dict[str, Any]]:
@@ -691,26 +691,47 @@ class PriceChangeRequestsView(TemplateView):
 class PriceChangeRequestCreateView(TemplateView):
     template_name = "core/price_change_request_form.html"
 
+    def _load_choices(self):
+        products = build_product_choices()
+        countries = build_country_choices()
+        stores = build_store_choices()
+        return products, countries, stores
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["form"] = kwargs.get("form") or PriceChangeRequestForm()
-        context["api_error"] = None
+        context["api_error"] = kwargs.get("api_error")
+        products, countries, stores = self._load_choices()
+        context["stores_json"] = json.dumps(
+            [{"id": s["id"], "name": s["name"], "country_id": s.get("country_id")} for s in stores]
+        )
+        form = kwargs.get("form") or PriceChangeRequestForm(
+            products=products, countries=countries, stores=stores
+        )
+        if not kwargs.get("form"):
+            product_id = self.request.GET.get("product_id", "").strip()
+            if product_id.isdigit():
+                form.fields["product_id"].initial = int(product_id)
+        context["form"] = form
         return context
 
     def post(self, request, *args, **kwargs):
-        form = PriceChangeRequestForm(request.POST)
+        products, countries, stores = self._load_choices()
+        form = PriceChangeRequestForm(
+            request.POST, products=products, countries=countries, stores=stores
+        )
 
         if not form.is_valid():
             return self.render_to_response(self.get_context_data(form=form))
 
         try:
-            api_post("/price-change-requests", payload=form.to_api_payload())
+            payload = form.to_api_payload()
+            old_price = request.POST.get("old_price_amount", "").strip()
+            if old_price:
+                payload["old_price_amount"] = old_price
+            api_post("/price-change-requests", payload=payload)
         except ApiClientError as exc:
             return self.render_to_response(
-                self.get_context_data(
-                    form=form,
-                    api_error=str(exc),
-                )
+                self.get_context_data(form=form, api_error=str(exc))
             )
 
         messages.success(request, "Demande de changement de prix créée avec succès.")
@@ -895,6 +916,7 @@ class AnomaliesView(TemplateView):
                     "message": translated_message,
                     "description": anomaly.get("description") or translated_message,
                     "promotion_id": anomaly.get("promotion_id") or "N/A",
+                    "promotion_active": anomaly.get("promotion_active", True),
                     "product_id": anomaly.get("product_id") or "N/A",
                     "product_code": product_display["product_code"],
                     "product_name": product_display["product_name"],
@@ -909,5 +931,18 @@ class AnomaliesView(TemplateView):
                     "detected_at": anomaly.get("detected_at") or "N/A",
                 }
             )
+
+        return context
+
+
+class PromotionDeactivateView(View):
+    def post(self, _request, promotion_id: int):
+        try:
+            data = api_patch(f"/promotions/{promotion_id}/deactivate")
+        except ApiResponseError as exc:
+            return JsonResponse({"error": str(exc)}, status=409)
+        except ApiClientError as exc:
+            return JsonResponse({"error": str(exc)}, status=502)
+        return JsonResponse({"id": data["id"], "active": data["active"]})
 
         return context

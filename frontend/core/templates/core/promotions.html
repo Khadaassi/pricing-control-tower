@@ -6,198 +6,379 @@
 {% block content %}
 {% if api_error %}
     {% include "core/partials/alert.html" with type="error" title="Erreur de connexion à l'API" message="La liste des promotions n'a pas pu être chargée." detail=api_error show_retry=True %}
-{% elif promotions %}
-    <div class="relative overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm ring-1 ring-gray-100">
+{% else %}
 
-        {# Accent stripe #}
-        <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-amber-500 via-orange-400 to-yellow-300"></div>
+<div class="relative overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm ring-1 ring-gray-100">
 
-        {# Card header #}
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 pt-5">
-            <div class="flex items-center gap-3">
-                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
-                    <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z"/>
-                    </svg>
+    <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-amber-500 via-orange-400 to-yellow-300"></div>
+
+    {# Header #}
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 pt-5">
+        <div class="flex items-center gap-3">
+            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z"/>
+                </svg>
+            </div>
+            <div>
+                <p class="text-sm font-semibold text-gray-900">
+                    Promotions
+                    {% if active_filters %}
+                        <span class="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                            {{ active_filters|length }} filtre{% if active_filters|length > 1 %}s{% endif %}
+                        </span>
+                    {% endif %}
+                </p>
+                <p class="text-xs text-gray-400">{{ promotions|length }} promotion{% if promotions|length > 1 %}s{% endif %}</p>
+            </div>
+        </div>
+    </div>
+
+    {# Filter bar #}
+    <div class="border-b border-gray-100 bg-gray-50/40 px-5 py-3.5">
+        <form method="get" class="flex flex-wrap items-center gap-4">
+            <div class="flex items-center gap-1.5 shrink-0 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z"/>
+                </svg>
+                Filtres
+            </div>
+            <div class="h-5 w-px bg-gray-200 shrink-0"></div>
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Statut</label>
+                    <select name="active" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                        <option value="">Tous</option>
+                        <option value="true" {% if active_filters.active == "true" %}selected{% endif %}>Active</option>
+                        <option value="false" {% if active_filters.active == "false" %}selected{% endif %}>Inactive</option>
+                    </select>
                 </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Remise</label>
+                    <select name="discount_type" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                        <option value="">Tous types</option>
+                        <option value="PERCENTAGE" {% if active_filters.discount_type == "PERCENTAGE" %}selected{% endif %}>Pourcentage</option>
+                        <option value="FIXED_PRICE" {% if active_filters.discount_type == "FIXED_PRICE" %}selected{% endif %}>Prix fixe</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Pays</label>
+                    <select name="country_id" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                        <option value="">Tous les pays</option>
+                        {% for country in countries %}
+                            <option value="{{ country.id }}" {% if active_filters.country_id == country.id|stringformat:"s" %}selected{% endif %}>{{ country.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Magasin</label>
+                    <select name="store_id" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                        <option value="">Tous les magasins</option>
+                        {% for store in stores %}
+                            <option value="{{ store.id }}" {% if active_filters.store_id == store.id|stringformat:"s" %}selected{% endif %}>{{ store.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-amber-600 active:scale-95">
+                    Appliquer
+                </button>
+                {% if active_filters %}
+                    <a href="?" class="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-500 shadow-sm transition-colors hover:bg-gray-50">
+                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                        Effacer
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    {# Cards grid #}
+    {% if promotions %}
+    <div class="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {% for promotion in promotions %}
+        <div class="promo-card group relative flex flex-col rounded-xl border bg-white shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden cursor-pointer
+            {% if promotion.status == 'Active' %}border-amber-200 hover:border-amber-300{% else %}border-gray-200 hover:border-gray-300{% endif %}"
+             data-promo-id="{{ promotion.id }}"
+             data-promo-name="{{ promotion.name }}"
+             data-promo-code="{{ promotion.code }}"
+             data-promo-description="{{ promotion.description }}"
+             data-promo-status="{{ promotion.status }}"
+             data-promo-scope="{{ promotion.scope }}"
+             data-discount-type="{{ promotion.discount_type }}"
+             data-discount-value="{{ promotion.discount_value }}"
+             data-product-name="{{ promotion.product_name }}"
+             data-product-code="{{ promotion.product_code }}"
+             data-image-url="{{ promotion.image_url }}"
+             data-image-alt="{{ promotion.image_alt }}"
+             data-country-name="{{ promotion.country_name }}"
+             data-store-name="{{ promotion.store_name }}"
+             data-start-date="{{ promotion.start_date }}"
+             data-end-date="{{ promotion.end_date }}"
+             onclick="openPromoModal(this)"
+             role="button" tabindex="0"
+             onkeydown="if(event.key==='Enter')openPromoModal(this)">
+
+            {# Status stripe #}
+            <div class="h-1 w-full {% if promotion.status == 'Active' %}bg-amber-400{% else %}bg-gray-300{% endif %}"></div>
+
+            <div class="flex flex-col gap-3 p-4 flex-1">
+
+                {# Top row: status + scope #}
+                <div class="flex items-center justify-between">
+                    {% if promotion.status == "Active" %}
+                        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"></span>Active
+                        </span>
+                    {% else %}
+                        <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">
+                            <span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span>Inactive
+                        </span>
+                    {% endif %}
+
+                    {% if promotion.scope == "Country promotion" %}
+                        <span class="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 9m0 6v1.5"/></svg>
+                            Pays
+                        </span>
+                    {% else %}
+                        <span class="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600">
+                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a48.667 48.667 0 0 1 3-.349"/></svg>
+                            Magasin
+                        </span>
+                    {% endif %}
+                </div>
+
+                {# Discount value — hero #}
+                <div class="flex items-baseline gap-1.5">
+                    <span class="text-2xl font-extrabold tabular-nums {% if promotion.status == 'Active' %}text-amber-600{% else %}text-gray-400{% endif %}">{{ promotion.discount_value }}</span>
+                    {% if promotion.discount_type == "PERCENTAGE" %}
+                        <span class="inline-flex rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">% remise</span>
+                    {% elif promotion.discount_type == "FIXED_PRICE" %}
+                        <span class="inline-flex rounded-md bg-orange-50 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700">prix fixe</span>
+                    {% endif %}
+                </div>
+
+                {# Product #}
+                <div class="flex items-center gap-3">
+                    {% if promotion.image_url %}
+                        <img src="{{ promotion.image_url }}" alt="{{ promotion.image_alt }}"
+                             class="h-11 w-11 shrink-0 rounded-lg object-contain bg-gray-50 p-1 border border-gray-100"
+                             onerror="this.style.display='none'">
+                    {% else %}
+                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+                            <svg class="h-5 w-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+                            </svg>
+                        </div>
+                    {% endif %}
+                    <div class="min-w-0">
+                        <p class="text-sm font-semibold text-gray-900 group-hover:text-amber-700 transition-colors line-clamp-2 leading-snug">{{ promotion.product_name }}</p>
+                        <p class="text-[10px] font-mono text-gray-400">{{ promotion.product_code }}</p>
+                    </div>
+                </div>
+
+                {# Name + code #}
                 <div>
-                    <p class="text-sm font-semibold text-gray-900">
-                        Promotions
-                        {% if active_filters %}
-                            <span class="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-                                {{ active_filters|length }} filtre{% if active_filters|length > 1 %}s{% endif %}
-                            </span>
+                    <p class="text-xs font-semibold text-gray-700 truncate">{{ promotion.name }}</p>
+                    <p class="text-[10px] font-mono text-gray-400">{{ promotion.code }}</p>
+                </div>
+
+                {# Footer: location + period #}
+                <div class="mt-auto pt-2 flex items-center justify-between border-t border-gray-50">
+                    <div>
+                        <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Lieu</p>
+                        <p class="text-xs font-medium text-gray-700">{{ promotion.country_name }}</p>
+                        {% if promotion.store_name %}
+                            <p class="text-[10px] text-gray-400">{{ promotion.store_name }}</p>
                         {% endif %}
-                    </p>
-                    <p class="text-xs text-gray-400">{{ promotions|length }} promotion{% if promotions|length > 1 %}s{% endif %}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Période</p>
+                        <p class="text-xs text-gray-600">{{ promotion.start_date }}</p>
+                        <p class="text-[10px] text-gray-400">au {{ promotion.end_date }}</p>
+                    </div>
                 </div>
             </div>
         </div>
+        {% endfor %}
+    </div>
+    {% else %}
+        <div class="p-8">
+            {% include "core/partials/empty_state.html" with title="Aucune promotion trouvée" description="L'API a répondu mais aucune promotion n'a été retournée." %}
+        </div>
+    {% endif %}
+</div>
 
-        {# Filter bar #}
-        <div class="border-b border-gray-100 bg-gray-50/40 px-5 py-3.5">
-            <form method="get" class="flex flex-wrap items-center gap-4">
-                <div class="flex items-center gap-1.5 shrink-0 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z"/>
+{# ── Detail modal (right panel) ── #}
+<div id="promo-modal" class="fixed inset-0 z-50 hidden" aria-modal="true" role="dialog">
+    <div id="promo-backdrop" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 opacity-0" onclick="closePromoModal()"></div>
+
+    <div id="promo-panel" class="absolute inset-y-0 right-0 flex w-full max-w-lg flex-col bg-white shadow-2xl translate-x-full transition-transform duration-300 ease-out">
+
+        {# Panel header #}
+        <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+            <div class="flex items-center gap-3">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3zM6 6h.008v.008H6V6z"/>
                     </svg>
-                    Filtres
                 </div>
-                <div class="h-5 w-px bg-gray-200 shrink-0"></div>
-                <div class="flex flex-wrap items-center gap-3">
-                    <div class="flex items-center gap-2">
-                        <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Statut</label>
-                        <select name="active" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
-                            <option value="">Tous</option>
-                            <option value="true" {% if active_filters.active == "true" %}selected{% endif %}>Active</option>
-                            <option value="false" {% if active_filters.active == "false" %}selected{% endif %}>Inactive</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Remise</label>
-                        <select name="discount_type" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
-                            <option value="">Tous types</option>
-                            <option value="PERCENTAGE" {% if active_filters.discount_type == "PERCENTAGE" %}selected{% endif %}>Pourcentage</option>
-                            <option value="FIXED_PRICE" {% if active_filters.discount_type == "FIXED_PRICE" %}selected{% endif %}>Prix fixe</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Pays</label>
-                        <select name="country_id" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
-                            <option value="">Tous les pays</option>
-                            {% for country in countries %}
-                                <option value="{{ country.id }}" {% if active_filters.country_id == country.id|stringformat:"s" %}selected{% endif %}>{{ country.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Magasin</label>
-                        <select name="store_id" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
-                            <option value="">Tous les magasins</option>
-                            {% for store in stores %}
-                                <option value="{{ store.id }}" {% if active_filters.store_id == store.id|stringformat:"s" %}selected{% endif %}>{{ store.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+                <div>
+                    <h2 class="text-base font-semibold text-gray-900">Détail de la promotion</h2>
+                    <p id="panel-promo-code" class="text-xs text-gray-400 font-mono"></p>
                 </div>
-                <div class="flex items-center gap-2 ml-auto">
-                    <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-amber-600 active:scale-95">
-                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0016.803 15.803z"/>
-                        </svg>
-                        Appliquer
-                    </button>
-                    {% if active_filters %}
-                        <a href="?" class="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-500 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-700">
-                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                            Effacer
-                        </a>
-                    {% endif %}
-                </div>
-            </form>
+            </div>
+            <button onclick="closePromoModal()" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="min-w-full">
-                <thead>
-                    <tr class="border-b border-gray-100 bg-gray-50/60">
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Promotion</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Portée</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Remise</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Produit</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Localisation</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Période</th>
-                        <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Statut</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50">
-                    {% for promotion in promotions %}
-                    <tr class="group hover:bg-amber-50/30 transition-colors duration-150">
+        {# Scrollable body #}
+        <div class="flex-1 overflow-y-auto divide-y divide-gray-100">
 
-                        {# Promotion name + code #}
-                        <td class="px-6 py-4">
-                            <p class="text-sm font-semibold text-gray-900 group-hover:text-amber-800 transition-colors duration-150">{{ promotion.name }}</p>
-                            <p class="text-xs font-mono text-gray-400">{{ promotion.code }}</p>
-                            {% if promotion.description and promotion.description != "N/A" %}
-                                <p class="mt-0.5 max-w-xs text-xs text-gray-400 truncate" title="{{ promotion.description }}">{{ promotion.description }}</p>
-                            {% endif %}
-                        </td>
+            {# Hero: remise + statut #}
+            <div class="flex gap-4 p-6">
+                <div class="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-amber-50 border border-amber-100">
+                    <span id="panel-discount-value" class="text-2xl font-extrabold text-amber-600 tabular-nums"></span>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <p id="panel-promo-name" class="text-base font-bold text-gray-900 leading-snug"></p>
+                    <p id="panel-discount-type" class="mt-0.5 text-xs text-gray-400"></p>
+                    <div id="panel-promo-status" class="mt-3"></div>
+                </div>
+            </div>
 
-                        {# Scope #}
-                        <td class="whitespace-nowrap px-6 py-4">
-                            {% if promotion.scope == "Country promotion" %}
-                                <span class="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 9m0 6v1.5"/></svg>
-                                    Pays
-                                </span>
-                            {% else %}
-                                <span class="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
-                                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a48.667 48.667 0 0 1 3-.349"/></svg>
-                                    Magasin
-                                </span>
-                            {% endif %}
-                        </td>
+            {# Description #}
+            <div id="panel-desc-block" class="px-6 py-5 hidden">
+                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-2">Description</p>
+                <p id="panel-promo-description" class="text-sm text-gray-700 leading-relaxed"></p>
+            </div>
 
-                        {# Discount #}
-                        <td class="whitespace-nowrap px-6 py-4">
-                            {% if promotion.discount_type == "PERCENTAGE" %}
-                                <span class="inline-flex rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">% Remise</span>
-                            {% elif promotion.discount_type == "FIXED_PRICE" %}
-                                <span class="inline-flex rounded-lg bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">Prix fixe</span>
-                            {% else %}
-                                <span class="inline-flex rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">{{ promotion.discount_type }}</span>
-                            {% endif %}
-                            <p class="mt-1.5 text-lg font-extrabold tabular-nums text-gray-900 leading-none">{{ promotion.discount_value }}</p>
-                        </td>
+            {# Product #}
+            <div class="px-6 py-5">
+                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-3">Produit associé</p>
+                <div class="flex items-center gap-3">
+                    <div class="h-14 w-14 shrink-0 rounded-xl bg-gray-50 border border-gray-100 overflow-hidden flex items-center justify-center">
+                        <img id="panel-promo-image" src="" alt="" class="h-full w-full object-contain p-2"
+                             onerror="this.style.display='none';document.getElementById('panel-promo-image-placeholder').style.display='flex'">
+                        <div id="panel-promo-image-placeholder" class="hidden h-full w-full items-center justify-center">
+                            <svg class="h-5 w-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div>
+                        <p id="panel-product-name" class="text-sm font-semibold text-gray-900"></p>
+                        <p id="panel-product-code" class="text-[10px] font-mono text-gray-400"></p>
+                    </div>
+                </div>
+            </div>
 
-                        {# Product #}
-                        <td class="px-6 py-4">
-                            <div class="flex items-center gap-3">
-                                {% include "core/partials/product_image.html" with image_url=promotion.image_url image_alt=promotion.image_alt %}
-                                <div>
-                                    <p class="text-sm font-semibold text-gray-900">{{ promotion.product_name }}</p>
-                                    <p class="text-xs font-mono text-gray-400">{{ promotion.product_code }}</p>
-                                </div>
-                            </div>
-                        </td>
+            {# Context grid #}
+            <div class="px-6 py-5">
+                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-3">Contexte</p>
+                <dl class="grid grid-cols-2 gap-x-4 gap-y-4 text-sm">
+                    <div>
+                        <dt class="text-[10px] font-semibold text-gray-400">Portée</dt>
+                        <dd id="panel-scope" class="mt-0.5 font-medium text-gray-700"></dd>
+                    </div>
+                    <div>
+                        <dt class="text-[10px] font-semibold text-gray-400">Localisation</dt>
+                        <dd id="panel-location" class="mt-0.5 font-medium text-gray-700"></dd>
+                    </div>
+                    <div>
+                        <dt class="text-[10px] font-semibold text-gray-400">Date de début</dt>
+                        <dd id="panel-start" class="mt-0.5 font-medium text-gray-700"></dd>
+                    </div>
+                    <div>
+                        <dt class="text-[10px] font-semibold text-gray-400">Date de fin</dt>
+                        <dd id="panel-end" class="mt-0.5 font-medium text-gray-700"></dd>
+                    </div>
+                </dl>
+            </div>
 
-                        {# Country + Store #}
-                        <td class="whitespace-nowrap px-6 py-4">
-                            <p class="text-sm font-medium text-gray-700">{{ promotion.country_name }}</p>
-                            {% if promotion.store_name %}
-                                <p class="text-xs text-gray-400">{{ promotion.store_name }}</p>
-                            {% endif %}
-                        </td>
-
-                        {# Period #}
-                        <td class="whitespace-nowrap px-6 py-4">
-                            <p class="text-sm text-gray-600">{{ promotion.start_date }}</p>
-                            <p class="text-xs text-gray-400">au {{ promotion.end_date }}</p>
-                        </td>
-
-                        {# Status #}
-                        <td class="whitespace-nowrap px-6 py-4">
-                            {% if promotion.status == "Active" %}
-                                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Active
-                                </span>
-                            {% else %}
-                                <span class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500">
-                                    <span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span>Inactive
-                                </span>
-                            {% endif %}
-                        </td>
-
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
         </div>
     </div>
-{% else %}
-    {% include "core/partials/empty_state.html" with title="Aucune promotion trouvée" description="L'API a répondu mais aucune promotion n'a été retournée." %}
+</div>
+
 {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const modal    = document.getElementById('promo-modal');
+const panel    = document.getElementById('promo-panel');
+const backdrop = document.getElementById('promo-backdrop');
+
+function openPromoModal(card) {
+    const d = card.dataset;
+
+    document.getElementById('panel-promo-code').textContent = d.promoCode || '';
+    document.getElementById('panel-promo-name').textContent = d.promoName || '—';
+    document.getElementById('panel-discount-value').textContent = d.discountValue || '—';
+
+    const typeLabels = { PERCENTAGE: '% de remise', FIXED_PRICE: 'Prix fixe' };
+    document.getElementById('panel-discount-type').textContent = typeLabels[d.discountType] || d.discountType || '';
+
+    // Status
+    const isActive = d.promoStatus === 'Active';
+    document.getElementById('panel-promo-status').innerHTML = isActive
+        ? `<span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"><span class="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"></span>Active</span>`
+        : `<span class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500"><span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span>Inactive</span>`;
+
+    // Description
+    const desc = d.promoDescription;
+    const descBlock = document.getElementById('panel-desc-block');
+    if (desc && desc !== 'N/A') {
+        document.getElementById('panel-promo-description').textContent = desc;
+        descBlock.classList.remove('hidden');
+    } else {
+        descBlock.classList.add('hidden');
+    }
+
+    // Product image
+    const img = document.getElementById('panel-promo-image');
+    const ph  = document.getElementById('panel-promo-image-placeholder');
+    if (d.imageUrl) {
+        img.src = d.imageUrl; img.alt = d.imageAlt || '';
+        img.style.display = ''; ph.style.display = 'none';
+    } else {
+        img.style.display = 'none'; ph.style.display = 'flex';
+    }
+    document.getElementById('panel-product-name').textContent = d.productName || '—';
+    document.getElementById('panel-product-code').textContent = d.productCode || '';
+
+    // Context
+    const scopeLabels = { 'Country promotion': 'Pays', 'Store promotion': 'Magasin' };
+    document.getElementById('panel-scope').textContent = scopeLabels[d.promoScope] || d.promoScope || '—';
+
+    let location = d.countryName || '—';
+    if (d.storeName) location += ' · ' + d.storeName;
+    document.getElementById('panel-location').textContent = location;
+
+    document.getElementById('panel-start').textContent = d.startDate || '—';
+    document.getElementById('panel-end').textContent   = d.endDate   || '—';
+
+    // Open
+    modal.classList.remove('hidden');
+    requestAnimationFrame(() => {
+        backdrop.classList.remove('opacity-0');
+        panel.classList.remove('translate-x-full');
+    });
+    document.body.style.overflow = 'hidden';
+}
+
+function closePromoModal() {
+    backdrop.classList.add('opacity-0');
+    panel.classList.add('translate-x-full');
+    setTimeout(() => { modal.classList.add('hidden'); document.body.style.overflow = ''; }, 300);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePromoModal(); });
+</script>
 {% endblock %}
