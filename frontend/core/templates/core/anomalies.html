@@ -92,6 +92,7 @@
              data-description="{{ anomaly.description }}"
              data-message="{{ anomaly.message }}"
              data-promotion-id="{{ anomaly.promotion_id }}"
+             data-promotion-active="{{ anomaly.promotion_active|yesno:'true,false' }}"
              data-store-id="{{ anomaly.store_id }}"
              data-sales-count="{{ anomaly.sales_count }}"
              data-total-quantity="{{ anomaly.total_quantity }}"
@@ -291,7 +292,7 @@
                             </svg>
                         </div>
                         <div>
-                            <p class="font-semibold text-gray-900">Créer une demande de prix</p>
+                            <p class="font-semibold text-gray-900">Demander un changement de prix</p>
                             <p class="text-xs font-normal text-gray-400">Proposer un ajustement tarifaire</p>
                         </div>
                         <svg class="ml-auto h-4 w-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -314,6 +315,19 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
                         </svg>
                     </a>
+
+                    <button id="action-kill-promo" onclick="killPromotion()"
+                            class="flex w-full items-center gap-3 rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-700 shadow-sm hover:bg-red-50 hover:border-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-600 shrink-0">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                            </svg>
+                        </div>
+                        <div class="text-left">
+                            <p id="action-kill-promo-label" class="font-semibold">Stopper la promotion</p>
+                            <p class="text-xs font-normal text-red-400">Désactiver immédiatement la promotion</p>
+                        </div>
+                    </button>
                 </div>
             </div>
         </div>
@@ -331,6 +345,7 @@ const STORE_NAMES = {};
 const modal    = document.getElementById('anomaly-modal');
 const panel    = document.getElementById('anomaly-panel');
 const backdrop = document.getElementById('anomaly-backdrop');
+let _currentPromotionId = null;
 
 const SEV_STYLES = {
     HIGH:   { icon: 'bg-red-100 text-red-600',    stripe: 'bg-red-500',   label: 'Élevée',  badge: 'bg-red-100 text-red-700' },
@@ -389,6 +404,15 @@ function openAnomalyModal(card) {
     document.getElementById('action-analytics').href = pid && pid !== 'N/A'
         ? `/analytique/ventes/?product_id=${pid}` : '/analytique/ventes/';
 
+    // Kill promotion button
+    const promoActive = d.promotionActive === 'true';
+    _currentPromotionId = (d.promotionId && d.promotionId !== 'N/A' && promoActive) ? d.promotionId : null;
+    const killBtn = document.getElementById('action-kill-promo');
+    killBtn.disabled = !_currentPromotionId;
+    document.getElementById('action-kill-promo-label').textContent = promoActive
+        ? 'Stopper la promotion'
+        : 'Promotion déjà inactive';
+
     // Open
     modal.classList.remove('hidden');
     requestAnimationFrame(() => {
@@ -405,5 +429,31 @@ function closeAnomalyModal() {
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAnomalyModal(); });
+
+async function killPromotion() {
+    if (!_currentPromotionId) return;
+    const btn = document.getElementById('action-kill-promo');
+    const label = document.getElementById('action-kill-promo-label');
+    btn.disabled = true;
+    label.textContent = 'Arrêt en cours…';
+    try {
+        const resp = await fetch(`/promotions/${_currentPromotionId}/deactivate/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json' },
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+            label.textContent = data.error || 'Erreur lors de l\'arrêt';
+            btn.disabled = false;
+        } else {
+            label.textContent = 'Promotion stoppée';
+            btn.classList.replace('text-red-700', 'text-gray-400');
+            btn.classList.replace('border-red-200', 'border-gray-200');
+        }
+    } catch {
+        label.textContent = 'Erreur réseau';
+        btn.disabled = false;
+    }
+}
 </script>
 {% endblock %}

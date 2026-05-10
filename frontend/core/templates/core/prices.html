@@ -6,116 +6,107 @@
 {% block content %}
 {% if api_error %}
     {% include "core/partials/alert.html" with type="error" title="Erreur de connexion à l'API" message="La liste des prix n'a pas pu être chargée." detail=api_error show_retry=True %}
-{% elif prices %}
-    <div class="relative overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm ring-1 ring-gray-100">
+{% else %}
 
-        {# Accent stripe #}
-        <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-sky-500 via-blue-400 to-cyan-300"></div>
+<div class="relative overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm ring-1 ring-gray-100">
 
-        {# Card header #}
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 pt-5">
-            <div class="flex items-center gap-3">
-                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
-                    <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
-                    </svg>
-                </div>
-                <div>
-                    <p class="text-sm font-semibold text-gray-900">
-                        Enregistrements de prix
-                        {% if active_filters %}
-                            <span class="ml-2 inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
-                                {{ active_filters|length }} filtre{% if active_filters|length > 1 %}s{% endif %}
-                            </span>
-                        {% endif %}
-                    </p>
-                    <p class="text-xs text-gray-400">{{ prices|length }} enregistrement{% if prices|length > 1 %}s{% endif %}</p>
-                </div>
+    <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-sky-500 via-blue-400 to-cyan-300"></div>
+
+    {# Header #}
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 pt-5">
+        <div class="flex items-center gap-3">
+            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
+                <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
+                </svg>
+            </div>
+            <div>
+                <p class="text-sm font-semibold text-gray-900">
+                    Enregistrements de prix
+                    {% if active_filters %}
+                        <span class="ml-2 inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
+                            {{ active_filters|length }} filtre{% if active_filters|length > 1 %}s{% endif %}
+                        </span>
+                    {% endif %}
+                </p>
+                <p class="text-xs text-gray-400">{{ prices|length }} enregistrement{% if prices|length > 1 %}s{% endif %}</p>
             </div>
         </div>
+    </div>
 
-        {# Filter bar #}
-        <div class="border-b border-gray-100 bg-gray-50/40 px-5 py-3.5">
-            <form method="get" class="flex flex-wrap items-center gap-4">
-                <div class="flex items-center gap-1.5 shrink-0 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z"/>
-                    </svg>
-                    Filtres
+    {# Filter bar #}
+    <div class="border-b border-gray-100 bg-gray-50/40 px-5 py-3.5">
+        <form method="get" class="flex flex-wrap items-center gap-4">
+            <div class="flex items-center gap-1.5 shrink-0 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z"/>
+                </svg>
+                Filtres
+            </div>
+            <div class="h-5 w-px bg-gray-200 shrink-0"></div>
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Portée</label>
+                    <select name="price_scope" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400">
+                        <option value="">Toutes</option>
+                        <option value="COUNTRY" {% if active_filters.price_scope == "COUNTRY" %}selected{% endif %}>Pays</option>
+                        <option value="STORE" {% if active_filters.price_scope == "STORE" %}selected{% endif %}>Magasin</option>
+                    </select>
                 </div>
-                <div class="h-5 w-px bg-gray-200 shrink-0"></div>
-                <div class="flex flex-wrap items-center gap-3">
-                    <div class="flex items-center gap-2">
-                        <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Portée</label>
-                        <select name="price_scope" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400">
-                            <option value="">Toutes</option>
-                            <option value="COUNTRY" {% if active_filters.price_scope == "COUNTRY" %}selected{% endif %}>Pays</option>
-                            <option value="STORE" {% if active_filters.price_scope == "STORE" %}selected{% endif %}>Magasin</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Type</label>
-                        <select name="price_type" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400">
-                            <option value="">Tous</option>
-                            <option value="REGULAR" {% if active_filters.price_type == "REGULAR" %}selected{% endif %}>Standard</option>
-                            <option value="PROMO" {% if active_filters.price_type == "PROMO" %}selected{% endif %}>Promotion</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Statut</label>
-                        <select name="status" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400">
-                            <option value="">Tous</option>
-                            <option value="ACTIVE" {% if active_filters.status == "ACTIVE" %}selected{% endif %}>Actif</option>
-                            <option value="INACTIVE" {% if active_filters.status == "INACTIVE" %}selected{% endif %}>Inactif</option>
-                            <option value="EXPIRED" {% if active_filters.status == "EXPIRED" %}selected{% endif %}>Expiré</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Pays</label>
-                        <select name="country_id" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400">
-                            <option value="">Tous les pays</option>
-                            {% for country in countries %}
-                                <option value="{{ country.id }}" {% if active_filters.country_id == country.id|stringformat:"s" %}selected{% endif %}>{{ country.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Magasin</label>
-                        <select name="store_id" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400">
-                            <option value="">Tous les magasins</option>
-                            {% for store in stores %}
-                                <option value="{{ store.id }}" {% if active_filters.store_id == store.id|stringformat:"s" %}selected{% endif %}>{{ store.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Type</label>
+                    <select name="price_type" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400">
+                        <option value="">Tous</option>
+                        <option value="REGULAR" {% if active_filters.price_type == "REGULAR" %}selected{% endif %}>Standard</option>
+                        <option value="PROMO" {% if active_filters.price_type == "PROMO" %}selected{% endif %}>Promotion</option>
+                    </select>
                 </div>
-                <div class="flex items-center gap-2 ml-auto">
-                    <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-sky-700 active:scale-95">
+                <div class="flex items-center gap-2">
+                    <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Statut</label>
+                    <select name="status" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400">
+                        <option value="">Tous</option>
+                        <option value="ACTIVE" {% if active_filters.status == "ACTIVE" %}selected{% endif %}>Actif</option>
+                        <option value="INACTIVE" {% if active_filters.status == "INACTIVE" %}selected{% endif %}>Inactif</option>
+                        <option value="EXPIRED" {% if active_filters.status == "EXPIRED" %}selected{% endif %}>Expiré</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Pays</label>
+                    <select name="country_id" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400">
+                        <option value="">Tous les pays</option>
+                        {% for country in countries %}
+                            <option value="{{ country.id }}" {% if active_filters.country_id == country.id|stringformat:"s" %}selected{% endif %}>{{ country.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Magasin</label>
+                    <select name="store_id" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400">
+                        <option value="">Tous les magasins</option>
+                        {% for store in stores %}
+                            <option value="{{ store.id }}" {% if active_filters.store_id == store.id|stringformat:"s" %}selected{% endif %}>{{ store.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-sky-700 active:scale-95">
+                    Appliquer
+                </button>
+                {% if active_filters %}
+                    <a href="?" class="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-500 shadow-sm transition-colors hover:bg-gray-50">
                         <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0016.803 15.803z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
-                        Appliquer
-                    </button>
-                    {% if active_filters %}
-                        <a href="?" class="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-500 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-700">
-                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                            Effacer
-                        </a>
-                    {% endif %}
-                </div>
-            </form>
-        </div>
+                        Effacer
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
 
-        <table class="w-full table-fixed">
-            <colgroup>
-                <col class="w-[33%]">
-                <col class="w-[20%]">
-                <col class="w-[15%]">
-                <col class="w-[15%]">
-                <col class="w-[17%]">
-            </colgroup>
+    {# Table #}
+    {% if prices %}
+    <div class="overflow-x-auto">
+        <table class="min-w-full">
             <thead>
                 <tr class="border-b border-gray-100 bg-gray-50/60">
                     <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Produit</th>
@@ -123,11 +114,26 @@
                     <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Lieu</th>
                     <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Période</th>
                     <th scope="col" class="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-gray-400">Montant</th>
+                    <th scope="col" class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">Statut</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50">
+            <tbody class="divide-y divide-gray-50" id="prices-tbody-main">
                 {% for price in prices %}
-                <tr class="group hover:bg-sky-50/30 transition-colors duration-150">
+                <tr class="price-row group hover:bg-sky-50/30 transition-colors duration-150 cursor-pointer"
+                    data-price-product="{{ price.product_name }}"
+                    data-price-code="{{ price.product_code }}"
+                    data-price-image="{{ price.image_url }}"
+                    data-price-image-alt="{{ price.image_alt }}"
+                    data-price-scope="{{ price.scope }}"
+                    data-price-scope-label="{{ price.scope_label }}"
+                    data-price-type="{{ price.type }}"
+                    data-price-country="{{ price.country_name }}"
+                    data-price-store="{{ price.store_name }}"
+                    data-price-from="{{ price.effective_from }}"
+                    data-price-to="{{ price.effective_to }}"
+                    data-price-amount="{{ price.amount }}"
+                    data-price-status="{{ price.status }}"
+                    onclick="openPriceModal(this)">
 
                     {# Product #}
                     <td class="px-6 py-4">
@@ -160,7 +166,7 @@
                                     Promotion
                                 </span>
                             {% else %}
-                                <span class="inline-flex w-fit rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">{{ price.type }}</span>
+                                <span class="inline-flex w-fit rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">Standard</span>
                             {% endif %}
                         </div>
                     </td>
@@ -179,25 +185,208 @@
                         <p class="text-xs text-gray-400">au {{ price.effective_to }}</p>
                     </td>
 
-                    {# Amount + Status #}
+                    {# Amount #}
                     <td class="px-6 py-4 text-right">
                         <p class="text-base font-extrabold tabular-nums text-gray-900">{{ price.amount }}</p>
+                    </td>
+
+                    {# Status #}
+                    <td class="px-6 py-4">
                         {% if price.status == "ACTIVE" %}
-                            <span class="inline-flex rounded-lg bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">ACTIF</span>
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Actif
+                            </span>
                         {% elif price.status == "EXPIRED" %}
-                            <span class="inline-flex rounded-lg bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500">EXPIRÉ</span>
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">
+                                <span class="h-1.5 w-1.5 rounded-full bg-red-400"></span>Expiré
+                            </span>
                         {% else %}
-                            <span class="inline-flex rounded-lg bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600">{{ price.status }}</span>
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500">
+                                <span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span>{{ price.status }}
+                            </span>
                         {% endif %}
                     </td>
 
                 </tr>
                 {% endfor %}
+                <tr id="no-price-results" class="hidden">
+                    <td colspan="6" class="px-6 py-12 text-center">
+                        <div class="flex flex-col items-center gap-3 text-gray-400">
+                            <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0016.803 15.803z"/>
+                            </svg>
+                            <p class="text-sm font-semibold">Aucun prix ne correspond à la recherche</p>
+                        </div>
+                    </td>
+                </tr>
             </tbody>
         </table>
-
     </div>
-{% else %}
-    {% include "core/partials/empty_state.html" with title="Aucun prix trouvé" description="L'API a répondu mais aucun prix n'a été retourné." %}
+    {% else %}
+        <div class="p-8">
+            {% include "core/partials/empty_state.html" with title="Aucun prix trouvé" description="L'API a répondu mais aucun prix n'a été retourné." %}
+        </div>
+    {% endif %}
+</div>
+
+{# ── Detail modal (right panel) ── #}
+<div id="price-modal" class="fixed inset-0 z-50 hidden" aria-modal="true" role="dialog">
+    <div id="price-backdrop" class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 opacity-0" onclick="closePriceModal()"></div>
+
+    <div id="price-panel" class="absolute inset-y-0 right-0 flex w-full max-w-md flex-col bg-white shadow-2xl translate-x-full transition-transform duration-300 ease-out">
+
+        <div class="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+            <div class="flex items-center gap-3">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
+                    </svg>
+                </div>
+                <h2 class="text-base font-semibold text-gray-900">Détail du prix</h2>
+            </div>
+            <button onclick="closePriceModal()" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto divide-y divide-gray-100">
+
+            {# Product hero #}
+            <div class="flex gap-4 p-6">
+                <div class="h-20 w-20 shrink-0 rounded-xl bg-gray-50 border border-gray-100 overflow-hidden flex items-center justify-center">
+                    <img id="pm-image" src="" alt="" class="h-full w-full object-contain p-2"
+                         onerror="this.style.display='none';document.getElementById('pm-image-ph').style.display='flex'">
+                    <div id="pm-image-ph" class="hidden h-full w-full items-center justify-center">
+                        <svg class="h-7 w-7 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <p id="pm-name" class="text-base font-bold text-gray-900 leading-snug"></p>
+                    <p id="pm-code" class="mt-0.5 font-mono text-xs text-gray-400"></p>
+                    <div id="pm-status" class="mt-3"></div>
+                </div>
+            </div>
+
+            {# Amount hero #}
+            <div class="px-6 py-5">
+                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-2">Montant</p>
+                <p id="pm-amount" class="text-3xl font-extrabold tabular-nums text-sky-700"></p>
+                <div id="pm-type-badge" class="mt-2"></div>
+            </div>
+
+            {# Details grid #}
+            <div class="px-6 py-5">
+                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-3">Détails</p>
+                <dl class="grid grid-cols-2 gap-x-4 gap-y-4 text-sm">
+                    <div>
+                        <dt class="text-[10px] font-semibold text-gray-400">Portée</dt>
+                        <dd id="pm-scope" class="mt-0.5 font-medium text-gray-700"></dd>
+                    </div>
+                    <div>
+                        <dt class="text-[10px] font-semibold text-gray-400">Localisation</dt>
+                        <dd id="pm-location" class="mt-0.5 font-medium text-gray-700"></dd>
+                    </div>
+                    <div>
+                        <dt class="text-[10px] font-semibold text-gray-400">Valide du</dt>
+                        <dd id="pm-from" class="mt-0.5 font-medium text-gray-700"></dd>
+                    </div>
+                    <div>
+                        <dt class="text-[10px] font-semibold text-gray-400">Valide au</dt>
+                        <dd id="pm-to" class="mt-0.5 font-medium text-gray-700"></dd>
+                    </div>
+                </dl>
+            </div>
+
+        </div>
+    </div>
+</div>
+
 {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+window.handleGlobalSearch = function(q) {
+    const rows = document.querySelectorAll('.price-row');
+    const noResults = document.getElementById('no-price-results');
+    if (!rows.length) return;
+    let visible = 0;
+    rows.forEach(function(row) {
+        const name = (row.dataset.priceProduct || '').toLowerCase();
+        const code = (row.dataset.priceCode || '').toLowerCase();
+        const show = !q || name.includes(q) || code.includes(q);
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+    if (noResults) noResults.classList.toggle('hidden', visible > 0);
+};
+
+const modal    = document.getElementById('price-modal');
+const panel    = document.getElementById('price-panel');
+const backdrop = document.getElementById('price-backdrop');
+
+function openPriceModal(row) {
+    const d = row.dataset;
+
+    // Image
+    const img = document.getElementById('pm-image');
+    const ph  = document.getElementById('pm-image-ph');
+    if (d.priceImage) {
+        img.src = d.priceImage; img.alt = d.priceImageAlt || '';
+        img.style.display = ''; ph.style.display = 'none';
+    } else {
+        img.style.display = 'none'; ph.style.display = 'flex';
+    }
+    document.getElementById('pm-name').textContent = d.priceProduct || '—';
+    document.getElementById('pm-code').textContent = d.priceCode || '';
+
+    // Status
+    const statusMap = {
+        ACTIVE:   `<span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Actif</span>`,
+        EXPIRED:  `<span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600"><span class="h-1.5 w-1.5 rounded-full bg-red-400"></span>Expiré</span>`,
+        INACTIVE: `<span class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500"><span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span>Inactif</span>`,
+    };
+    document.getElementById('pm-status').innerHTML = statusMap[d.priceStatus] || d.priceStatus || '';
+
+    // Amount
+    document.getElementById('pm-amount').textContent = d.priceAmount || '—';
+
+    // Type badge
+    const isPromo = d.priceType === 'PROMO';
+    document.getElementById('pm-type-badge').innerHTML = isPromo
+        ? `<span class="inline-flex items-center gap-1 rounded-lg bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">Promotion</span>`
+        : `<span class="inline-flex items-center gap-1 rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">Standard</span>`;
+
+    // Details
+    const scopeMap = { COUNTRY: 'Pays', STORE: 'Magasin' };
+    document.getElementById('pm-scope').textContent = scopeMap[d.priceScope] || d.priceScopeLabel || d.priceScope || '—';
+
+    let loc = d.priceCountry || '—';
+    if (d.priceStore) loc += ' · ' + d.priceStore;
+    document.getElementById('pm-location').textContent = loc;
+
+    document.getElementById('pm-from').textContent = d.priceFrom || '—';
+    document.getElementById('pm-to').textContent   = d.priceTo   || '—';
+
+    // Open
+    modal.classList.remove('hidden');
+    requestAnimationFrame(() => {
+        backdrop.classList.remove('opacity-0');
+        panel.classList.remove('translate-x-full');
+    });
+    document.body.style.overflow = 'hidden';
+}
+
+function closePriceModal() {
+    backdrop.classList.add('opacity-0');
+    panel.classList.add('translate-x-full');
+    setTimeout(() => { modal.classList.add('hidden'); document.body.style.overflow = ''; }, 300);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePriceModal(); });
+</script>
 {% endblock %}
