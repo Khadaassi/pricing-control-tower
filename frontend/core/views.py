@@ -1,5 +1,6 @@
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -371,8 +372,6 @@ class PricesView(TemplateView):
         context = super().get_context_data(**kwargs)
         context["api_error"] = None
         context["prices"] = []
-        context["countries"] = build_country_choices()
-        context["stores"] = build_store_choices()
 
         raw_filters = {}
         for key in ("price_scope", "price_type", "status"):
@@ -387,15 +386,25 @@ class PricesView(TemplateView):
             raw_filters["store_id"] = store_id_val
         context["active_filters"] = raw_filters
 
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            f_prices   = executor.submit(api_get, "/prices", raw_filters or None)
+            f_products = executor.submit(build_product_lookup)
+            f_countries = executor.submit(build_country_choices)
+            f_stores    = executor.submit(build_store_choices)
+
         try:
-            prices = api_get("/prices", params=raw_filters or None)
+            prices = f_prices.result()
         except ApiClientError as exc:
             context["api_error"] = str(exc)
             return context
 
-        product_lookup = build_product_lookup()
-        country_lookup = build_country_lookup(context["countries"])
-        store_lookup = build_store_lookup(context["stores"])
+        countries = f_countries.result()
+        stores = f_stores.result()
+        context["countries"] = countries
+        context["stores"] = stores
+        product_lookup = f_products.result()
+        country_lookup = build_country_lookup(countries)
+        store_lookup = build_store_lookup(stores)
 
         for price in prices:
             product_display = get_product_display(
