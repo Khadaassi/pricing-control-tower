@@ -172,6 +172,27 @@ T100 — Request list
 T101 — Validation page
 
 
+## EPIC 6 (suite) — Analytics Frontend
+
+### Feature 6.4 — Exposition de pct_analytics dans le frontend
+T113 — Endpoint GET /analytics/sales (OBT enrichi filtrable)
+T114 — Endpoint GET /analytics/sales/summary (agrégats par produit)
+T115 — Page Ventes Analytiques (/analytique/ventes/) avec filtres pays/magasin/promo
+T116 — Sidebar produit enrichie avec KPIs analytiques (CA, quantité, part promo, période)
+T117 — Refonte page Anomalies en cards + panel latéral avec actions
+T118 — Lien Ventes Analytiques dans sidebar base.html (desktop + mobile)
+
+### Feature 6.5 — Amélioration détection d'anomalies [BACKLOG]
+**Problème** : Le seuil `min_revenue = 500 €` est arbitraire et non adaptatif.
+**Objectif** : Remplacer la règle fixe par une détection statistique calculée depuis `pct_analytics.obt_sales`.
+**Travaux à réaliser** :
+- Calculer la distribution du CA par promotion (moyenne, écart-type, percentiles)
+- Flaguer une promo si CA < percentile 10 ou à plus de 2 écarts-types sous la moyenne
+- Pondérer par famille produit
+- Ajouter de nouveaux types d'anomalies : prix de vente > prix référence, écart anormal entre magasins
+**Fichiers** : `anomaly_service.py`, `routes/anomalies.py`, éventuellement nouveau modèle dbt `kpi_anomaly_detection`
+**Complexité estimée** : Moyenne (1–2 jours)
+
 ## EPIC 7 — AI Chatbot
 
 ### Feature 7.1 — AI Service Setup

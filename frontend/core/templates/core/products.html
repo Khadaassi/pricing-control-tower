@@ -233,6 +233,26 @@
                         </div>
                     </div>
 
+                    {# Analytics section #}
+                    <div class="px-6 py-5 border-b border-gray-100">
+                        <div class="flex items-center gap-2 mb-4">
+                            <svg class="h-4 w-4 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/>
+                            </svg>
+                            <p class="text-sm font-semibold text-gray-900">Performances analytiques</p>
+                        </div>
+                        <div id="analytics-loading" class="flex items-center gap-2 text-xs text-gray-400 py-2">
+                            <svg class="h-4 w-4 animate-spin text-violet-400" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                            </svg>
+                            Chargement…
+                        </div>
+                        <div id="analytics-error" class="hidden rounded-lg bg-red-50 px-4 py-3 text-xs text-red-600"></div>
+                        <div id="analytics-empty" class="hidden text-center py-4 text-sm text-gray-400">Aucune donnée analytique disponible.</div>
+                        <div id="analytics-kpis" class="hidden grid grid-cols-2 gap-3"></div>
+                    </div>
+
                     {# Prices section #}
                     <div class="px-6 py-5">
                         <div class="flex items-center gap-2 mb-4">
@@ -347,6 +367,13 @@
                 ? '<span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Actif</span>'
                 : '<span class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500"><span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span>Inactif</span>';
 
+            // Reset analytics section
+            document.getElementById('analytics-loading').style.display = 'flex';
+            document.getElementById('analytics-error').classList.add('hidden');
+            document.getElementById('analytics-empty').classList.add('hidden');
+            document.getElementById('analytics-kpis').classList.add('hidden');
+            document.getElementById('analytics-kpis').innerHTML = '';
+
             // Reset prices section
             document.getElementById('prices-loading').style.display = 'flex';
             document.getElementById('prices-error').classList.add('hidden');
@@ -362,14 +389,58 @@
             });
             document.body.style.overflow = 'hidden';
 
-            // Fetch prices
             const productId = d.productId;
             if (!productId) {
+                document.getElementById('analytics-loading').style.display = 'none';
+                document.getElementById('analytics-empty').classList.remove('hidden');
                 document.getElementById('prices-loading').style.display = 'none';
                 document.getElementById('prices-empty').classList.remove('hidden');
                 return;
             }
 
+            // Fetch analytics
+            fetch(`/produits/${productId}/analytique/`)
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('analytics-loading').style.display = 'none';
+                    if (data.error || data.transaction_count === 0) {
+                        document.getElementById('analytics-empty').classList.remove('hidden');
+                        return;
+                    }
+                    const fmt = v => v == null ? '—' : Number(v).toLocaleString('fr-FR', {maximumFractionDigits: 2});
+                    const kpis = [
+                        { label: 'Transactions', value: fmt(data.transaction_count) },
+                        { label: 'Unités vendues', value: fmt(data.total_quantity) },
+                        { label: 'CA total', value: fmt(data.total_revenue) + ' €' },
+                        { label: 'Prix moy. vente', value: fmt(data.avg_selling_price) + ' €' },
+                        { label: 'Ventes promo', value: fmt(data.promo_transactions) },
+                        { label: 'Part promo', value: (data.promo_share_pct ?? 0) + ' %' },
+                    ];
+                    const grid = document.getElementById('analytics-kpis');
+                    kpis.forEach(k => {
+                        grid.insertAdjacentHTML('beforeend', `
+                            <div class="rounded-xl bg-violet-50 px-3 py-2.5">
+                                <p class="text-[10px] font-semibold uppercase tracking-wider text-violet-400">${k.label}</p>
+                                <p class="mt-1 text-sm font-bold text-violet-800">${k.value}</p>
+                            </div>`);
+                    });
+                    if (data.last_sale_date) {
+                        grid.insertAdjacentHTML('beforeend', `
+                            <div class="col-span-2 rounded-xl bg-gray-50 px-3 py-2.5">
+                                <p class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Période</p>
+                                <p class="mt-1 text-xs font-medium text-gray-700">${data.first_sale_date} → ${data.last_sale_date}</p>
+                            </div>`);
+                    }
+                    grid.classList.remove('hidden');
+                })
+                .catch(() => {
+                    document.getElementById('analytics-loading').style.display = 'none';
+                    const el = document.getElementById('analytics-error');
+                    el.textContent = 'Impossible de charger les données analytiques.';
+                    el.classList.remove('hidden');
+                });
+
+            // Fetch prices
             fetch(`/produits/${productId}/prix/`)
                 .then(r => r.json())
                 .then(data => {
