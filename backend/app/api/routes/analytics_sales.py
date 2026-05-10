@@ -54,7 +54,13 @@ def get_analytics_sales_summary(
     }
 
 
-@router.get("", summary="OBT Sales analytique", description="Données enrichies depuis pct_analytics.obt_sales.")
+@router.get(
+    "",
+    summary="OBT Sales analytique",
+    description=(
+        "Données enrichies depuis pct_analytics.obt_sales."
+    ),
+)
 def list_analytics_sales(
     db: Annotated[Session, Depends(get_db)],
     product_id: int | None = Query(default=None),
