@@ -253,13 +253,44 @@
                         <div id="analytics-kpis" class="hidden grid grid-cols-2 gap-3"></div>
                     </div>
 
-                    {# Prices section #}
+                    {# Promotions section #}
+                    <div class="px-6 py-5 border-b border-gray-100">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-2">
+                                <svg class="h-4 w-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3zM6 6h.008v.008H6V6z"/>
+                                </svg>
+                                <p class="text-sm font-semibold text-gray-900">Promotions</p>
+                            </div>
+                            <button id="btn-create-promo-product"
+                                    onclick="openProductCreateModal()"
+                                    class="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[11px] font-semibold text-amber-700 hover:bg-amber-100 transition-colors">
+                                <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                                </svg>
+                                Nouvelle promotion
+                            </button>
+                        </div>
+
+                        <div id="promos-loading" class="flex items-center gap-2 text-xs text-gray-400 py-2">
+                            <svg class="h-4 w-4 animate-spin text-amber-400" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                            </svg>
+                            Chargement…
+                        </div>
+                        <div id="promos-error" class="hidden rounded-lg bg-red-50 px-4 py-3 text-xs text-red-600"></div>
+                        <div id="promos-empty" class="hidden text-center py-4 text-sm text-gray-400">Aucune promotion pour ce produit.</div>
+                        <div id="promos-list" class="hidden flex flex-col gap-2"></div>
+                    </div>
+
+                    {# Prix actuels section #}
                     <div class="px-6 py-5">
                         <div class="flex items-center gap-2 mb-4">
                             <svg class="h-4 w-4 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
-                            <p class="text-sm font-semibold text-gray-900">Prix</p>
+                            <p class="text-sm font-semibold text-gray-900">Prix actuels</p>
                         </div>
 
                         {# Loading state #}
@@ -279,11 +310,9 @@
                             <table class="min-w-full text-xs">
                                 <thead>
                                     <tr class="bg-gray-50/60 border-b border-gray-100">
-                                        <th class="px-3 py-2.5 text-left font-semibold uppercase tracking-wider text-gray-400">Type</th>
                                         <th class="px-3 py-2.5 text-left font-semibold uppercase tracking-wider text-gray-400">Portée</th>
                                         <th class="px-3 py-2.5 text-right font-semibold uppercase tracking-wider text-gray-400">Montant</th>
-                                        <th class="px-3 py-2.5 text-left font-semibold uppercase tracking-wider text-gray-400">Valide du</th>
-                                        <th class="px-3 py-2.5 text-left font-semibold uppercase tracking-wider text-gray-400">Statut</th>
+                                        <th class="px-3 py-2.5 text-left font-semibold uppercase tracking-wider text-gray-400">En vigueur depuis</th>
                                     </tr>
                                 </thead>
                                 <tbody id="prices-tbody" class="divide-y divide-gray-50"></tbody>
@@ -291,7 +320,7 @@
                         </div>
 
                         {# Empty prices #}
-                        <div id="prices-empty" class="hidden text-center py-8 text-sm text-gray-400">Aucun prix enregistré pour ce produit.</div>
+                        <div id="prices-empty" class="hidden text-center py-8 text-sm text-gray-400">Aucun prix actuel enregistré pour ce produit.</div>
                     </div>
                 </div>
             </div>
@@ -330,10 +359,16 @@
             };
         })();
 
+        /* ── Countries / Stores data for create modal ── */
+        const PROD_COUNTRIES = [{% for c in countries %}{"id": {{ c.id }}, "name": "{{ c.name }}"},{% endfor %}];
+        const PROD_STORES    = [{% for s in stores %}{"id": {{ s.id }}, "name": "{{ s.name }}", "country_id": {{ s.country_id }}},{% endfor %}];
+
         /* ── Product detail modal ── */
         const modal   = document.getElementById('product-modal');
         const panel   = document.getElementById('modal-panel');
         const backdrop = document.getElementById('modal-backdrop');
+
+        let _currentProductId = null;
 
         function openProductModal(card) {
             const d = card.dataset;
@@ -372,14 +407,19 @@
                 ? '<span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Actif</span>'
                 : '<span class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500"><span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span>Inactif</span>';
 
-            // Reset analytics section
+            // Reset sections
             document.getElementById('analytics-loading').style.display = 'flex';
             document.getElementById('analytics-error').classList.add('hidden');
             document.getElementById('analytics-empty').classList.add('hidden');
             document.getElementById('analytics-kpis').classList.add('hidden');
             document.getElementById('analytics-kpis').innerHTML = '';
 
-            // Reset prices section
+            document.getElementById('promos-loading').style.display = 'flex';
+            document.getElementById('promos-error').classList.add('hidden');
+            document.getElementById('promos-empty').classList.add('hidden');
+            document.getElementById('promos-list').classList.add('hidden');
+            document.getElementById('promos-list').innerHTML = '';
+
             document.getElementById('prices-loading').style.display = 'flex';
             document.getElementById('prices-error').classList.add('hidden');
             document.getElementById('prices-table-wrap').classList.add('hidden');
@@ -395,9 +435,13 @@
             document.body.style.overflow = 'hidden';
 
             const productId = d.productId;
+            _currentProductId = productId || null;
+
             if (!productId) {
                 document.getElementById('analytics-loading').style.display = 'none';
                 document.getElementById('analytics-empty').classList.remove('hidden');
+                document.getElementById('promos-loading').style.display = 'none';
+                document.getElementById('promos-empty').classList.remove('hidden');
                 document.getElementById('prices-loading').style.display = 'none';
                 document.getElementById('prices-empty').classList.remove('hidden');
                 return;
@@ -445,7 +489,63 @@
                     el.classList.remove('hidden');
                 });
 
-            // Fetch prices
+            // Fetch promotions
+            fetch(`/produits/${productId}/promotions/`)
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('promos-loading').style.display = 'none';
+                    if (data.error) {
+                        const el = document.getElementById('promos-error');
+                        el.textContent = data.error;
+                        el.classList.remove('hidden');
+                        return;
+                    }
+                    const promos = data.promotions || [];
+                    if (!promos.length) {
+                        document.getElementById('promos-empty').classList.remove('hidden');
+                        return;
+                    }
+                    const list = document.getElementById('promos-list');
+                    promos.forEach(p => {
+                        const isActive = p.active;
+                        const scopeText = p.store_name ? `${p.country_name} · ${p.store_name}` : p.country_name;
+                        const card = document.createElement('div');
+                        card.className = 'flex items-center justify-between gap-3 rounded-xl border px-4 py-3 ' + (isActive ? 'border-amber-100 bg-amber-50/40' : 'border-gray-100 bg-gray-50/40');
+                        card.innerHTML = `
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${isActive ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400'} text-sm font-extrabold tabular-nums">
+                                    ${escHtml(p.discount_label)}
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-xs font-semibold text-gray-900 truncate">${escHtml(p.name)}</p>
+                                    <p class="text-[10px] text-gray-400">${escHtml(scopeText)} · ${escHtml(p.start_date)} → ${escHtml(p.end_date)}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                ${isActive
+                                    ? `<span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"><span class="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"></span>Active</span>`
+                                    : `<span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500"><span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span>Inactive</span>`
+                                }
+                                ${isActive
+                                    ? `<button data-promo-id="${p.id}" onclick="killPromoFromProduct(this)" class="inline-flex items-center gap-1 rounded-lg bg-red-50 border border-red-200 px-2.5 py-1.5 text-[10px] font-semibold text-red-700 hover:bg-red-100 transition-colors">
+                                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9a2.25 2.25 0 01-2.25-2.25v-9z"/></svg>
+                                        Stopper
+                                    </button>`
+                                    : ''
+                                }
+                            </div>`;
+                        list.appendChild(card);
+                    });
+                    list.classList.remove('hidden');
+                })
+                .catch(() => {
+                    document.getElementById('promos-loading').style.display = 'none';
+                    const el = document.getElementById('promos-error');
+                    el.textContent = 'Impossible de charger les promotions.';
+                    el.classList.remove('hidden');
+                });
+
+            // Fetch prices — only current (Active + Standard + effective)
             fetch(`/produits/${productId}/prix/`)
                 .then(r => r.json())
                 .then(data => {
@@ -456,35 +556,43 @@
                         el.classList.remove('hidden');
                         return;
                     }
-                    if (!data.prices || data.prices.length === 0) {
+
+                    const today = new Date().toISOString().slice(0, 10);
+
+                    // Filter: Active + Standard + already in effect
+                    const candidates = (data.prices || []).filter(p =>
+                        p.status === 'Actif' &&
+                        p.price_type === 'Standard' &&
+                        p.effective_from <= today
+                    );
+
+                    // Keep most recent per scope
+                    const byScope = {};
+                    candidates.forEach(p => {
+                        const key = `${p.country_id}__${p.store_id}`;
+                        if (!byScope[key] || p.effective_from > byScope[key].effective_from) {
+                            byScope[key] = p;
+                        }
+                    });
+                    const prices = Object.values(byScope);
+
+                    if (!prices.length) {
                         document.getElementById('prices-empty').classList.remove('hidden');
                         return;
                     }
 
-                    const statusColor = {
-                        'Actif': 'text-emerald-700 bg-emerald-50',
-                        'Inactif': 'text-gray-500 bg-gray-100',
-                        'Expiré': 'text-red-600 bg-red-50',
-                    };
-                    const typeColor = {
-                        'Standard': 'text-blue-700 bg-blue-50',
-                        'Promotionnel': 'text-amber-700 bg-amber-50',
-                    };
-
                     const tbody = document.getElementById('prices-tbody');
-                    data.prices.forEach(p => {
-                        const sc = statusColor[p.status] || 'text-gray-500 bg-gray-100';
-                        const tc = typeColor[p.price_type] || 'text-gray-600 bg-gray-100';
-                        const dateRange = p.effective_to && p.effective_to !== '—'
-                            ? `${p.effective_from} → ${p.effective_to}`
-                            : `${p.effective_from}`;
+                    prices.forEach(p => {
+                        const scopeIcon = p.store_id && p.store_id !== '—'
+                            ? `<svg class="h-3 w-3 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a48.667 48.667 0 0 1 3-.349"/></svg>`
+                            : `<svg class="h-3 w-3 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 9m0 6v1.5"/></svg>`;
                         tbody.insertAdjacentHTML('beforeend', `
                             <tr class="hover:bg-violet-50/20 transition-colors">
-                                <td class="px-3 py-2.5"><span class="inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${tc}">${p.price_type}</span></td>
-                                <td class="px-3 py-2.5 text-gray-600">${p.price_scope}</td>
-                                <td class="px-3 py-2.5 text-right font-bold tabular-nums text-gray-900">${p.amount} ${p.currency_code}</td>
-                                <td class="px-3 py-2.5 text-gray-500 whitespace-nowrap">${dateRange}</td>
-                                <td class="px-3 py-2.5"><span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${sc}">${p.status}</span></td>
+                                <td class="px-3 py-2.5">
+                                    <div class="flex items-center gap-1.5">${scopeIcon}<span class="text-gray-700">${escHtml(p.price_scope)}</span></div>
+                                </td>
+                                <td class="px-3 py-2.5 text-right font-bold tabular-nums text-gray-900">${escHtml(p.amount)} ${escHtml(p.currency_code)}</td>
+                                <td class="px-3 py-2.5 text-gray-500 whitespace-nowrap">${escHtml(p.effective_from)}</td>
                             </tr>`);
                     });
 
@@ -507,11 +615,323 @@
             }, 300);
         }
 
-        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeProductModal(); });
+        // ── Kill promotion from product panel ──
+        function killPromoFromProduct(btn) {
+            const promoId = btn.dataset.promoId;
+            if (!promoId) return;
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>…`;
+
+            const csrf = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+            fetch(`/promotions/${promoId}/deactivate/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/json' },
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) { btn.disabled = false; btn.textContent = 'Erreur'; return; }
+                // Update card UI
+                const card = btn.closest('[data-promo-card]');
+                btn.remove();
+                const statusEl = card.querySelector('.animate-pulse')?.parentElement;
+                if (statusEl) statusEl.outerHTML = `<span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500"><span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span>Inactive</span>`;
+                card.classList.remove('border-amber-100', 'bg-amber-50/40');
+                card.classList.add('border-gray-100', 'bg-gray-50/40');
+            })
+            .catch(() => { btn.disabled = false; btn.textContent = 'Erreur'; });
+        }
+
+        // ── Create promotion from product page ──
+        function openProductCreateModal() {
+            if (!_currentProductId) return;
+            openProductPromoModal(_currentProductId);
+        }
+
+        function escHtml(str) {
+            return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                if (!document.getElementById('product-create-modal').classList.contains('hidden')) {
+                    closeProductCreateModal();
+                } else {
+                    closeProductModal();
+                }
+            }
+        });
         </script>
 
     </div>
 {% else %}
     {% include "core/partials/empty_state.html" with title="Aucun produit trouvé" description="L'API a répondu mais aucun produit n'a été retourné." %}
 {% endif %}
+
+{# ── Create Promotion Modal (product page) ── #}
+<div id="product-create-modal" class="fixed inset-0 z-[60] hidden" aria-modal="true" role="dialog">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeProductCreateModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+
+            {# Header #}
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-sm font-semibold text-gray-900">Créer une promotion</h3>
+                </div>
+                <button onclick="closeProductCreateModal()" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 transition-colors">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            {# Body #}
+            <div class="overflow-y-auto flex-1 px-6 py-5">
+                <div id="pcp-error" class="hidden mb-4 rounded-lg bg-red-50 px-4 py-3 text-xs text-red-700 border border-red-200"></div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    {# Nom #}
+                    <div class="col-span-2">
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Nom <span class="text-red-500">*</span></label>
+                        <input id="pcp-name" type="text" placeholder="Ex: Promotion été 2026"
+                               class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                    </div>
+                    {# Code #}
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Code <span class="text-red-500">*</span></label>
+                        <input id="pcp-code" type="text" placeholder="PROMO-ETE-2026"
+                               class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono text-gray-900 placeholder-gray-400 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                    </div>
+                    {# Type #}
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Type <span class="text-red-500">*</span></label>
+                        <select id="pcp-discount-type"
+                                class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                            <option value="PERCENTAGE">Pourcentage (%)</option>
+                            <option value="FIXED_PRICE">Prix fixe</option>
+                        </select>
+                    </div>
+                    {# Valeur #}
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Valeur <span class="text-red-500">*</span></label>
+                        <input id="pcp-discount-value" type="number" step="0.01" min="0" placeholder="20"
+                               class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                    </div>
+                    {# Pays #}
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Pays <span class="text-red-500">*</span></label>
+                        <select id="pcp-country" onchange="pcpFilterStores()"
+                                class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                            <option value="">— Sélectionner —</option>
+                        </select>
+                    </div>
+                    {# Magasin #}
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Magasin <span class="text-gray-400 font-normal normal-case">(optionnel)</span></label>
+                        <select id="pcp-store"
+                                class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                            <option value="">— Tous les magasins —</option>
+                        </select>
+                    </div>
+                    {# Dates #}
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Date de début <span class="text-red-500">*</span></label>
+                        <input id="pcp-start-date" type="date"
+                               class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Date de fin <span class="text-red-500">*</span></label>
+                        <input id="pcp-end-date" type="date"
+                               class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                    </div>
+                    {# Description #}
+                    <div class="col-span-2">
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Description <span class="text-gray-400 font-normal normal-case">(optionnel)</span></label>
+                        <textarea id="pcp-description" rows="2" placeholder="Description…"
+                                  class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400 resize-none"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            {# Footer #}
+            <div class="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4">
+                <button onclick="closeProductCreateModal()"
+                        class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                    Annuler
+                </button>
+                <button id="pcp-submit-btn" onclick="submitProductPromo()"
+                        class="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-amber-600 active:scale-95 disabled:opacity-60">
+                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                    </svg>
+                    Créer la promotion
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let _pcpProductId = null;
+
+function openProductPromoModal(productId) {
+    _pcpProductId = productId;
+    document.getElementById('pcp-error').classList.add('hidden');
+    ['pcp-name','pcp-code','pcp-discount-value','pcp-description','pcp-start-date','pcp-end-date'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+    document.getElementById('pcp-discount-type').value = 'PERCENTAGE';
+
+    // Populate countries
+    const csel = document.getElementById('pcp-country');
+    csel.innerHTML = '<option value="">— Sélectionner —</option>';
+    PROD_COUNTRIES.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.id; o.textContent = c.name;
+        csel.appendChild(o);
+    });
+    pcpFilterStores();
+
+    document.getElementById('pcp-submit-btn').disabled = false;
+    document.getElementById('pcp-submit-btn').innerHTML = `<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>Créer la promotion`;
+    document.getElementById('product-create-modal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeProductCreateModal() {
+    document.getElementById('product-create-modal').classList.add('hidden');
+    document.body.style.overflow = 'hidden'; // keep product modal scroll locked
+}
+
+function pcpFilterStores() {
+    const countryId = parseInt(document.getElementById('pcp-country').value, 10);
+    const ssel = document.getElementById('pcp-store');
+    ssel.innerHTML = '<option value="">— Tous les magasins —</option>';
+    if (!isNaN(countryId)) {
+        PROD_STORES.filter(s => s.country_id === countryId).forEach(s => {
+            const o = document.createElement('option');
+            o.value = s.id; o.textContent = s.name;
+            ssel.appendChild(o);
+        });
+    }
+}
+
+function submitProductPromo() {
+    const errEl = document.getElementById('pcp-error');
+    errEl.classList.add('hidden');
+
+    const name          = document.getElementById('pcp-name').value.trim();
+    const code          = document.getElementById('pcp-code').value.trim();
+    const discountType  = document.getElementById('pcp-discount-type').value;
+    const discountValue = document.getElementById('pcp-discount-value').value;
+    const countryId     = document.getElementById('pcp-country').value;
+    const storeId       = document.getElementById('pcp-store').value;
+    const startDate     = document.getElementById('pcp-start-date').value;
+    const endDate       = document.getElementById('pcp-end-date').value;
+    const description   = document.getElementById('pcp-description').value.trim();
+
+    if (!name || !code || !discountValue || !countryId || !startDate || !endDate) {
+        errEl.textContent = 'Veuillez remplir tous les champs obligatoires.';
+        errEl.classList.remove('hidden');
+        return;
+    }
+    if (endDate < startDate) {
+        errEl.textContent = 'La date de fin doit être après la date de début.';
+        errEl.classList.remove('hidden');
+        return;
+    }
+
+    const btn = document.getElementById('pcp-submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = `<svg class="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>Création…`;
+
+    const csrf = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+
+    fetch('/promotions/creer/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            name, code, description: description || null,
+            discount_type: discountType,
+            discount_value: parseFloat(discountValue),
+            product_id: parseInt(_pcpProductId, 10),
+            country_id: parseInt(countryId, 10),
+            store_id: storeId ? parseInt(storeId, 10) : null,
+            start_date: startDate,
+            end_date: endDate,
+        }),
+    })
+    .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
+    .then(({ ok, data }) => {
+        if (!ok) {
+            errEl.textContent = data.error || 'Une erreur est survenue.';
+            errEl.classList.remove('hidden');
+            btn.disabled = false;
+            btn.innerHTML = `<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>Créer la promotion`;
+            return;
+        }
+        // Close create modal and refresh promotions list in panel
+        closeProductCreateModal();
+        // Refresh promotions section
+        document.getElementById('promos-loading').style.display = 'flex';
+        document.getElementById('promos-error').classList.add('hidden');
+        document.getElementById('promos-empty').classList.add('hidden');
+        document.getElementById('promos-list').classList.add('hidden');
+        document.getElementById('promos-list').innerHTML = '';
+
+        fetch(`/produits/${_pcpProductId}/promotions/`)
+            .then(r => r.json())
+            .then(d => {
+                document.getElementById('promos-loading').style.display = 'none';
+                const promos = d.promotions || [];
+                if (!promos.length) { document.getElementById('promos-empty').classList.remove('hidden'); return; }
+                const list = document.getElementById('promos-list');
+                promos.forEach(p => {
+                    const isActive = p.active;
+                    const scopeText = p.store_name ? `${p.country_name} · ${p.store_name}` : p.country_name;
+                    const card = document.createElement('div');
+                    card.dataset.promoCard = 'true';
+                    card.className = 'flex items-center justify-between gap-3 rounded-xl border px-4 py-3 ' + (isActive ? 'border-amber-100 bg-amber-50/40' : 'border-gray-100 bg-gray-50/40');
+                    card.innerHTML = `
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${isActive ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400'} text-sm font-extrabold tabular-nums">
+                                ${escHtml(p.discount_label)}
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-xs font-semibold text-gray-900 truncate">${escHtml(p.name)}</p>
+                                <p class="text-[10px] text-gray-400">${escHtml(scopeText)} · ${escHtml(p.start_date)} → ${escHtml(p.end_date)}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            ${isActive
+                                ? `<span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"><span class="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"></span>Active</span>`
+                                : `<span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500"><span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span>Inactive</span>`
+                            }
+                            ${isActive
+                                ? `<button data-promo-id="${p.id}" onclick="killPromoFromProduct(this)" class="inline-flex items-center gap-1 rounded-lg bg-red-50 border border-red-200 px-2.5 py-1.5 text-[10px] font-semibold text-red-700 hover:bg-red-100 transition-colors">
+                                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9a2.25 2.25 0 01-2.25-2.25v-9z"/></svg>
+                                    Stopper
+                                </button>`
+                                : ''
+                            }
+                        </div>`;
+                    list.appendChild(card);
+                });
+                list.classList.remove('hidden');
+            })
+            .catch(() => { document.getElementById('promos-loading').style.display = 'none'; });
+    })
+    .catch(() => {
+        errEl.textContent = 'Erreur réseau.';
+        errEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.innerHTML = `<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>Créer la promotion`;
+    });
+}
+</script>
 {% endblock %}

@@ -271,13 +271,22 @@ class ProductsView(TemplateView):
             raw_filters["product_family_id"] = family_val
         context["active_filters"] = raw_filters
 
-        api_params = dict(raw_filters) or None
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            f_products  = executor.submit(
+                api_get, "/products",
+                {"active": raw_filters["active"]} if "active" in raw_filters else None,
+            )
+            f_countries = executor.submit(build_country_choices)
+            f_stores    = executor.submit(build_store_choices)
 
         try:
-            products = api_get("/products", params={"active": raw_filters["active"]} if "active" in raw_filters else None)
+            products = f_products.result()
         except ApiClientError as exc:
             context["api_error"] = str(exc)
             return context
+
+        context["countries"] = f_countries.result()
+        context["stores"]    = f_stores.result()
 
         built = []
         families_seen: dict[str, str] = {}
@@ -466,9 +475,6 @@ class PromotionsView(TemplateView):
         context = super().get_context_data(**kwargs)
         context["api_error"] = None
         context["promotions"] = []
-        context["countries"] = build_country_choices()
-        context["stores"] = build_store_choices()
-
         raw_filters = {}
         discount_type_val = self.request.GET.get("discount_type", "").strip()
         if discount_type_val:
@@ -484,15 +490,27 @@ class PromotionsView(TemplateView):
             raw_filters["store_id"] = store_id_val
         context["active_filters"] = raw_filters
 
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            f_promotions = executor.submit(api_get, "/promotions", raw_filters or None)
+            f_countries  = executor.submit(build_country_choices)
+            f_stores     = executor.submit(build_store_choices)
+            f_products   = executor.submit(build_product_lookup)
+
         try:
-            promotions = api_get("/promotions", params=raw_filters or None)
+            promotions = f_promotions.result()
         except ApiClientError as exc:
             context["api_error"] = str(exc)
             return context
 
-        product_lookup = build_product_lookup()
-        country_lookup = build_country_lookup(context["countries"])
-        store_lookup = build_store_lookup(context["stores"])
+        context["countries"] = f_countries.result()
+        context["stores"]    = f_stores.result()
+        product_lookup  = f_products.result()
+        context["products"]  = [
+            {"id": pid, "code": p.get("code", ""), "name": p.get("name", f"#{pid}")}
+            for pid, p in product_lookup.items()
+        ]
+        country_lookup  = build_country_lookup(context["countries"])
+        store_lookup    = build_store_lookup(context["stores"])
 
         for promotion in promotions:
             product_display = get_product_display(
@@ -504,6 +522,8 @@ class PromotionsView(TemplateView):
 
             context["promotions"].append(
                 {
+                    "id": promotion.get("id"),
+                    "product_id": promotion.get("product_id"),
                     "code": promotion.get("code") or "N/A",
                     "name": promotion.get("name") or "N/A",
                     "description": promotion.get("description") or "N/A",
@@ -954,4 +974,72 @@ class PromotionDeactivateView(View):
             return JsonResponse({"error": str(exc)}, status=502)
         return JsonResponse({"id": data["id"], "active": data["active"]})
 
-        return context
+
+class PromotionCreateView(View):
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({"error": "Données invalides"}, status=400)
+
+        payload = {
+            "code": str(data.get("code", "")).strip(),
+            "name": str(data.get("name", "")).strip(),
+            "description": str(data.get("description", "")).strip() or None,
+            "discount_type": data.get("discount_type", ""),
+            "discount_value": data.get("discount_value"),
+            "product_id": data.get("product_id"),
+            "start_date": data.get("start_date"),
+            "end_date": data.get("end_date"),
+            "country_id": data.get("country_id"),
+            "store_id": data.get("store_id") or None,
+            "created_by": 1,
+        }
+
+        try:
+            result = api_post("/promotions", payload)
+        except ApiResponseError as exc:
+            return JsonResponse({"error": str(exc)}, status=400)
+        except ApiClientError as exc:
+            return JsonResponse({"error": str(exc)}, status=502)
+
+        return JsonResponse(result, status=201)
+
+
+class ProductPromotionsView(View):
+    def get(self, _request, product_id):
+        try:
+            promotions = api_get("/promotions", params={"product_id": product_id})
+        except ApiClientError as exc:
+            return JsonResponse({"error": str(exc)}, status=502)
+
+        countries = build_country_choices()
+        stores = build_store_choices()
+        country_lookup = build_country_lookup(countries)
+        store_lookup = build_store_lookup(stores)
+
+        result = []
+        for p in promotions:
+            cid = p.get("country_id")
+            sid = p.get("store_id")
+            dt = p.get("discount_type", "")
+            dv = p.get("discount_value", "")
+            try:
+                label = f"{Decimal(str(dv)).normalize()}%" if dt == "PERCENTAGE" else f"{Decimal(str(dv)).normalize()} (prix fixe)"
+            except (InvalidOperation, TypeError):
+                label = str(dv)
+            result.append({
+                "id": p.get("id"),
+                "code": p.get("code", ""),
+                "name": p.get("name", ""),
+                "discount_label": label,
+                "discount_type": dt,
+                "discount_value": str(dv),
+                "start_date": p.get("start_date", ""),
+                "end_date": p.get("end_date", ""),
+                "active": p.get("active", False),
+                "country_name": country_lookup.get(cid, f"Pays #{cid}") if cid else "N/A",
+                "store_name": store_lookup.get(sid, f"Magasin #{sid}") if sid else None,
+            })
+
+        return JsonResponse({"promotions": result})

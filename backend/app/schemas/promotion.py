@@ -30,3 +30,17 @@ class PromotionRead(BaseModel):
     store_id: int | None
 
     active: bool
+
+
+class PromotionCreate(BaseModel):
+    code: str
+    name: str
+    description: str | None = None
+    discount_type: DiscountTypeEnum
+    discount_value: Decimal
+    product_id: int
+    start_date: date
+    end_date: date
+    country_id: int
+    store_id: int | None = None
+    created_by: int = 1

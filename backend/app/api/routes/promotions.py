@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models.promotion import DiscountType, Promotion
-from app.schemas.promotion import PromotionRead
+from app.schemas.promotion import PromotionCreate, PromotionRead
 
 router = APIRouter(prefix="/promotions", tags=["Promotions"])
 
@@ -38,6 +38,15 @@ def list_promotions(
     stmt = stmt.order_by(Promotion.id.asc())
 
     return list(db.scalars(stmt).all())
+
+
+@router.post("", response_model=PromotionRead, status_code=201)
+def create_promotion(payload: PromotionCreate, db: Session = Depends(get_db)):
+    promo = Promotion(**payload.model_dump())
+    db.add(promo)
+    db.commit()
+    db.refresh(promo)
+    return promo
 
 
 @router.patch("/{promotion_id}/deactivate", response_model=PromotionRead)

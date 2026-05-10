@@ -33,6 +33,13 @@
                 <p class="text-xs text-gray-400">{{ promotions|length }} promotion{% if promotions|length > 1 %}s{% endif %}</p>
             </div>
         </div>
+        <button onclick="openCreateModal(null)"
+                class="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-amber-600 active:scale-95">
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+            </svg>
+            Nouvelle promotion
+        </button>
     </div>
 
     {# Filter bar #}
@@ -109,6 +116,7 @@
              data-promo-scope="{{ promotion.scope }}"
              data-discount-type="{{ promotion.discount_type }}"
              data-discount-value="{{ promotion.discount_value }}"
+             data-product-id="{{ promotion.product_id }}"
              data-product-name="{{ promotion.product_name }}"
              data-product-code="{{ promotion.product_code }}"
              data-image-url="{{ promotion.image_url }}"
@@ -303,6 +311,156 @@
             </div>
 
         </div>
+
+        {# Panel footer: actions #}
+        <div class="border-t border-gray-100 px-6 py-4 flex items-center justify-between gap-3">
+            <button id="panel-kill-btn"
+                    onclick="killPromoFromPanel()"
+                    class="inline-flex items-center gap-2 rounded-xl bg-red-50 px-4 py-2 text-xs font-semibold text-red-700 border border-red-200 transition-all hover:bg-red-100 active:scale-95">
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9a2.25 2.25 0 01-2.25-2.25v-9z"/>
+                </svg>
+                Stopper la promotion
+            </button>
+            <button onclick="openCreateModal(currentPanelProductId)"
+                    class="inline-flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-700 border border-amber-200 transition-all hover:bg-amber-100 active:scale-95">
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                </svg>
+                Nouvelle promotion
+            </button>
+        </div>
+    </div>
+</div>
+
+{# ── Create Promotion Modal (centered overlay) ── #}
+<div id="create-promo-modal" class="fixed inset-0 z-[60] hidden" aria-modal="true" role="dialog">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeCreateModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+
+            {# Modal header #}
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-sm font-semibold text-gray-900">Créer une promotion</h3>
+                </div>
+                <button onclick="closeCreateModal()" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 transition-colors">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            {# Modal body #}
+            <div class="overflow-y-auto flex-1 px-6 py-5">
+                <div id="create-promo-error" class="hidden mb-4 rounded-lg bg-red-50 px-4 py-3 text-xs text-red-700 border border-red-200"></div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    {# Nom #}
+                    <div class="col-span-2">
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Nom de la promotion <span class="text-red-500">*</span></label>
+                        <input id="cp-name" type="text" placeholder="Ex: Promotion été 2026"
+                               class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                    </div>
+
+                    {# Code #}
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Code <span class="text-red-500">*</span></label>
+                        <input id="cp-code" type="text" placeholder="PROMO-ETE-2026"
+                               class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono text-gray-900 placeholder-gray-400 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                    </div>
+
+                    {# Type de remise #}
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Type de remise <span class="text-red-500">*</span></label>
+                        <select id="cp-discount-type"
+                                class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                            <option value="PERCENTAGE">Pourcentage (%)</option>
+                            <option value="FIXED_PRICE">Prix fixe</option>
+                        </select>
+                    </div>
+
+                    {# Valeur de remise #}
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Valeur de remise <span class="text-red-500">*</span></label>
+                        <input id="cp-discount-value" type="number" step="0.01" min="0" placeholder="20"
+                               class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                    </div>
+
+                    {# Produit #}
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Produit <span class="text-red-500">*</span></label>
+                        <select id="cp-product"
+                                class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                            <option value="">— Sélectionner —</option>
+                            {% for p in products %}
+                                <option value="{{ p.id }}">{{ p.code }} — {{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    {# Pays #}
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Pays <span class="text-red-500">*</span></label>
+                        <select id="cp-country" onchange="filterStoresForCreate()"
+                                class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                            <option value="">— Sélectionner —</option>
+                            {% for country in countries %}
+                                <option value="{{ country.id }}">{{ country.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    {# Magasin #}
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Magasin <span class="text-gray-400 font-normal normal-case">(optionnel)</span></label>
+                        <select id="cp-store"
+                                class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                            <option value="">— Tous les magasins —</option>
+                        </select>
+                    </div>
+
+                    {# Dates #}
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Date de début <span class="text-red-500">*</span></label>
+                        <input id="cp-start-date" type="date"
+                               class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Date de fin <span class="text-red-500">*</span></label>
+                        <input id="cp-end-date" type="date"
+                               class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                    </div>
+
+                    {# Description #}
+                    <div class="col-span-2">
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Description <span class="text-gray-400 font-normal normal-case">(optionnel)</span></label>
+                        <textarea id="cp-description" rows="2" placeholder="Description de la promotion…"
+                                  class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400 resize-none"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            {# Modal footer #}
+            <div class="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4">
+                <button onclick="closeCreateModal()"
+                        class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                    Annuler
+                </button>
+                <button id="cp-submit-btn" onclick="submitCreatePromo()"
+                        class="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-amber-600 active:scale-95 disabled:opacity-60">
+                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                    </svg>
+                    Créer la promotion
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -311,12 +469,23 @@
 
 {% block extra_scripts %}
 <script>
+{# ── Stores data for JS filtering ── #}
+const ALL_STORES = [{% for store in stores %}{"id": {{ store.id }}, "name": "{{ store.name }}", "country_id": {{ store.country_id }}},{% endfor %}];
+
 const modal    = document.getElementById('promo-modal');
 const panel    = document.getElementById('promo-panel');
 const backdrop = document.getElementById('promo-backdrop');
 
+let currentPanelPromoId   = null;
+let currentPanelProductId = null;
+let currentPanelIsActive  = false;
+
 function openPromoModal(card) {
     const d = card.dataset;
+
+    currentPanelPromoId   = d.promoId || null;
+    currentPanelProductId = d.productId || null;
+    currentPanelIsActive  = d.promoStatus === 'Active';
 
     document.getElementById('panel-promo-code').textContent = d.promoCode || '';
     document.getElementById('panel-promo-name').textContent = d.promoName || '—';
@@ -330,6 +499,19 @@ function openPromoModal(card) {
     document.getElementById('panel-promo-status').innerHTML = isActive
         ? `<span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700"><span class="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"></span>Active</span>`
         : `<span class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500"><span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span>Inactive</span>`;
+
+    // Kill button visibility
+    const killBtn = document.getElementById('panel-kill-btn');
+    if (isActive) {
+        killBtn.disabled = false;
+        killBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+        killBtn.textContent = '';
+        killBtn.innerHTML = `<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9a2.25 2.25 0 01-2.25-2.25v-9z"/></svg>Stopper la promotion`;
+    } else {
+        killBtn.disabled = true;
+        killBtn.classList.add('opacity-40', 'cursor-not-allowed');
+        killBtn.textContent = 'Promotion inactive';
+    }
 
     // Description
     const desc = d.promoDescription;
@@ -354,7 +536,7 @@ function openPromoModal(card) {
     document.getElementById('panel-product-code').textContent = d.productCode || '';
 
     // Context
-    const scopeLabels = { 'Country promotion': 'Pays', 'Store promotion': 'Magasin' };
+    const scopeLabels = { 'Country promotion': 'Pays', 'Store promotion': 'Magasin', 'Promotion pays': 'Pays', 'Promotion magasin': 'Magasin' };
     document.getElementById('panel-scope').textContent = scopeLabels[d.promoScope] || d.promoScope || '—';
 
     let location = d.countryName || '—';
@@ -379,6 +561,172 @@ function closePromoModal() {
     setTimeout(() => { modal.classList.add('hidden'); document.body.style.overflow = ''; }, 300);
 }
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closePromoModal(); });
+// ── Kill promotion from detail panel ──
+function killPromoFromPanel() {
+    if (!currentPanelPromoId || !currentPanelIsActive) return;
+
+    const btn = document.getElementById('panel-kill-btn');
+    btn.disabled = true;
+    btn.innerHTML = `<svg class="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>Arrêt en cours…`;
+
+    const csrf = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+
+    fetch(`/promotions/${currentPanelPromoId}/deactivate/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/json' },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            btn.disabled = false;
+            btn.innerHTML = `Erreur: ${data.error}`;
+            return;
+        }
+        currentPanelIsActive = false;
+        // Update panel status badge
+        document.getElementById('panel-promo-status').innerHTML =
+            `<span class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500"><span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span>Inactive</span>`;
+        btn.disabled = true;
+        btn.classList.add('opacity-40', 'cursor-not-allowed');
+        btn.textContent = 'Promotion stoppée';
+
+        // Update card in grid
+        const card = document.querySelector(`[data-promo-id="${currentPanelPromoId}"]`);
+        if (card) {
+            card.dataset.promoStatus = 'Inactive';
+            const stripe = card.querySelector('.h-1.w-full');
+            if (stripe) { stripe.classList.remove('bg-amber-400'); stripe.classList.add('bg-gray-300'); }
+            const badge = card.querySelector('.animate-pulse')?.parentElement;
+            if (badge) badge.outerHTML = `<span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500"><span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span>Inactive</span>`;
+            card.classList.remove('border-amber-200', 'hover:border-amber-300');
+            card.classList.add('border-gray-200', 'hover:border-gray-300');
+        }
+    })
+    .catch(() => {
+        btn.disabled = false;
+        btn.innerHTML = 'Erreur réseau';
+    });
+}
+
+// ── Create promotion modal ──
+function openCreateModal(prefillProductId) {
+    document.getElementById('create-promo-error').classList.add('hidden');
+    // Reset fields
+    ['cp-name','cp-code','cp-discount-value','cp-description','cp-start-date','cp-end-date'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+    document.getElementById('cp-discount-type').value = 'PERCENTAGE';
+    document.getElementById('cp-country').value = '';
+    filterStoresForCreate();
+
+    // Prefill product if provided
+    const productSelect = document.getElementById('cp-product');
+    if (prefillProductId) {
+        productSelect.value = prefillProductId;
+        productSelect.disabled = true;
+    } else {
+        productSelect.value = '';
+        productSelect.disabled = false;
+    }
+
+    document.getElementById('cp-submit-btn').disabled = false;
+    document.getElementById('create-promo-modal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeCreateModal() {
+    document.getElementById('create-promo-modal').classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+function filterStoresForCreate() {
+    const countryId = parseInt(document.getElementById('cp-country').value, 10);
+    const storeSelect = document.getElementById('cp-store');
+    storeSelect.innerHTML = '<option value="">— Tous les magasins —</option>';
+    if (!isNaN(countryId)) {
+        ALL_STORES.filter(s => s.country_id === countryId).forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = s.name;
+            storeSelect.appendChild(opt);
+        });
+    }
+}
+
+function submitCreatePromo() {
+    const errEl = document.getElementById('create-promo-error');
+    errEl.classList.add('hidden');
+
+    const name         = document.getElementById('cp-name').value.trim();
+    const code         = document.getElementById('cp-code').value.trim();
+    const discountType = document.getElementById('cp-discount-type').value;
+    const discountValue= document.getElementById('cp-discount-value').value;
+    const productId    = document.getElementById('cp-product').value;
+    const countryId    = document.getElementById('cp-country').value;
+    const storeId      = document.getElementById('cp-store').value;
+    const startDate    = document.getElementById('cp-start-date').value;
+    const endDate      = document.getElementById('cp-end-date').value;
+    const description  = document.getElementById('cp-description').value.trim();
+
+    if (!name || !code || !discountValue || !productId || !countryId || !startDate || !endDate) {
+        errEl.textContent = 'Veuillez remplir tous les champs obligatoires.';
+        errEl.classList.remove('hidden');
+        return;
+    }
+    if (endDate < startDate) {
+        errEl.textContent = 'La date de fin doit être après la date de début.';
+        errEl.classList.remove('hidden');
+        return;
+    }
+
+    const btn = document.getElementById('cp-submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = `<svg class="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>Création…`;
+
+    const csrf = document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+
+    fetch('/promotions/creer/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            name, code, description: description || null,
+            discount_type: discountType,
+            discount_value: parseFloat(discountValue),
+            product_id: parseInt(productId, 10),
+            country_id: parseInt(countryId, 10),
+            store_id: storeId ? parseInt(storeId, 10) : null,
+            start_date: startDate,
+            end_date: endDate,
+        }),
+    })
+    .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
+    .then(({ ok, data }) => {
+        if (!ok) {
+            errEl.textContent = data.error || 'Une erreur est survenue.';
+            errEl.classList.remove('hidden');
+            btn.disabled = false;
+            btn.innerHTML = `<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>Créer la promotion`;
+            return;
+        }
+        closeCreateModal();
+        window.location.reload();
+    })
+    .catch(() => {
+        errEl.textContent = 'Erreur réseau. Veuillez réessayer.';
+        errEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.innerHTML = `<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>Créer la promotion`;
+    });
+}
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        if (!document.getElementById('create-promo-modal').classList.contains('hidden')) {
+            closeCreateModal();
+        } else {
+            closePromoModal();
+        }
+    }
+});
 </script>
 {% endblock %}
