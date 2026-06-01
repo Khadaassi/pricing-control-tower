@@ -15,11 +15,6 @@ class UserAccount(Base):
     full_name: Mapped[str] = mapped_column(String(150), nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=true())
 
-    role: Mapped[str] = mapped_column(
-        String(50),
-        nullable=False,
-        server_default="PRICING_ANALYST",
-    )
     country_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey("pct_core.country.id", name="fk_user_account_country"),
