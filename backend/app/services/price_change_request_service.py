@@ -21,6 +21,7 @@ from app.schemas.price_change_request import PriceChangeRequestCreate
 def create_price_change_request(
     db: Session,
     payload: PriceChangeRequestCreate,
+    requested_by_user_id: int,
 ) -> PriceChangeRequest:
     product = db.scalar(
         select(Product).where(Product.id == payload.product_id)
@@ -41,7 +42,7 @@ def create_price_change_request(
         )
 
     requester = db.scalar(
-        select(UserAccount).where(UserAccount.id == payload.requested_by_user_id)
+        select(UserAccount).where(UserAccount.id == requested_by_user_id)
     )
     if requester is None:
         raise HTTPException(
@@ -90,7 +91,7 @@ def create_price_change_request(
         status="PENDING",
         justification=payload.justification,
         requested_effective_date=payload.requested_effective_date,
-        requested_by_user_id=payload.requested_by_user_id,
+        requested_by_user_id=requested_by_user_id,
     )
 
     db.add(price_change_request)
@@ -99,7 +100,7 @@ def create_price_change_request(
     audit_log = AuditLog(
         price_change_request_id=price_change_request.id,
         action_type="REQUEST_CREATED",
-        performed_by_user_id=payload.requested_by_user_id,
+        performed_by_user_id=requested_by_user_id,
         description=(
             "Price change request created with status PENDING. "
             f"Product ID: {payload.product_id}, "

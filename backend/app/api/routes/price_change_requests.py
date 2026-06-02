@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from app.api.dependencies.current_user import get_current_business_user
 from app.db import get_db
+from app.models.user_account import UserAccount
 from app.schemas.price_change_request import (
-    PriceChangeRequestApprove,
     PriceChangeRequestCreate,
     PriceChangeRequestRead,
     PriceChangeRequestReject,
@@ -29,8 +30,14 @@ router = APIRouter(
 def create_price_change_request_endpoint(
     payload: PriceChangeRequestCreate,
     db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_business_user),
 ) -> PriceChangeRequestRead:
-    return create_price_change_request(db=db, payload=payload)
+    return create_price_change_request(
+        db=db,
+        payload=payload,
+        requested_by_user_id=current_user.id,
+    )
+
 
 @router.post(
     "/{price_change_request_id}/approve",
@@ -39,14 +46,15 @@ def create_price_change_request_endpoint(
 )
 def approve_price_change_request_endpoint(
     price_change_request_id: int,
-    payload: PriceChangeRequestApprove,
     db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_business_user),
 ) -> PriceChangeRequestRead:
     return approve_and_apply_price_change_request(
         db=db,
         price_change_request_id=price_change_request_id,
-        performed_by_user_id=payload.approved_by_user_id,
+        performed_by_user_id=current_user.id,
     )
+
 
 @router.get(
     "",
@@ -73,6 +81,7 @@ def get_price_change_requests_endpoint(
         offset=offset,
     )
 
+
 @router.post(
     "/{price_change_request_id}/reject",
     response_model=PriceChangeRequestRead,
@@ -82,10 +91,11 @@ def reject_price_change_request_endpoint(
     price_change_request_id: int,
     payload: PriceChangeRequestReject,
     db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_business_user),
 ) -> PriceChangeRequestRead:
     return reject_price_change_request(
         db=db,
         price_change_request_id=price_change_request_id,
-        rejected_by_user_id=payload.rejected_by_user_id,
+        rejected_by_user_id=current_user.id,
         reason=payload.reason,
     )

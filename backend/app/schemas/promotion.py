@@ -43,4 +43,3 @@ class PromotionCreate(BaseModel):
     end_date: date
     country_id: int
     store_id: int | None = None
-    created_by: int = 1

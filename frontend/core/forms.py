@@ -112,7 +112,6 @@ class PriceChangeRequestForm(forms.Form):
             "requested_price_amount": str(cleaned["requested_price_amount"]),
             "justification": cleaned["justification"],
             "requested_effective_date": cleaned["requested_effective_date"].isoformat(),
-            "requested_by_user_id": 1,
         }
         if cleaned.get("store_id"):
             payload["store_id"] = cleaned["store_id"]

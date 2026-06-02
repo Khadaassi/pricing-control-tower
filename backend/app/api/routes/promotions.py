@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.dependencies.current_user import get_current_business_user
 from app.db import get_db
 from app.models.promotion import DiscountType, Promotion
+from app.models.user_account import UserAccount
 from app.schemas.promotion import PromotionCreate, PromotionRead
 
 router = APIRouter(prefix="/promotions", tags=["Promotions"])
@@ -41,8 +43,15 @@ def list_promotions(
 
 
 @router.post("", response_model=PromotionRead, status_code=201)
-def create_promotion(payload: PromotionCreate, db: Session = Depends(get_db)):
-    promo = Promotion(**payload.model_dump())
+def create_promotion(
+    payload: PromotionCreate,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_business_user),
+):
+    promo_data = payload.model_dump()
+    promo_data["created_by"] = current_user.id
+
+    promo = Promotion(**promo_data)
     db.add(promo)
     db.commit()
     db.refresh(promo)
@@ -50,12 +59,17 @@ def create_promotion(payload: PromotionCreate, db: Session = Depends(get_db)):
 
 
 @router.patch("/{promotion_id}/deactivate", response_model=PromotionRead)
-def deactivate_promotion(promotion_id: int, db: Session = Depends(get_db)):
+def deactivate_promotion(
+    promotion_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_business_user),
+):
     promotion = db.get(Promotion, promotion_id)
     if promotion is None:
         raise HTTPException(status_code=404, detail="Promotion not found")
     if not promotion.active:
         raise HTTPException(status_code=409, detail="Promotion is already inactive")
+
     promotion.active = False
     db.commit()
     db.refresh(promotion)

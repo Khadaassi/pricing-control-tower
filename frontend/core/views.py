@@ -647,14 +647,11 @@ class PriceChangeRequestsView(LoginRequiredMixin, TemplateView):
         return redirect("core:price_change_requests")
 
     def approve_request(self, price_change_request_id):
-        payload = {
-            "approved_by_user_id": 1,
-        }
-
         try:
             api_post(
                 f"/price-change-requests/{price_change_request_id}/approve",
-                payload=payload,
+                payload=None,
+                user_email=self.request.user.email,
             )
         except ApiClientError as exc:
             messages.error(
@@ -677,7 +674,6 @@ class PriceChangeRequestsView(LoginRequiredMixin, TemplateView):
             return redirect("core:price_change_requests")
 
         payload = {
-            "rejected_by_user_id": 1,
             "reason": reason,
         }
 
@@ -685,6 +681,7 @@ class PriceChangeRequestsView(LoginRequiredMixin, TemplateView):
             api_post(
                 f"/price-change-requests/{price_change_request_id}/reject",
                 payload=payload,
+                user_email=request.user.email,
             )
         except ApiClientError as exc:
             messages.error(
@@ -758,7 +755,7 @@ class PriceChangeRequestCreateView(LoginRequiredMixin, TemplateView):
             old_price = request.POST.get("old_price_amount", "").strip()
             if old_price:
                 payload["old_price_amount"] = old_price
-            api_post("/price-change-requests", payload=payload)
+            api_post("/price-change-requests", payload=payload, user_email=request.user.email)
         except ApiClientError as exc:
             return self.render_to_response(
                 self.get_context_data(form=form, api_error=str(exc))
@@ -968,7 +965,7 @@ class AnomaliesView(LoginRequiredMixin, TemplateView):
 class PromotionDeactivateView(LoginRequiredMixin, View):
     def post(self, _request, promotion_id: int):
         try:
-            data = api_patch(f"/promotions/{promotion_id}/deactivate")
+            data = api_patch(f"/promotions/{promotion_id}/deactivate", user_email=_request.user.email)
         except ApiResponseError as exc:
             return JsonResponse({"error": str(exc)}, status=409)
         except ApiClientError as exc:
@@ -994,11 +991,10 @@ class PromotionCreateView(LoginRequiredMixin, View):
             "end_date": data.get("end_date"),
             "country_id": data.get("country_id"),
             "store_id": data.get("store_id") or None,
-            "created_by": 1,
         }
 
         try:
-            result = api_post("/promotions", payload)
+            result = api_post("/promotions", payload, user_email=request.user.email)
         except ApiResponseError as exc:
             return JsonResponse({"error": str(exc)}, status=400)
         except ApiClientError as exc:

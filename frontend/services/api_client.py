@@ -22,11 +22,27 @@ def build_api_url(endpoint: str) -> str:
     return f"{base_url}/{endpoint_path}"
 
 
-def api_get(endpoint: str, params: dict[str, Any] | None = None) -> Any:
+def build_user_headers(user_email: str | None = None) -> dict[str, str]:
+    if not user_email:
+        return {}
+
+    return {"X-User-Email": user_email}
+
+
+def api_get(
+    endpoint: str,
+    params: dict[str, Any] | None = None,
+    user_email: str | None = None,
+) -> Any:
     url = build_api_url(endpoint)
 
     try:
-        response = requests.get(url, params=params, timeout=5)
+        response = requests.get(
+            url,
+            params=params,
+            headers=build_user_headers(user_email),
+            timeout=5,
+        )
         response.raise_for_status()
         return response.json()
     except requests.exceptions.ConnectionError as exc:
@@ -41,11 +57,20 @@ def api_get(endpoint: str, params: dict[str, Any] | None = None) -> Any:
         raise ApiResponseError("FastAPI backend returned invalid JSON.") from exc
 
 
-def api_post(endpoint: str, payload: dict[str, Any] | None = None) -> Any:
+def api_post(
+    endpoint: str,
+    payload: dict[str, Any] | None = None,
+    user_email: str | None = None,
+) -> Any:
     url = build_api_url(endpoint)
 
     try:
-        response = requests.post(url, json=payload, timeout=5)
+        response = requests.post(
+            url,
+            json=payload,
+            headers=build_user_headers(user_email),
+            timeout=5,
+        )
         response.raise_for_status()
         return response.json()
     except requests.exceptions.ConnectionError as exc:
@@ -56,12 +81,22 @@ def api_post(endpoint: str, payload: dict[str, Any] | None = None) -> Any:
         raise ApiResponseError(extract_api_error_message(response)) from exc
     except requests.exceptions.JSONDecodeError as exc:
         raise ApiResponseError("FastAPI backend returned invalid JSON.") from exc
-    
-def api_patch(endpoint: str, payload: dict[str, Any] | None = None) -> Any:
+
+
+def api_patch(
+    endpoint: str,
+    payload: dict[str, Any] | None = None,
+    user_email: str | None = None,
+) -> Any:
     url = build_api_url(endpoint)
 
     try:
-        response = requests.patch(url, json=payload, timeout=5)
+        response = requests.patch(
+            url,
+            json=payload,
+            headers=build_user_headers(user_email),
+            timeout=5,
+        )
         response.raise_for_status()
         return response.json()
     except requests.exceptions.ConnectionError as exc:
