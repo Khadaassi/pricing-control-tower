@@ -1,5 +1,7 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.current_user import get_current_business_user
@@ -18,13 +20,17 @@ from app.services.scope_service import (
 router = APIRouter(prefix="/promotions", tags=["Promotions"])
 
 
-@router.get("", response_model=list[PromotionRead])
+@router.get("")
 def list_promotions(
     country_id: int | None = Query(default=None),
     store_id: int | None = Query(default=None),
     active: bool | None = Query(default=None),
     discount_type: DiscountType | None = Query(default=None),
     product_id: int | None = Query(default=None),
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
+    limit: int = Query(default=12, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user: UserAccount = Depends(get_current_business_user),
 ):
@@ -50,9 +56,20 @@ def list_promotions(
     if product_id is not None:
         stmt = stmt.where(Promotion.product_id == product_id)
 
-    stmt = stmt.order_by(Promotion.id.asc())
+    if date_from is not None:
+        stmt = stmt.where(Promotion.start_date >= date_from)
 
-    return list(db.scalars(stmt).all())
+    if date_to is not None:
+        stmt = stmt.where(Promotion.start_date <= date_to)
+
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    total = db.scalar(count_stmt) or 0
+
+    stmt = stmt.order_by(Promotion.id.asc()).limit(limit).offset(offset)
+
+    items = [PromotionRead.model_validate(p).model_dump() for p in db.scalars(stmt).all()]
+
+    return {"items": items, "total": total}
 
 
 @router.post("", response_model=PromotionRead, status_code=201)

@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -67,28 +68,45 @@ def list_analytics_sales(
     store_id: int | None = Query(default=None),
     country_id: int | None = Query(default=None),
     is_promo: bool | None = Query(default=None),
-    limit: int = Query(default=100, ge=1, le=1000),
-) -> list[dict]:
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
+    limit: int = Query(default=25, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+) -> dict:
     conditions = ["1=1"]
-    params: dict = {"limit": limit}
+    filter_params: dict = {}
 
     if product_id is not None:
         conditions.append("product_id = :product_id")
-        params["product_id"] = product_id
+        filter_params["product_id"] = product_id
 
     if store_id is not None:
         conditions.append("store_id = :store_id")
-        params["store_id"] = store_id
+        filter_params["store_id"] = store_id
 
     if country_id is not None:
         conditions.append("country_id = :country_id")
-        params["country_id"] = country_id
+        filter_params["country_id"] = country_id
 
     if is_promo is not None:
         conditions.append("is_promo = :is_promo")
-        params["is_promo"] = is_promo
+        filter_params["is_promo"] = is_promo
+
+    if date_from is not None:
+        conditions.append("transaction_day >= :date_from")
+        filter_params["date_from"] = date_from
+
+    if date_to is not None:
+        conditions.append("transaction_day <= :date_to")
+        filter_params["date_to"] = date_to
 
     where = " AND ".join(conditions)
+
+    count_sql = text(f"SELECT COUNT(*) FROM pct_analytics.obt_sales WHERE {where}")
+    count_row = db.execute(count_sql, filter_params).fetchone()
+    total = int(count_row[0]) if count_row else 0
+
+    params = {**filter_params, "limit": limit, "offset": offset}
     sql = text(f"""
         SELECT
             transaction_id,
@@ -128,7 +146,8 @@ def list_analytics_sales(
         WHERE {where}
         ORDER BY transaction_date DESC
         LIMIT :limit
+        OFFSET :offset
     """)
 
     rows = db.execute(sql, params).mappings().all()
-    return [dict(row) for row in rows]
+    return {"items": [dict(row) for row in rows], "total": total}

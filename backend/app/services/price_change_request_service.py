@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import HTTPException
 from fastapi import status as http_status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.audit_log import AuditLog
@@ -128,9 +128,11 @@ def list_price_change_requests(
     scope_country_id: int | None = None,
     scope_store_id: int | None = None,
     include_country_level_for_store: bool = False,
+    date_from: date | None = None,
+    date_to: date | None = None,
     limit: int = 100,
     offset: int = 0,
-) -> list[PriceChangeRequest]:
+) -> tuple[list[PriceChangeRequest], int]:
     allowed_statuses = {
         "PENDING",
         "APPROVED",
@@ -179,13 +181,26 @@ def list_price_change_requests(
             PriceChangeRequest.requested_by_user_id == requested_by_user_id
         )
 
-    query = (
+    if date_from is not None:
+        query = query.where(
+            PriceChangeRequest.created_at >= datetime.combine(date_from, time.min)
+        )
+
+    if date_to is not None:
+        query = query.where(
+            PriceChangeRequest.created_at <= datetime.combine(date_to, time.max)
+        )
+
+    count_query = select(func.count()).select_from(query.subquery())
+    total = db.scalar(count_query) or 0
+
+    paginated_query = (
         query.order_by(PriceChangeRequest.created_at.desc())
         .offset(offset)
         .limit(limit)
     )
 
-    return list(db.scalars(query).all())
+    return list(db.scalars(paginated_query).all()), int(total)
 def approve_and_apply_price_change_request(
     db: Session,
     price_change_request_id: int,

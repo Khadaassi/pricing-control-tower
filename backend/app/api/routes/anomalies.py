@@ -19,7 +19,6 @@ router = APIRouter(prefix="/anomalies", tags=["anomalies"])
 
 @router.get(
     "",
-    response_model=list[BusinessAnomalyRead],
     summary="Liste des anomalies tarifaires et commerciales",
     description=(
         "Retourne les anomalies détectées statistiquement à partir du modèle analytique "
@@ -43,13 +42,14 @@ def list_business_anomalies(
         default=None, description="Filtrer par identifiant magasin"
     ),
     limit: int = Query(
-        default=50,
+        default=20,
         ge=1,
         le=200,
         description="Nombre maximum d'anomalies à retourner",
     ),
+    offset: int = Query(default=0, ge=0),
     current_user: UserAccount = Depends(get_current_business_user),
-) -> list[BusinessAnomalyRead]:
+) -> dict:
     ensure_store_filter_allowed(current_user, store_id)
     ensure_store_belongs_to_country_scope(db, current_user, store_id)
 
@@ -58,11 +58,13 @@ def list_business_anomalies(
         user=current_user,
     )
 
-    return get_business_anomalies(
+    items, total = get_business_anomalies(
         db=db,
         promotion_id=promotion_id,
         product_id=product_id,
         store_id=store_id,
         allowed_store_ids=allowed_store_ids,
         limit=limit,
+        offset=offset,
     )
+    return {"items": [item.model_dump() for item in items], "total": total}

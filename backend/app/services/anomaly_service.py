@@ -348,7 +348,8 @@ def get_business_anomalies(
     store_id: int | None = None,
     allowed_store_ids: list[int] | None = None,
     limit: int = 50,
-) -> list[BusinessAnomalyRead]:
+    offset: int = 0,
+) -> tuple[list[BusinessAnomalyRead], int]:
     """
     Détecte les anomalies tarifaires et commerciales depuis pct_analytics.kpi_promo_performance.
 
@@ -374,14 +375,18 @@ def get_business_anomalies(
        - LOW    : remise effective 20 % à 30 %
        - MEDIUM : remise effective 30 % à 50 %
        - HIGH   : remise effective ≥ 50 %
+
+    Returns a (items, total) tuple where total is the count before pagination.
     """
+    # Use a large limit to collect all anomalies for counting, then slice for pagination
+    fetch_limit = offset + limit
     underperforming = _get_underperforming_promos(
         db=db,
         promotion_id=promotion_id,
         product_id=product_id,
         store_id=store_id,
         allowed_store_ids=allowed_store_ids,
-        limit=limit,
+        limit=fetch_limit,
     )
     ineffective = _get_ineffective_discount_promos(
         db=db,
@@ -389,7 +394,10 @@ def get_business_anomalies(
         product_id=product_id,
         store_id=store_id,
         allowed_store_ids=allowed_store_ids,
-        limit=limit,
+        limit=fetch_limit,
     )
 
-    return (underperforming + ineffective)[:limit]
+    all_anomalies = underperforming + ineffective
+    total = len(all_anomalies)
+    page_items = all_anomalies[offset : offset + limit]
+    return page_items, total

@@ -49,3 +49,15 @@ def ensure_user_has_permission(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Permission denied: {permission_code} is required",
         )
+    
+def get_user_role_codes(
+    db: Session,
+    user_id: int,
+) -> set[str]:
+    stmt = (
+        select(Role.code)
+        .join(UserRole, UserRole.role_id == Role.id)
+        .where(UserRole.user_id == user_id)
+    )
+
+    return set(db.scalars(stmt).all())

@@ -5,6 +5,19 @@
 
 {% block content %}
 
+{% if not can_create_price_request %}
+    <div class="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+        <p class="font-semibold text-amber-900">Action non disponible</p>
+        <p class="mt-1">
+            Votre profil ne permet pas de créer une demande de changement de prix.
+        </p>
+        <a href="{% url 'core:price_change_requests' %}"
+           class="mt-4 inline-flex items-center rounded-xl bg-white px-4 py-2 text-sm font-medium text-amber-700 shadow-sm hover:bg-amber-100">
+            Retour aux demandes
+        </a>
+    </div>
+{% else %}
+
 <div class="mb-5 flex items-center justify-end">
     <a href="{% url 'core:price_change_requests' %}"
        class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 shadow-sm hover:bg-gray-50 transition-colors">
@@ -88,6 +101,12 @@
                             <div>
                                 <label for="{{ form.country_id.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1.5">
                                     Pays <span class="text-red-500">*</span>
+                                    {% if scope_country_id %}
+                                        <span class="ml-1.5 inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+                                            <svg class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+                                            Scopé
+                                        </span>
+                                    {% endif %}
                                 </label>
                                 {{ form.country_id }}
                                 {% for error in form.country_id.errors %}
@@ -98,7 +117,14 @@
                             <div>
                                 <label for="{{ form.store_id.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1.5">
                                     Magasin
-                                    <span class="ml-1 text-[10px] font-normal text-gray-400">(optionnel — portée pays si vide)</span>
+                                    {% if scope_store_id %}
+                                        <span class="ml-1.5 inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+                                            <svg class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+                                            Scopé
+                                        </span>
+                                    {% else %}
+                                        <span class="ml-1 text-[10px] font-normal text-gray-400">(optionnel — portée pays si vide)</span>
+                                    {% endif %}
                                 </label>
                                 {{ form.store_id }}
                                 {% for error in form.store_id.errors %}
@@ -257,6 +283,8 @@
 
     </div>
 </div>
+
+{% endif %}
 
 {% endblock %}
 

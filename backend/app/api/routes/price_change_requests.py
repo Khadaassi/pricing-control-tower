@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
@@ -74,26 +76,25 @@ def approve_price_change_request_endpoint(
     )
 
 
-@router.get(
-    "",
-    response_model=list[PriceChangeRequestRead],
-)
+@router.get("")
 def get_price_change_requests_endpoint(
     status: str | None = None,
     product_id: int | None = Query(default=None, gt=0),
     country_id: int | None = Query(default=None, gt=0),
     store_id: int | None = Query(default=None, gt=0),
     requested_by_user_id: int | None = Query(default=None, gt=0),
-    limit: int = Query(default=100, ge=1, le=500),
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user: UserAccount = Depends(get_current_business_user),
-) -> list[PriceChangeRequestRead]:
+) -> dict:
     ensure_country_filter_allowed(current_user, country_id)
     ensure_store_filter_allowed(current_user, store_id)
     ensure_store_belongs_to_country_scope(db, current_user, store_id)
 
-    return list_price_change_requests(
+    items, total = list_price_change_requests(
         db=db,
         status=status,
         product_id=product_id,
@@ -103,9 +104,12 @@ def get_price_change_requests_endpoint(
         scope_country_id=current_user.country_id,
         scope_store_id=current_user.store_id,
         include_country_level_for_store=True,
+        date_from=date_from,
+        date_to=date_to,
         limit=limit,
         offset=offset,
     )
+    return {"items": [PriceChangeRequestRead.model_validate(item).model_dump() for item in items], "total": total}
 
 
 @router.post(

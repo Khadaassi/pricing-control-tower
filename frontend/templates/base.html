@@ -554,7 +554,11 @@
                                 {{ request.user.get_full_name|default:request.user.username }}
                             </p>
                             <p class="truncate text-xs text-slate-500">
-                                Signed in
+                                {% if current_user_roles %}
+                                    {{ current_user_roles|join:", " }}
+                                {% else %}
+                                    Signed in
+                                {% endif %}
                             </p>
                         </div>
                     </div>
