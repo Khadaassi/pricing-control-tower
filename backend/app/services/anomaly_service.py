@@ -95,6 +95,7 @@ def _get_underperforming_promos(
     promotion_id: int | None,
     product_id: int | None,
     store_id: int | None,
+    allowed_store_ids: list[int] | None,
     limit: int,
 ) -> list[BusinessAnomalyRead]:
     """
@@ -133,6 +134,8 @@ def _get_underperforming_promos(
             q = q.where(KpiPromoPerformance.product_id == product_id)
         if store_id is not None:
             q = q.where(KpiPromoPerformance.store_id == store_id)
+        elif allowed_store_ids is not None:
+            q = q.where(KpiPromoPerformance.store_id.in_(allowed_store_ids))
         return q
 
     quotas = _quota_per_severity(limit)
@@ -217,6 +220,7 @@ def _get_ineffective_discount_promos(
     promotion_id: int | None,
     product_id: int | None,
     store_id: int | None,
+    allowed_store_ids: list[int] | None,
     limit: int,
 ) -> list[BusinessAnomalyRead]:
     """
@@ -258,6 +262,8 @@ def _get_ineffective_discount_promos(
             q = q.where(KpiPromoPerformance.product_id == product_id)
         if store_id is not None:
             q = q.where(KpiPromoPerformance.store_id == store_id)
+        elif allowed_store_ids is not None:
+            q = q.where(KpiPromoPerformance.store_id.in_(allowed_store_ids))
         return q
 
     quotas = _quota_per_severity(limit)
@@ -340,6 +346,7 @@ def get_business_anomalies(
     promotion_id: int | None = None,
     product_id: int | None = None,
     store_id: int | None = None,
+    allowed_store_ids: list[int] | None = None,
     limit: int = 50,
 ) -> list[BusinessAnomalyRead]:
     """
@@ -373,6 +380,7 @@ def get_business_anomalies(
         promotion_id=promotion_id,
         product_id=product_id,
         store_id=store_id,
+        allowed_store_ids=allowed_store_ids,
         limit=limit,
     )
     ineffective = _get_ineffective_discount_promos(
@@ -380,6 +388,7 @@ def get_business_anomalies(
         promotion_id=promotion_id,
         product_id=product_id,
         store_id=store_id,
+        allowed_store_ids=allowed_store_ids,
         limit=limit,
     )
 

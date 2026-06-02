@@ -7,6 +7,13 @@ from app.db import get_db
 from app.models.promotion import DiscountType, Promotion
 from app.models.user_account import UserAccount
 from app.schemas.promotion import PromotionCreate, PromotionRead
+from app.services.rbac_service import ensure_user_has_permission
+from app.services.scope_service import (
+    apply_promotion_scope,
+    ensure_country_filter_allowed,
+    ensure_store_belongs_to_country_scope,
+    ensure_store_filter_allowed,
+)
 
 router = APIRouter(prefix="/promotions", tags=["Promotions"])
 
@@ -19,8 +26,14 @@ def list_promotions(
     discount_type: DiscountType | None = Query(default=None),
     product_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_business_user),
 ):
+    ensure_country_filter_allowed(current_user, country_id)
+    ensure_store_filter_allowed(current_user, store_id)
+    ensure_store_belongs_to_country_scope(db, current_user, store_id)
+
     stmt = select(Promotion)
+    stmt = apply_promotion_scope(stmt, current_user)
 
     if country_id is not None:
         stmt = stmt.where(Promotion.country_id == country_id)
@@ -48,6 +61,18 @@ def create_promotion(
     db: Session = Depends(get_db),
     current_user: UserAccount = Depends(get_current_business_user),
 ):
+    required_permission = (
+        "CREATE_STORE_PROMOTION"
+        if payload.store_id is not None
+        else "CREATE_COUNTRY_PROMOTION"
+    )
+
+    ensure_user_has_permission(
+        db=db,
+        user=current_user,
+        permission_code=required_permission,
+    )
+
     promo_data = payload.model_dump()
     promo_data["created_by"] = current_user.id
 
@@ -65,8 +90,22 @@ def deactivate_promotion(
     current_user: UserAccount = Depends(get_current_business_user),
 ):
     promotion = db.get(Promotion, promotion_id)
+
     if promotion is None:
         raise HTTPException(status_code=404, detail="Promotion not found")
+
+    required_permission = (
+        "STOP_STORE_PROMOTION"
+        if promotion.store_id is not None
+        else "STOP_COUNTRY_PROMOTION"
+    )
+
+    ensure_user_has_permission(
+        db=db,
+        user=current_user,
+        permission_code=required_permission,
+    )
+
     if not promotion.active:
         raise HTTPException(status_code=409, detail="Promotion is already inactive")
 

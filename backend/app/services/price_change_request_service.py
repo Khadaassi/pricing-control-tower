@@ -125,6 +125,9 @@ def list_price_change_requests(
     country_id: int | None = None,
     store_id: int | None = None,
     requested_by_user_id: int | None = None,
+    scope_country_id: int | None = None,
+    scope_store_id: int | None = None,
+    include_country_level_for_store: bool = False,
     limit: int = 100,
     offset: int = 0,
 ) -> list[PriceChangeRequest]:
@@ -143,6 +146,21 @@ def list_price_change_requests(
         )
 
     query = select(PriceChangeRequest)
+
+    if scope_country_id is not None and scope_store_id is not None:
+        if include_country_level_for_store:
+            query = query.where(
+                PriceChangeRequest.country_id == scope_country_id,
+                (
+                    (PriceChangeRequest.store_id == scope_store_id)
+                    | (PriceChangeRequest.store_id.is_(None))
+                ),
+            )
+        else:
+            query = query.where(PriceChangeRequest.store_id == scope_store_id)
+
+    elif scope_country_id is not None:
+        query = query.where(PriceChangeRequest.country_id == scope_country_id)
 
     if status is not None:
         query = query.where(PriceChangeRequest.status == status)

@@ -126,7 +126,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context["active_filters"] = raw_filters
 
         try:
-            kpis = api_get("/kpis", params=raw_filters or None)
+            kpis = api_get("/kpis", params=raw_filters or None, user_email=self.request.user.email)
         except ApiClientError as exc:
             context["api_error"] = str(exc)
             return context
@@ -181,7 +181,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         # Demandes de prix par statut
         try:
-            requests_list = api_get("/price-change-requests")
+            requests_list = api_get("/price-change-requests", user_email=self.request.user.email)
             counts: dict[str, int] = {}
             for r in requests_list:
                 s = (r.get("status") or "UNKNOWN").upper()
@@ -194,7 +194,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         # Anomalies par sévérité + résolues
         try:
-            anomalies_list = api_get("/anomalies")
+            anomalies_list = api_get("/anomalies", user_email=self.request.user.email)
             sev_counts: dict[str, int] = {}
             resolved = unresolved = 0
             for a in anomalies_list:
@@ -215,7 +215,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         # Promotions actives + types de remise
         try:
-            promos_list = api_get("/promotions")
+            promos_list = api_get("/promotions", user_email=self.request.user.email)
             type_counts: dict[str, int] = {}
             active = inactive = 0
             for p in promos_list:
@@ -348,7 +348,7 @@ class ProductAnalyticsView(LoginRequiredMixin, View):
 class ProductPricesView(LoginRequiredMixin, View):
     def get(self, _request, product_id):
         try:
-            prices = api_get("/prices", params={"product_id": product_id})
+            prices = api_get("/prices", params={"product_id": product_id}, user_email=_request.user.email)
         except ApiClientError as exc:
             return JsonResponse({"error": str(exc)}, status=502)
 
@@ -397,7 +397,7 @@ class PricesView(LoginRequiredMixin, TemplateView):
         context["active_filters"] = raw_filters
 
         with ThreadPoolExecutor(max_workers=4) as executor:
-            f_prices   = executor.submit(api_get, "/prices", raw_filters or None)
+            f_prices   = executor.submit(api_get, "/prices", raw_filters or None, self.request.user.email)
             f_products = executor.submit(build_product_lookup)
             f_countries = executor.submit(build_country_choices)
             f_stores    = executor.submit(build_store_choices)
@@ -492,7 +492,7 @@ class PromotionsView(LoginRequiredMixin, TemplateView):
         context["active_filters"] = raw_filters
 
         with ThreadPoolExecutor(max_workers=4) as executor:
-            f_promotions = executor.submit(api_get, "/promotions", raw_filters or None)
+            f_promotions = executor.submit(api_get, "/promotions", raw_filters or None, self.request.user.email)
             f_countries  = executor.submit(build_country_choices)
             f_stores     = executor.submit(build_store_choices)
             f_products   = executor.submit(build_product_lookup)
@@ -586,7 +586,7 @@ class PriceChangeRequestsView(LoginRequiredMixin, TemplateView):
         context["active_filters"] = raw_filters
 
         try:
-            requests = api_get("/price-change-requests", params=raw_filters or None)
+            requests = api_get("/price-change-requests", params=raw_filters or None, user_email=self.request.user.email)
         except ApiClientError as exc:
             context["api_error"] = str(exc)
             return context
@@ -907,7 +907,7 @@ class AnomaliesView(LoginRequiredMixin, TemplateView):
         context["active_filters"] = raw_filters
 
         try:
-            anomalies = api_get("/anomalies", params=raw_filters or None)
+            anomalies = api_get("/anomalies", params=raw_filters or None, user_email=self.request.user.email)
         except ApiClientError as exc:
             context["api_error"] = str(exc)
             return context
@@ -1006,7 +1006,7 @@ class PromotionCreateView(LoginRequiredMixin, View):
 class ProductPromotionsView(LoginRequiredMixin, View):
     def get(self, _request, product_id):
         try:
-            promotions = api_get("/promotions", params={"product_id": product_id})
+            promotions = api_get("/promotions", params={"product_id": product_id}, user_email=_request.user.email)
         except ApiClientError as exc:
             return JsonResponse({"error": str(exc)}, status=502)
 

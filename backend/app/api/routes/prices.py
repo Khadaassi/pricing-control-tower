@@ -2,9 +2,18 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+
+from app.api.dependencies.current_user import get_current_business_user
 from app.db import get_db
 from app.models.price import Price
+from app.models.user_account import UserAccount
 from app.schemas.price import PriceRead
+from app.services.scope_service import (
+    apply_price_scope,
+    ensure_country_filter_allowed,
+    ensure_store_belongs_to_country_scope,
+    ensure_store_filter_allowed,
+)
 
 router = APIRouter(prefix="/prices", tags=["Prices"])
 
@@ -18,8 +27,14 @@ def list_prices(
     price_type: str | None = Query(default=None),
     status: str | None = Query(default=None),
     db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_business_user),
 ):
+    ensure_country_filter_allowed(current_user, country_id)
+    ensure_store_filter_allowed(current_user, store_id)
+    ensure_store_belongs_to_country_scope(db, current_user, store_id)
+
     stmt = select(Price).options(selectinload(Price.product))
+    stmt = apply_price_scope(stmt, current_user)
 
     if product_id is not None:
         stmt = stmt.where(Price.product_id == product_id)

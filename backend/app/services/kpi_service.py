@@ -26,6 +26,7 @@ def get_sales_kpis(
     db: Session,
     product_id: int | None = None,
     store_id: int | None = None,
+    allowed_store_ids: list[int] | None = None,
     is_promo: bool | None = None,
     price_type: str | None = None,
 ) -> SalesKpiRead:
@@ -58,6 +59,8 @@ def get_sales_kpis(
 
     if store_id is not None:
         query = query.where(ObtSales.store_id == store_id)
+    elif allowed_store_ids is not None:
+        query = query.where(ObtSales.store_id.in_(allowed_store_ids))
 
     if is_promo is not None:
         query = query.where(ObtSales.is_promo == is_promo)
