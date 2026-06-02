@@ -125,6 +125,10 @@ TAILWIND_APP_NAME = "theme"
 
 NPM_BIN_PATH = "/usr/local/bin/npm"
 
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "core:dashboard"
+LOGOUT_REDIRECT_URL = "login"
+
 if DEBUG:
     # Add django_browser_reload only in DEBUG mode
     INSTALLED_APPS += ["django_browser_reload"]

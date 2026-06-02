@@ -9,6 +9,7 @@ from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.views import View
 from django.views.generic import TemplateView
+from django.contrib.auth.mixins import LoginRequiredMixin
 
 from core.forms import PriceChangeRequestForm
 from services.api_client import ApiClientError, ApiResponseError, api_get, api_patch, api_post
@@ -92,11 +93,11 @@ def get_product_display(
     }
 
 
-class HomeView(TemplateView):
+class HomeView(LoginRequiredMixin, TemplateView):
     template_name = "core/home.html"
 
 
-class DashboardView(TemplateView):
+class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "core/dashboard.html"
 
     def get_context_data(self, **kwargs):
@@ -254,7 +255,7 @@ class DashboardView(TemplateView):
             return str(value)
 
 
-class ProductsView(TemplateView):
+class ProductsView(LoginRequiredMixin, TemplateView):
     template_name = "core/products.html"
 
     def get_context_data(self, **kwargs):
@@ -335,7 +336,7 @@ class ProductsView(TemplateView):
         return family.get("name") or "Indisponible"
 
 
-class ProductAnalyticsView(View):
+class ProductAnalyticsView(LoginRequiredMixin, View):
     def get(self, _request, product_id):
         try:
             data = api_get("/analytics/sales/summary", params={"product_id": product_id})
@@ -344,7 +345,7 @@ class ProductAnalyticsView(View):
         return JsonResponse(data)
 
 
-class ProductPricesView(View):
+class ProductPricesView(LoginRequiredMixin, View):
     def get(self, _request, product_id):
         try:
             prices = api_get("/prices", params={"product_id": product_id})
@@ -374,7 +375,7 @@ class ProductPricesView(View):
         })
 
 
-class PricesView(TemplateView):
+class PricesView(LoginRequiredMixin, TemplateView):
     template_name = "core/prices.html"
 
     def get_context_data(self, **kwargs):
@@ -468,7 +469,7 @@ class PricesView(TemplateView):
         return str(amount)
 
 
-class PromotionsView(TemplateView):
+class PromotionsView(LoginRequiredMixin, TemplateView):
     template_name = "core/promotions.html"
 
     def get_context_data(self, **kwargs):
@@ -566,7 +567,7 @@ class PromotionsView(TemplateView):
         return str(discount_value)
 
 
-class PriceChangeRequestsView(TemplateView):
+class PriceChangeRequestsView(LoginRequiredMixin, TemplateView):
     template_name = "core/price_change_requests.html"
 
     def get_context_data(self, **kwargs):
@@ -717,7 +718,7 @@ class PriceChangeRequestsView(TemplateView):
         return "Demande magasin"
 
 
-class PriceChangeRequestCreateView(TemplateView):
+class PriceChangeRequestCreateView(LoginRequiredMixin, TemplateView):
     template_name = "core/price_change_request_form.html"
 
     def _load_choices(self):
@@ -767,7 +768,7 @@ class PriceChangeRequestCreateView(TemplateView):
         return redirect("core:price_change_requests")
 
 
-class PriceHistoryView(TemplateView):
+class PriceHistoryView(LoginRequiredMixin, TemplateView):
     template_name = "core/price_history.html"
 
     def get_context_data(self, **kwargs):
@@ -822,7 +823,7 @@ class PriceHistoryView(TemplateView):
         return "Prix magasin"
 
 
-class AnalyticsSalesView(TemplateView):
+class AnalyticsSalesView(LoginRequiredMixin, TemplateView):
     template_name = "core/analytics_sales.html"
 
     def get_context_data(self, **kwargs):
@@ -886,7 +887,7 @@ class AnalyticsSalesView(TemplateView):
         return context
 
 
-class AnomaliesView(TemplateView):
+class AnomaliesView(LoginRequiredMixin, TemplateView):
     template_name = "core/anomalies.html"
 
     def get_context_data(self, **kwargs):
@@ -964,7 +965,7 @@ class AnomaliesView(TemplateView):
         return context
 
 
-class PromotionDeactivateView(View):
+class PromotionDeactivateView(LoginRequiredMixin, View):
     def post(self, _request, promotion_id: int):
         try:
             data = api_patch(f"/promotions/{promotion_id}/deactivate")
@@ -975,7 +976,7 @@ class PromotionDeactivateView(View):
         return JsonResponse({"id": data["id"], "active": data["active"]})
 
 
-class PromotionCreateView(View):
+class PromotionCreateView(LoginRequiredMixin, View):
     def post(self, request):
         try:
             data = json.loads(request.body)
@@ -1006,7 +1007,7 @@ class PromotionCreateView(View):
         return JsonResponse(result, status=201)
 
 
-class ProductPromotionsView(View):
+class ProductPromotionsView(LoginRequiredMixin, View):
     def get(self, _request, product_id):
         try:
             promotions = api_get("/promotions", params={"product_id": product_id})
