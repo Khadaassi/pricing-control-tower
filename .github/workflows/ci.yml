@@ -8,6 +8,29 @@ jobs:
   backend-ci:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: ci_user
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: ci_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U ci_user -d ci_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DATABASE_URL: postgresql+psycopg://ci_user:ci_password@localhost:5432/ci_db
+      POSTGRES_USER: ci_user
+      POSTGRES_PASSWORD: ci_password
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ci_db
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,14 +51,20 @@ jobs:
 
       - name: Install backend dependencies
         working-directory: backend
-        run: uv sync
-      
-      - name: Run lint (Ruff)
+        run: uv sync --all-groups
+
+      - name: Run database migrations
         working-directory: backend
-        run: uv run ruff check app #tests
+        run: uv run alembic upgrade head
+
+      - name: Run lint with Ruff
+        working-directory: backend
+        run: uv run ruff check app tests
 
       - name: Verify backend startup
         working-directory: backend
-        env:
-          DATABASE_URL: postgresql+psycopg://ci_user:ci_password@localhost:5432/ci_db
         run: uv run python -c "from app.main import app; print(app.title)"
+
+      - name: Run backend tests
+        working-directory: backend
+        run: uv run pytest
