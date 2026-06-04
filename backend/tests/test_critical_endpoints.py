@@ -13,7 +13,14 @@ def test_health_endpoint_returns_expected_schema(client):
 
     data = response.json()
 
-    assert data == {"status": "ok"}
+    assert data["status"] in ["ok", "degraded"]
+    assert data["service"] == "pricing-control-tower-api"
+    assert data["version"] == "0.1.0"
+    assert "timestamp" in data
+    assert "checks" in data
+    assert "database" in data["checks"]
+    assert data["checks"]["database"]["status"] in ["ok", "error"]
+    assert data["checks"]["database"]["type"] == "postgresql"
 
 
 def test_products_endpoint_returns_paginated_response(
