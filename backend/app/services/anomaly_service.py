@@ -1,29 +1,48 @@
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.orm import Session, aliased
 
 from app.models.kpi_promo_performance import KpiPromoPerformance
+from app.models.price import Price
+from app.models.product import Product
 from app.models.product_family import ProductFamily
 from app.models.promotion import Promotion
 from app.schemas.anomaly import BusinessAnomalyRead
 
+# ── Anomaly type identifiers ────────────────────────────────────────────────
 UNDERPERFORMING_PROMO = "UNDERPERFORMING_PROMO"
 INEFFECTIVE_DISCOUNT = "INEFFECTIVE_DISCOUNT"
+PRICE_ABOVE_REFERENCE = "PRICE_ABOVE_REFERENCE"
+INTER_STORE_PRICE_GAP = "INTER_STORE_PRICE_GAP"
 
-# Seuils d'uplift de CA (décimal, ex : -0.30 = -30 %)
-# Comparaison : CA quotidien pendant la promo vs CA quotidien 14j avant
-_UPLIFT_LOW = Decimal("-0.10")    # perte de CA < 10 %  → LOW
-_UPLIFT_MEDIUM = Decimal("-0.50") # perte de CA ≥ 50 %  → MEDIUM
-_UPLIFT_HIGH = Decimal("-0.80")   # perte de CA ≥ 80 %  → HIGH
+# ── UNDERPERFORMING_PROMO thresholds ────────────────────────────────────────
+# revenue_uplift_rate (decimal, e.g. -0.30 = -30 %)
+_UPLIFT_LOW = Decimal("-0.10")     # revenue loss < 10 %  → LOW
+_UPLIFT_MEDIUM = Decimal("-0.50")  # revenue loss ≥ 50 %  → MEDIUM
+_UPLIFT_HIGH = Decimal("-0.80")    # revenue loss ≥ 80 %  → HIGH
 
-# Seuil de remise effective (avg_price_discount_effect_pct, en %)
-# Remise effective = (prix_vente_promo - prix_vente_avant) / prix_vente_avant × 100
-# Négatif = le prix a baissé pendant la promo
-_DISCOUNT_EFFECT_ENTRY = Decimal("-20")   # remise effective ≥ 20 %
-_DISCOUNT_EFFECT_HIGH = Decimal("-50")    # remise effective ≥ 50 %
-_DISCOUNT_EFFECT_MEDIUM = Decimal("-30")  # remise effective ≥ 30 %
+# ── INEFFECTIVE_DISCOUNT thresholds ─────────────────────────────────────────
+# avg_price_discount_effect_pct (in %)
+_DISCOUNT_EFFECT_ENTRY = Decimal("-20")   # effective discount ≥ 20 %
+_DISCOUNT_EFFECT_HIGH = Decimal("-50")    # effective discount ≥ 50 %
+_DISCOUNT_EFFECT_MEDIUM = Decimal("-30")  # effective discount ≥ 30 %
 
+# ── PRICE_ABOVE_REFERENCE thresholds ────────────────────────────────────────
+# Ratio of store price above country reference price
+_REF_GAP_ENTRY = Decimal("0.05")    # > 5 %  above reference → entry
+_REF_GAP_MEDIUM = Decimal("0.15")   # ≥ 15 % above reference → MEDIUM
+_REF_GAP_HIGH = Decimal("0.30")     # ≥ 30 % above reference → HIGH
+
+# ── INTER_STORE_PRICE_GAP thresholds ────────────────────────────────────────
+# Absolute deviation from the national store average for the same product
+_STORE_GAP_ENTRY = Decimal("0.15")   # > 15 % deviation → entry
+_STORE_GAP_MEDIUM = Decimal("0.25")  # ≥ 25 % deviation → MEDIUM
+_STORE_GAP_HIGH = Decimal("0.40")    # ≥ 40 % deviation → HIGH
+
+
+# ── Helpers ─────────────────────────────────────────────────────────────────
 
 def _to_decimal(value: object) -> Decimal:
     if value is None:
@@ -37,10 +56,10 @@ def _round_decimal(value: Decimal, places: str = "0.01") -> Decimal:
 
 def _uplift_severity(uplift_rate: Decimal, family_effect_flag: str | None) -> str:
     """
-    Détermine la sévérité d'une promo sous-performante.
+    Determine UNDERPERFORMING_PROMO severity.
 
-    La cannibalization aggrave la sévérité d'un cran :
-    une promo MEDIUM avec CANNIBALIZATION devient HIGH.
+    Cannibalization escalates severity by one level:
+    MEDIUM + CANNIBALIZATION → HIGH.
     """
     if uplift_rate <= _UPLIFT_HIGH:
         return "HIGH"
@@ -63,6 +82,22 @@ def _discount_severity(discount_effect_pct: Decimal) -> str:
     return "LOW"
 
 
+def _ref_gap_severity(gap_rate: Decimal) -> str:
+    if gap_rate >= _REF_GAP_HIGH:
+        return "HIGH"
+    if gap_rate >= _REF_GAP_MEDIUM:
+        return "MEDIUM"
+    return "LOW"
+
+
+def _store_gap_severity(gap_rate: Decimal) -> str:
+    if gap_rate >= _STORE_GAP_HIGH:
+        return "HIGH"
+    if gap_rate >= _STORE_GAP_MEDIUM:
+        return "MEDIUM"
+    return "LOW"
+
+
 def _family_name_by_id(db: Session, family_id: int) -> str | None:
     row = db.execute(
         select(ProductFamily.name).where(ProductFamily.id == family_id)
@@ -71,7 +106,6 @@ def _family_name_by_id(db: Session, family_id: int) -> str | None:
 
 
 def _active_promotion_ids(db: Session) -> set[int]:
-    """Retourne les IDs des promotions actives (non stoppées manuellement)."""
     rows = db.execute(
         select(Promotion.id).where(Promotion.active)
     ).scalars().all()
@@ -80,15 +114,17 @@ def _active_promotion_ids(db: Session) -> set[int]:
 
 def _quota_per_severity(limit: int) -> dict[str, int]:
     """
-    Répartit le quota total entre les 3 niveaux de sévérité.
-    HIGH reçoit la moitié, MEDIUM et LOW se partagent le reste.
-    Garantit qu'au moins 1 résultat par sévérité est retourné si possible.
+    Split total quota across the 3 severity levels.
+    HIGH gets half; MEDIUM and LOW share the remainder.
+    Guarantees at least 1 result per level when possible.
     """
     high = max(limit // 2, 1)
     medium = max((limit - high) // 2, 1)
     low = max(limit - high - medium, 1)
     return {"HIGH": high, "MEDIUM": medium, "LOW": low}
 
+
+# ── Rule 1: UNDERPERFORMING_PROMO ────────────────────────────────────────────
 
 def _get_underperforming_promos(
     db: Session,
@@ -99,24 +135,20 @@ def _get_underperforming_promos(
     limit: int,
 ) -> list[BusinessAnomalyRead]:
     """
-    Détecte les promotions dont le CA quotidien est inférieur
-    au CA quotidien du même produit 14 jours avant la promotion.
+    Detect promotions whose daily revenue is below pre-promotion baseline.
 
-    Source : pct_analytics.kpi_promo_performance (mart dbt)
-    Baseline : fenêtre de 14 jours précédant le début de la promotion,
-               normalisée en moyenne journalière pour neutraliser les
-               différences de durée entre promo et baseline.
+    Source : pct_analytics.kpi_promo_performance (dbt mart)
+    Baseline : 14-day window before promotion start, normalised to daily average.
 
-    Critère d'entrée : revenue_uplift_rate < -10 %
-    (= la promo génère moins de CA par jour qu'avant la promo)
+    Entry criterion : revenue_uplift_rate < -10 %
 
-    Sévérité :
-    - LOW    : uplift entre -10 % et -30 %
-    - MEDIUM : uplift ≤ -30 %, ou uplift négatif avec CANNIBALIZATION
-    - HIGH   : uplift ≤ -50 %, ou uplift ≤ -30 % avec CANNIBALIZATION
+    Severity:
+    - LOW    : uplift between -10 % and -50 %
+    - MEDIUM : uplift ≤ -50 %, or negative uplift with CANNIBALIZATION
+    - HIGH   : uplift ≤ -80 %, or uplift ≤ -50 % with CANNIBALIZATION
 
-    Les promotions NOT_COMPARABLE (nouveau produit, pas de baseline)
-    sont exclues — elles sont traitées via la règle INEFFECTIVE_DISCOUNT.
+    Promotions flagged NOT_COMPARABLE (new product, no baseline) are excluded
+    and handled by the INEFFECTIVE_DISCOUNT rule instead.
     """
     active_ids = _active_promotion_ids(db)
 
@@ -215,6 +247,8 @@ def _get_underperforming_promos(
     return anomalies
 
 
+# ── Rule 2: INEFFECTIVE_DISCOUNT ─────────────────────────────────────────────
+
 def _get_ineffective_discount_promos(
     db: Session,
     promotion_id: int | None,
@@ -224,20 +258,20 @@ def _get_ineffective_discount_promos(
     limit: int,
 ) -> list[BusinessAnomalyRead]:
     """
-    Détecte les promotions avec une remise effective significative
-    mais sans uplift de volume (on sacrifie de la marge sans vendre plus).
+    Detect promotions with a significant effective discount but no volume uplift
+    (margin is sacrificed without attracting more customers).
 
-    Critères :
-    - avg_price_discount_effect_pct ≤ -20 % (le prix a baissé d'au moins 20 %)
-    - quantity_uplift_rate ≤ 0 (le volume n'a pas augmenté)
+    Criteria:
+    - avg_price_discount_effect_pct ≤ -20 % (price dropped by at least 20 %)
+    - quantity_uplift_rate ≤ 0 (volume did not increase)
 
-    Couvre aussi les nouveaux produits (NOT_COMPARABLE) si la remise
-    dépasse 50 % par rapport au prix de référence — cas probable d'erreur de saisie.
+    Also covers new products (NOT_COMPARABLE) when the discount exceeds 50 % of
+    the reference price — likely a data-entry error.
 
-    Sévérité :
-    - LOW    : remise effective entre -20 % et -30 %
-    - MEDIUM : remise effective entre -30 % et -50 %
-    - HIGH   : remise effective ≥ 50 %
+    Severity:
+    - LOW    : effective discount between -20 % and -30 %
+    - MEDIUM : effective discount between -30 % and -50 %
+    - HIGH   : effective discount ≥ 50 %
     """
     active_ids = _active_promotion_ids(db)
 
@@ -341,6 +375,288 @@ def _get_ineffective_discount_promos(
     return anomalies
 
 
+# ── Rule 3: PRICE_ABOVE_REFERENCE ────────────────────────────────────────────
+
+def _get_price_above_reference(
+    db: Session,
+    product_id: int | None,
+    store_id: int | None,
+    allowed_store_ids: list[int] | None,
+    limit: int,
+) -> list[BusinessAnomalyRead]:
+    """
+    Detect active store-level prices exceeding the national reference price.
+
+    Source : pct_core.price
+    Comparison : store price (price_scope=STORE, price_type=STANDARD, status=ACTIVE)
+                 vs country reference (price_scope=COUNTRY, price_type=STANDARD, status=ACTIVE)
+                 for the same product and country.
+
+    Entry criterion : store_price > reference_price × 1.05
+
+    Severity:
+    - LOW    : 5 % – 15 % above reference
+    - MEDIUM : 15 % – 30 % above reference
+    - HIGH   : ≥ 30 % above reference
+    """
+    today = date.today()
+
+    StorePrice = aliased(Price, name="store_price")
+    RefPrice = aliased(Price, name="ref_price")
+
+    def _base_query():
+        gap = (StorePrice.amount - RefPrice.amount) / RefPrice.amount
+        q = (
+            select(
+                StorePrice.product_id,
+                StorePrice.store_id,
+                StorePrice.amount.label("store_amount"),
+                RefPrice.amount.label("ref_amount"),
+                Product.product_family_id,
+                gap.label("gap_rate"),
+            )
+            .join(
+                RefPrice,
+                and_(
+                    RefPrice.product_id == StorePrice.product_id,
+                    RefPrice.country_id == StorePrice.country_id,
+                    RefPrice.price_scope == "COUNTRY",
+                    RefPrice.price_type == "STANDARD",
+                    RefPrice.status == "ACTIVE",
+                    or_(RefPrice.effective_to.is_(None), RefPrice.effective_to >= today),
+                ),
+            )
+            .join(Product, Product.id == StorePrice.product_id)
+            .where(StorePrice.price_scope == "STORE")
+            .where(StorePrice.price_type == "STANDARD")
+            .where(StorePrice.status == "ACTIVE")
+            .where(or_(StorePrice.effective_to.is_(None), StorePrice.effective_to >= today))
+            .where(gap > float(_REF_GAP_ENTRY))
+        )
+        if product_id is not None:
+            q = q.where(StorePrice.product_id == product_id)
+        if store_id is not None:
+            q = q.where(StorePrice.store_id == store_id)
+        elif allowed_store_ids is not None:
+            q = q.where(StorePrice.store_id.in_(allowed_store_ids))
+        return q
+
+    quotas = _quota_per_severity(limit)
+
+    rows_high = db.execute(
+        _base_query()
+        .where(
+            (StorePrice.amount - RefPrice.amount) / RefPrice.amount >= float(_REF_GAP_HIGH)
+        )
+        .order_by(((StorePrice.amount - RefPrice.amount) / RefPrice.amount).desc())
+        .limit(quotas["HIGH"])
+    ).all()
+
+    rows_medium = db.execute(
+        _base_query()
+        .where(
+            (StorePrice.amount - RefPrice.amount) / RefPrice.amount >= float(_REF_GAP_MEDIUM)
+        )
+        .where(
+            (StorePrice.amount - RefPrice.amount) / RefPrice.amount < float(_REF_GAP_HIGH)
+        )
+        .order_by(((StorePrice.amount - RefPrice.amount) / RefPrice.amount).desc())
+        .limit(quotas["MEDIUM"])
+    ).all()
+
+    rows_low = db.execute(
+        _base_query()
+        .where(
+            (StorePrice.amount - RefPrice.amount) / RefPrice.amount < float(_REF_GAP_MEDIUM)
+        )
+        .order_by(((StorePrice.amount - RefPrice.amount) / RefPrice.amount).desc())
+        .limit(quotas["LOW"])
+    ).all()
+
+    rows = list(rows_high) + list(rows_medium) + list(rows_low)
+
+    family_cache: dict[int, str | None] = {}
+    anomalies: list[BusinessAnomalyRead] = []
+
+    for row in rows:
+        store_amount = _round_decimal(_to_decimal(row.store_amount))
+        ref_amount = _round_decimal(_to_decimal(row.ref_amount))
+        gap_rate = _to_decimal(row.gap_rate)
+        gap_pct = _round_decimal(gap_rate * 100, "0.1")
+        severity = _ref_gap_severity(gap_rate)
+
+        if row.product_family_id not in family_cache:
+            family_cache[row.product_family_id] = _family_name_by_id(db, row.product_family_id)
+        family_name = family_cache[row.product_family_id]
+
+        anomalies.append(
+            BusinessAnomalyRead(
+                anomaly_type=PRICE_ABOVE_REFERENCE,
+                severity=severity,
+                message=(
+                    f"Le prix du produit {row.product_id} en magasin {row.store_id} "
+                    f"({store_amount} €) dépasse le prix de référence national "
+                    f"({ref_amount} €) de {gap_pct} %."
+                ),
+                product_id=row.product_id,
+                product_family_name=family_name,
+                store_id=row.store_id,
+                total_revenue=store_amount,
+                threshold=ref_amount,
+            )
+        )
+
+    return anomalies
+
+
+# ── Rule 4: INTER_STORE_PRICE_GAP ────────────────────────────────────────────
+
+def _get_inter_store_price_gaps(
+    db: Session,
+    product_id: int | None,
+    store_id: int | None,
+    allowed_store_ids: list[int] | None,
+    limit: int,
+) -> list[BusinessAnomalyRead]:
+    """
+    Detect stores whose active standard price deviates abnormally from
+    the national store average for the same product.
+
+    Source : pct_core.price
+    Requires at least 2 stores with an active STORE-scope STANDARD price
+    for the same product to compute a meaningful average.
+
+    Entry criterion : |store_price − national_avg| / national_avg > 15 %
+
+    Severity:
+    - LOW    : 15 % – 25 % deviation
+    - MEDIUM : 25 % – 40 % deviation
+    - HIGH   : ≥ 40 % deviation
+    """
+    today = date.today()
+
+    # Subquery: compute per-product national average across all stores
+    stats_subq = (
+        select(
+            Price.product_id,
+            Price.country_id,
+            func.avg(Price.amount).label("avg_price"),
+            func.count().label("store_count"),
+        )
+        .where(Price.price_scope == "STORE")
+        .where(Price.price_type == "STANDARD")
+        .where(Price.status == "ACTIVE")
+        .where(or_(Price.effective_to.is_(None), Price.effective_to >= today))
+        .group_by(Price.product_id, Price.country_id)
+        .having(func.count() >= 2)
+        .subquery()
+    )
+
+    gap_expr = (
+        func.abs(Price.amount - stats_subq.c.avg_price) / stats_subq.c.avg_price
+    )
+
+    def _base_query():
+        q = (
+            select(
+                Price.product_id,
+                Price.store_id,
+                Price.amount,
+                stats_subq.c.avg_price,
+                stats_subq.c.store_count,
+                Product.product_family_id,
+                gap_expr.label("gap_rate"),
+            )
+            .join(
+                stats_subq,
+                and_(
+                    Price.product_id == stats_subq.c.product_id,
+                    Price.country_id == stats_subq.c.country_id,
+                ),
+            )
+            .join(Product, Product.id == Price.product_id)
+            .where(Price.price_scope == "STORE")
+            .where(Price.price_type == "STANDARD")
+            .where(Price.status == "ACTIVE")
+            .where(or_(Price.effective_to.is_(None), Price.effective_to >= today))
+            .where(gap_expr > float(_STORE_GAP_ENTRY))
+        )
+        if product_id is not None:
+            q = q.where(Price.product_id == product_id)
+        if store_id is not None:
+            q = q.where(Price.store_id == store_id)
+        elif allowed_store_ids is not None:
+            q = q.where(Price.store_id.in_(allowed_store_ids))
+        return q
+
+    quotas = _quota_per_severity(limit)
+
+    rows_high = db.execute(
+        _base_query()
+        .where(gap_expr >= float(_STORE_GAP_HIGH))
+        .order_by(gap_expr.desc())
+        .limit(quotas["HIGH"])
+    ).all()
+
+    rows_medium = db.execute(
+        _base_query()
+        .where(gap_expr >= float(_STORE_GAP_MEDIUM))
+        .where(gap_expr < float(_STORE_GAP_HIGH))
+        .order_by(gap_expr.desc())
+        .limit(quotas["MEDIUM"])
+    ).all()
+
+    rows_low = db.execute(
+        _base_query()
+        .where(gap_expr > float(_STORE_GAP_ENTRY))
+        .where(gap_expr < float(_STORE_GAP_MEDIUM))
+        .order_by(gap_expr.desc())
+        .limit(quotas["LOW"])
+    ).all()
+
+    rows = list(rows_high) + list(rows_medium) + list(rows_low)
+
+    family_cache: dict[int, str | None] = {}
+    anomalies: list[BusinessAnomalyRead] = []
+
+    for row in rows:
+        store_price = _round_decimal(_to_decimal(row.amount))
+        avg_price = _round_decimal(_to_decimal(row.avg_price))
+        gap_rate = abs(_to_decimal(row.amount) - _to_decimal(row.avg_price)) / _to_decimal(
+            row.avg_price
+        )
+        gap_pct = _round_decimal(gap_rate * 100, "0.1")
+        severity = _store_gap_severity(gap_rate)
+
+        if row.product_family_id not in family_cache:
+            family_cache[row.product_family_id] = _family_name_by_id(db, row.product_family_id)
+        family_name = family_cache[row.product_family_id]
+
+        direction = "au-dessus" if _to_decimal(row.amount) > _to_decimal(row.avg_price) else "en dessous"
+
+        anomalies.append(
+            BusinessAnomalyRead(
+                anomaly_type=INTER_STORE_PRICE_GAP,
+                severity=severity,
+                message=(
+                    f"Le prix du produit {row.product_id} en magasin {row.store_id} "
+                    f"({store_price} €) s'écarte de {gap_pct} % {direction} "
+                    f"du prix moyen inter-magasins ({avg_price} €, "
+                    f"calculé sur {row.store_count} magasins)."
+                ),
+                product_id=row.product_id,
+                product_family_name=family_name,
+                store_id=row.store_id,
+                total_revenue=store_price,
+                threshold=avg_price,
+            )
+        )
+
+    return anomalies
+
+
+# ── Public entry point ────────────────────────────────────────────────────────
+
 def get_business_anomalies(
     db: Session,
     promotion_id: int | None = None,
@@ -351,35 +667,37 @@ def get_business_anomalies(
     offset: int = 0,
 ) -> tuple[list[BusinessAnomalyRead], int]:
     """
-    Détecte les anomalies tarifaires et commerciales depuis pct_analytics.kpi_promo_performance.
+    Detect pricing and commercial anomalies.
 
-    Chaque promotion est comparée à elle-même sur les 14 jours précédant son démarrage.
-    Cette approche intra-produit élimine le biais lié aux différences de prix entre produits
-    et évite la contamination des statistiques par les anomalies elles-mêmes.
-
-    Deux règles sont appliquées :
+    Four rules are applied:
 
     1. UNDERPERFORMING_PROMO
-       La promotion génère moins de CA par jour qu'avant son démarrage (uplift négatif).
-       → Détecte les promotions qui détruisent de la valeur sans attirer de clients.
-       Sévérité :
-       - LOW    : CA en baisse de 10 % à 30 %
-       - MEDIUM : CA en baisse ≥ 30 %, ou baisse + cannibalisation de la famille
-       - HIGH   : CA en baisse ≥ 50 %, ou baisse ≥ 30 % + cannibalisation
+       Daily promotion revenue below pre-promotion baseline (uplift < -10 %).
+       → Promotions that destroy value without attracting customers.
+       Severity: LOW (-10 % to -50 %), MEDIUM (≤ -50 % or + cannibalization),
+                 HIGH (≤ -80 % or ≤ -50 % + cannibalization)
 
     2. INEFFECTIVE_DISCOUNT
-       La remise réduit le prix de vente de ≥ 20 % sans générer d'uplift de volume.
-       → Détecte les promotions où on sacrifie de la marge sans bénéfice commercial.
-       Couvre aussi les erreurs de remise sur les nouveaux produits (pas de baseline).
-       Sévérité :
-       - LOW    : remise effective 20 % à 30 %
-       - MEDIUM : remise effective 30 % à 50 %
-       - HIGH   : remise effective ≥ 50 %
+       Effective discount ≥ 20 % with no volume uplift.
+       → Margin sacrificed with no commercial benefit.
+       Also covers entry-error risk on new products (no baseline, discount ≥ 50 %).
+       Severity: LOW (20–30 %), MEDIUM (30–50 %), HIGH (≥ 50 %)
+
+    3. PRICE_ABOVE_REFERENCE
+       Active store-level standard price exceeds the national reference price.
+       → Store sells above catalog price, damaging brand consistency.
+       Severity: LOW (5–15 %), MEDIUM (15–30 %), HIGH (≥ 30 %)
+
+    4. INTER_STORE_PRICE_GAP
+       Store price deviates abnormally from the national store average.
+       → Pricing inconsistency between stores for the same product.
+       Requires ≥ 2 stores with active prices to compute a meaningful average.
+       Severity: LOW (15–25 %), MEDIUM (25–40 %), HIGH (≥ 40 %)
 
     Returns a (items, total) tuple where total is the count before pagination.
     """
-    # Use a large limit to collect all anomalies for counting, then slice for pagination
     fetch_limit = offset + limit
+
     underperforming = _get_underperforming_promos(
         db=db,
         promotion_id=promotion_id,
@@ -396,8 +714,22 @@ def get_business_anomalies(
         allowed_store_ids=allowed_store_ids,
         limit=fetch_limit,
     )
+    above_reference = _get_price_above_reference(
+        db=db,
+        product_id=product_id,
+        store_id=store_id,
+        allowed_store_ids=allowed_store_ids,
+        limit=fetch_limit,
+    )
+    inter_store_gaps = _get_inter_store_price_gaps(
+        db=db,
+        product_id=product_id,
+        store_id=store_id,
+        allowed_store_ids=allowed_store_ids,
+        limit=fetch_limit,
+    )
 
-    all_anomalies = underperforming + ineffective
+    all_anomalies = underperforming + ineffective + above_reference + inter_store_gaps
     total = len(all_anomalies)
     page_items = all_anomalies[offset : offset + limit]
     return page_items, total

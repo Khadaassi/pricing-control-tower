@@ -19,33 +19,32 @@ router = APIRouter(prefix="/anomalies", tags=["anomalies"])
 
 @router.get(
     "",
-    summary="Liste des anomalies tarifaires et commerciales",
+    summary="List pricing and commercial anomalies",
     description=(
-        "Retourne les anomalies détectées statistiquement à partir du modèle analytique "
-        "(pct_analytics). "
-        "Deux règles sont appliquées par famille produit : "
-        "(1) LOW_PROMOTION_REVENUE — CA d'une promotion inférieur à moyenne - "
-        "1×écart-type de sa famille ; "
-        "(2) ABNORMAL_DISCOUNT_RATE — taux de remise supérieur à moyenne + "
-        "2×écart-type de sa famille."
+        "Returns pricing anomalies detected by four business rules. "
+        "(1) UNDERPERFORMING_PROMO — promotion daily revenue below pre-promotion baseline by more than 10 %; "
+        "(2) INEFFECTIVE_DISCOUNT — effective discount ≥ 20 % with no volume uplift; "
+        "(3) PRICE_ABOVE_REFERENCE — store price exceeds the national reference price; "
+        "(4) INTER_STORE_PRICE_GAP — abnormal deviation between a store price "
+        "and the national store average for the same product."
     ),
 )
 def list_business_anomalies(
     db: Annotated[Session, Depends(get_db)],
     promotion_id: int | None = Query(
-        default=None, description="Filtrer par identifiant de promotion"
+        default=None, description="Filter by promotion ID"
     ),
     product_id: int | None = Query(
-        default=None, description="Filtrer par identifiant produit"
+        default=None, description="Filter by product ID"
     ),
     store_id: int | None = Query(
-        default=None, description="Filtrer par identifiant magasin"
+        default=None, description="Filter by store ID"
     ),
     limit: int = Query(
         default=20,
         ge=1,
         le=200,
-        description="Nombre maximum d'anomalies à retourner",
+        description="Maximum number of anomalies to return",
     ),
     offset: int = Query(default=0, ge=0),
     current_user: UserAccount = Depends(get_current_business_user),
