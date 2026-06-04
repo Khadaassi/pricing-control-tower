@@ -12,12 +12,12 @@ router = APIRouter(prefix="/analytics/sales", tags=["analytics"])
 
 @router.get(
     "/summary",
-    summary="Résumé analytique par produit",
-    description="Agrégats KPI depuis pct_analytics.obt_sales pour un produit donné.",
+    summary="Analytical KPI summary by product",
+    description="KPI aggregates from pct_analytics.obt_sales for a given product.",
 )
 def get_analytics_sales_summary(
     db: Annotated[Session, Depends(get_db)],
-    product_id: int = Query(..., description="ID du produit"),
+    product_id: int = Query(..., description="Product ID"),
 ) -> dict:
     sql = text("""
         SELECT
@@ -57,10 +57,8 @@ def get_analytics_sales_summary(
 
 @router.get(
     "",
-    summary="OBT Sales analytique",
-    description=(
-        "Données enrichies depuis pct_analytics.obt_sales."
-    ),
+    summary="Analytical OBT sales",
+    description="Enriched sales records from pct_analytics.obt_sales.",
 )
 def list_analytics_sales(
     db: Annotated[Session, Depends(get_db)],
