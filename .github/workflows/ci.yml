@@ -53,6 +53,18 @@ jobs:
         working-directory: backend
         run: uv sync --all-groups
 
+      - name: Create PostgreSQL schemas
+        working-directory: backend
+        run: |
+          uv run python - <<'PY'
+          from sqlalchemy import text
+          from app.db import engine
+
+          with engine.begin() as connection:
+              connection.execute(text("CREATE SCHEMA IF NOT EXISTS pct_core"))
+              connection.execute(text("CREATE SCHEMA IF NOT EXISTS pct_analytics"))
+          PY
+
       - name: Run database migrations
         working-directory: backend
         run: uv run alembic upgrade head
