@@ -1,5 +1,4 @@
 from app.schemas.price_change_request import (
-    PriceChangeRequestApprove,
     PriceChangeRequestCreate,
     PriceChangeRequestRead,
     PriceChangeRequestReject,
@@ -13,7 +12,6 @@ __all__ = [
     "ProductRead", 
    "ProductUpdate", 
    "SalesTransactionRead", 
-   "PriceChangeRequestApprove",
    "PriceChangeRequestCreate",
    "PriceChangeRequestRead",
    "PriceChangeRequestReject"

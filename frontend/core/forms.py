@@ -67,7 +67,13 @@ class PriceChangeRequestForm(forms.Form):
         ),
     )
 
-    def __init__(self, *args, products=None, countries=None, stores=None, **kwargs):
+    _LOCKED_CLASS = (
+        "block w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm "
+        "text-gray-500 shadow-sm pointer-events-none cursor-not-allowed"
+    )
+
+    def __init__(self, *args, products=None, countries=None, stores=None,
+                 scope_country_id=None, scope_store_id=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         product_choices = [("", "— Sélectionner un produit —")]
@@ -78,14 +84,28 @@ class PriceChangeRequestForm(forms.Form):
             ]
         self.fields["product_id"].choices = product_choices
 
-        country_choices = [("", "— Sélectionner un pays —")]
-        if countries:
-            country_choices += [(c["id"], c["name"]) for c in countries]
+        # Country — locked if user has a country scope
+        if scope_country_id is not None:
+            country_choices = [(c["id"], c["name"]) for c in (countries or [])]
+            self.fields["country_id"].initial = scope_country_id
+            self.fields["country_id"].widget.attrs["class"] = self._LOCKED_CLASS
+            self.fields["country_id"].widget.attrs["data-locked"] = "true"
+        else:
+            country_choices = [("", "— Sélectionner un pays —")]
+            if countries:
+                country_choices += [(c["id"], c["name"]) for c in countries]
         self.fields["country_id"].choices = country_choices
 
-        store_choices = [("", "— Aucun (portée pays) —")]
-        if stores:
-            store_choices += [(s["id"], s["name"]) for s in stores]
+        # Store — locked if user has a store scope
+        if scope_store_id is not None:
+            store_choices = [(s["id"], s["name"]) for s in (stores or [])]
+            self.fields["store_id"].initial = scope_store_id
+            self.fields["store_id"].widget.attrs["class"] = self._LOCKED_CLASS
+            self.fields["store_id"].widget.attrs["data-locked"] = "true"
+        else:
+            store_choices = [("", "— Aucun (portée pays) —")]
+            if stores:
+                store_choices += [(s["id"], s["name"]) for s in stores]
         self.fields["store_id"].choices = store_choices
 
     def clean_product_id(self):
@@ -112,7 +132,6 @@ class PriceChangeRequestForm(forms.Form):
             "requested_price_amount": str(cleaned["requested_price_amount"]),
             "justification": cleaned["justification"],
             "requested_effective_date": cleaned["requested_effective_date"].isoformat(),
-            "requested_by_user_id": 1,
         }
         if cleaned.get("store_id"):
             payload["store_id"] = cleaned["store_id"]

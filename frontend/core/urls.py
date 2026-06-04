@@ -11,7 +11,9 @@ from .views import (
     PriceHistoryView,
     ProductAnalyticsView,
     ProductPricesView,
+    ProductPromotionsView,
     ProductsView,
+    PromotionCreateView,
     PromotionDeactivateView,
     PromotionsView,
 )
@@ -26,7 +28,9 @@ urlpatterns = [
     path("produits/<int:product_id>/analytique/", ProductAnalyticsView.as_view(), name="product_analytics"),
     path("prix/", PricesView.as_view(), name="prices"),
     path("promotions/", PromotionsView.as_view(), name="promotions"),
+    path("promotions/creer/", PromotionCreateView.as_view(), name="promotion_create"),
     path("promotions/<int:promotion_id>/deactivate/", PromotionDeactivateView.as_view(), name="promotion_deactivate"),
+    path("produits/<int:product_id>/promotions/", ProductPromotionsView.as_view(), name="product_promotions"),
     path(
         "demandes-prix/",
         PriceChangeRequestsView.as_view(),

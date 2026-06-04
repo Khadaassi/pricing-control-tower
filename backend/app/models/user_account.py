@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import Boolean, Integer, String, true
+from sqlalchemy import Boolean, ForeignKey, Integer, String, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -14,3 +14,14 @@ class UserAccount(Base):
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     full_name: Mapped[str] = mapped_column(String(150), nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=true())
+
+    country_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("pct_core.country.id", name="fk_user_account_country"),
+        nullable=True,
+    )
+    store_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("pct_core.store.id", name="fk_user_account_store"),
+        nullable=True,
+    )

@@ -29,7 +29,7 @@
                         </span>
                     {% endif %}
                 </p>
-                <p class="text-xs text-gray-400">{{ prices|length }} enregistrement{% if prices|length > 1 %}s{% endif %}</p>
+                <p class="text-xs text-gray-400">{{ page_obj.paginator.count }} enregistrement{% if page_obj.paginator.count > 1 %}s{% endif %}</p>
             </div>
         </div>
     </div>
@@ -70,6 +70,7 @@
                         <option value="EXPIRED" {% if active_filters.status == "EXPIRED" %}selected{% endif %}>Expiré</option>
                     </select>
                 </div>
+                {% if not current_business_user.country_id %}
                 <div class="flex items-center gap-2">
                     <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Pays</label>
                     <select name="country_id" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400">
@@ -79,6 +80,8 @@
                         {% endfor %}
                     </select>
                 </div>
+                {% endif %}
+                {% if not current_business_user.store_id %}
                 <div class="flex items-center gap-2">
                     <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Magasin</label>
                     <select name="store_id" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400">
@@ -88,6 +91,8 @@
                         {% endfor %}
                     </select>
                 </div>
+                {% endif %}
+                {% include "core/partials/date_filter.html" %}
                 <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-sky-700 active:scale-95">
                     Appliquer
                 </button>
@@ -222,6 +227,7 @@
             </tbody>
         </table>
     </div>
+    {% include "core/partials/pagination.html" %}
     {% else %}
         <div class="p-8">
             {% include "core/partials/empty_state.html" with title="Aucun prix trouvé" description="L'API a répondu mais aucun prix n'a été retourné." %}

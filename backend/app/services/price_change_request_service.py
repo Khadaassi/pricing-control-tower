@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import HTTPException
 from fastapi import status as http_status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.audit_log import AuditLog
@@ -21,6 +21,7 @@ from app.schemas.price_change_request import PriceChangeRequestCreate
 def create_price_change_request(
     db: Session,
     payload: PriceChangeRequestCreate,
+    requested_by_user_id: int,
 ) -> PriceChangeRequest:
     product = db.scalar(
         select(Product).where(Product.id == payload.product_id)
@@ -41,7 +42,7 @@ def create_price_change_request(
         )
 
     requester = db.scalar(
-        select(UserAccount).where(UserAccount.id == payload.requested_by_user_id)
+        select(UserAccount).where(UserAccount.id == requested_by_user_id)
     )
     if requester is None:
         raise HTTPException(
@@ -90,7 +91,7 @@ def create_price_change_request(
         status="PENDING",
         justification=payload.justification,
         requested_effective_date=payload.requested_effective_date,
-        requested_by_user_id=payload.requested_by_user_id,
+        requested_by_user_id=requested_by_user_id,
     )
 
     db.add(price_change_request)
@@ -99,7 +100,7 @@ def create_price_change_request(
     audit_log = AuditLog(
         price_change_request_id=price_change_request.id,
         action_type="REQUEST_CREATED",
-        performed_by_user_id=payload.requested_by_user_id,
+        performed_by_user_id=requested_by_user_id,
         description=(
             "Price change request created with status PENDING. "
             f"Product ID: {payload.product_id}, "
@@ -124,9 +125,14 @@ def list_price_change_requests(
     country_id: int | None = None,
     store_id: int | None = None,
     requested_by_user_id: int | None = None,
+    scope_country_id: int | None = None,
+    scope_store_id: int | None = None,
+    include_country_level_for_store: bool = False,
+    date_from: date | None = None,
+    date_to: date | None = None,
     limit: int = 100,
     offset: int = 0,
-) -> list[PriceChangeRequest]:
+) -> tuple[list[PriceChangeRequest], int]:
     allowed_statuses = {
         "PENDING",
         "APPROVED",
@@ -142,6 +148,21 @@ def list_price_change_requests(
         )
 
     query = select(PriceChangeRequest)
+
+    if scope_country_id is not None and scope_store_id is not None:
+        if include_country_level_for_store:
+            query = query.where(
+                PriceChangeRequest.country_id == scope_country_id,
+                (
+                    (PriceChangeRequest.store_id == scope_store_id)
+                    | (PriceChangeRequest.store_id.is_(None))
+                ),
+            )
+        else:
+            query = query.where(PriceChangeRequest.store_id == scope_store_id)
+
+    elif scope_country_id is not None:
+        query = query.where(PriceChangeRequest.country_id == scope_country_id)
 
     if status is not None:
         query = query.where(PriceChangeRequest.status == status)
@@ -160,13 +181,26 @@ def list_price_change_requests(
             PriceChangeRequest.requested_by_user_id == requested_by_user_id
         )
 
-    query = (
+    if date_from is not None:
+        query = query.where(
+            PriceChangeRequest.created_at >= datetime.combine(date_from, time.min)
+        )
+
+    if date_to is not None:
+        query = query.where(
+            PriceChangeRequest.created_at <= datetime.combine(date_to, time.max)
+        )
+
+    count_query = select(func.count()).select_from(query.subquery())
+    total = db.scalar(count_query) or 0
+
+    paginated_query = (
         query.order_by(PriceChangeRequest.created_at.desc())
         .offset(offset)
         .limit(limit)
     )
 
-    return list(db.scalars(query).all())
+    return list(db.scalars(paginated_query).all()), int(total)
 def approve_and_apply_price_change_request(
     db: Session,
     price_change_request_id: int,

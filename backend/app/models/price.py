@@ -31,7 +31,7 @@ class Price(Base):
         nullable=False,
     )
 
-    # Métier pricing
+    # Pricing fields
     price_scope: Mapped[str] = mapped_column(String(20), nullable=False)
     country_id: Mapped[int] = mapped_column(Integer, nullable=False)
     store_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -61,5 +61,5 @@ class Price(Base):
         server_default=func.now(),
     )
 
-    # ORM relation confirmée
+    # ORM relation
     product: Mapped[Product] = relationship()

@@ -29,7 +29,7 @@
                         </span>
                     {% endif %}
                 </p>
-                <p class="text-xs text-gray-400">{{ anomalies|length }} anomalie{% if anomalies|length > 1 %}s{% endif %} détectée{% if anomalies|length > 1 %}s{% endif %}</p>
+                <p class="text-xs text-gray-400">{{ page_obj.paginator.count }} anomalie{% if page_obj.paginator.count > 1 %}s{% endif %} détectée{% if page_obj.paginator.count > 1 %}s{% endif %}</p>
             </div>
         </div>
     </div>
@@ -45,6 +45,7 @@
             </div>
             <div class="h-5 w-px bg-gray-200 shrink-0"></div>
             <div class="flex flex-wrap items-center gap-3">
+                {% if not current_business_user.store_id %}
                 <div class="flex items-center gap-2">
                     <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Magasin</label>
                     <select name="store_id" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm focus:border-red-400 focus:outline-none focus:ring-1 focus:ring-red-400">
@@ -54,6 +55,7 @@
                         {% endfor %}
                     </select>
                 </div>
+                {% endif %}
                 <div class="flex items-center gap-2">
                     <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">CA min. (€)</label>
                     <input type="number" name="min_revenue" value="{{ active_filters.min_revenue }}" placeholder="500" min="0" step="0.01"
@@ -94,6 +96,11 @@
              data-promotion-id="{{ anomaly.promotion_id }}"
              data-promotion-active="{{ anomaly.promotion_active|yesno:'true,false' }}"
              data-store-id="{{ anomaly.store_id }}"
+             {% if anomaly.store_id %}
+                 data-can-stop="{% if can_stop_store_promotion %}true{% else %}false{% endif %}"
+             {% else %}
+                 data-can-stop="{% if can_stop_country_promotion %}true{% else %}false{% endif %}"
+             {% endif %}
              data-sales-count="{{ anomaly.sales_count }}"
              data-total-quantity="{{ anomaly.total_quantity }}"
              data-total-revenue="{{ anomaly.total_revenue }}"
@@ -186,6 +193,7 @@
         </div>
         {% endfor %}
     </div>
+    {% include "core/partials/pagination.html" %}
     {% else %}
         <div class="p-8">
             {% include "core/partials/empty_state.html" with title="Aucune anomalie détectée" description="Le système est propre — aucune anomalie tarifaire trouvée." %}
@@ -342,6 +350,8 @@
 const STORE_NAMES = {};
 {% for store in stores %}STORE_NAMES["{{ store.id }}"] = "{{ store.name }}";
 {% endfor %}
+const CAN_CREATE_PRICE_REQUEST = {{ can_create_price_request|yesno:"true,false" }};
+
 const modal    = document.getElementById('anomaly-modal');
 const panel    = document.getElementById('anomaly-panel');
 const backdrop = document.getElementById('anomaly-backdrop');
@@ -399,19 +409,34 @@ function openAnomalyModal(card) {
 
     // Actions
     const pid = d.productId;
-    document.getElementById('action-price-request').href = pid && pid !== 'N/A'
-        ? `/demandes-prix/nouvelle/?product_id=${pid}` : '/demandes-prix/nouvelle/';
+
+    // Price request link — hidden if no permission
+    const priceReqLink = document.getElementById('action-price-request');
+    if (!CAN_CREATE_PRICE_REQUEST) {
+        priceReqLink.classList.add('hidden');
+    } else {
+        priceReqLink.classList.remove('hidden');
+        priceReqLink.href = pid && pid !== 'N/A'
+            ? `/demandes-prix/nouvelle/?product_id=${pid}` : '/demandes-prix/nouvelle/';
+    }
+
     document.getElementById('action-analytics').href = pid && pid !== 'N/A'
         ? `/analytique/ventes/?product_id=${pid}` : '/analytique/ventes/';
 
-    // Kill promotion button
+    // Kill promotion button — hidden if no permission
     const promoActive = d.promotionActive === 'true';
+    const canStop = d.canStop === 'true';
     _currentPromotionId = (d.promotionId && d.promotionId !== 'N/A' && promoActive) ? d.promotionId : null;
     const killBtn = document.getElementById('action-kill-promo');
-    killBtn.disabled = !_currentPromotionId;
-    document.getElementById('action-kill-promo-label').textContent = promoActive
-        ? 'Stopper la promotion'
-        : 'Promotion déjà inactive';
+    if (!canStop) {
+        killBtn.classList.add('hidden');
+    } else {
+        killBtn.classList.remove('hidden');
+        killBtn.disabled = !_currentPromotionId;
+        document.getElementById('action-kill-promo-label').textContent = promoActive
+            ? 'Stopper la promotion'
+            : 'Promotion déjà inactive';
+    }
 
     // Open
     modal.classList.remove('hidden');

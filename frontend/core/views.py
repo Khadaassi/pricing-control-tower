@@ -1,4 +1,5 @@
 import json
+import math
 import re
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal, InvalidOperation
@@ -9,14 +10,55 @@ from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.views import View
 from django.views.generic import TemplateView
+from django.contrib.auth.mixins import LoginRequiredMixin
 
 from core.forms import PriceChangeRequestForm
 from services.api_client import ApiClientError, ApiResponseError, api_get, api_patch, api_post
 
 
+class _ApiPaginator:
+    def __init__(self, total: int, per_page: int) -> None:
+        self.count = total
+        self.per_page = per_page
+        self.num_pages = max(1, math.ceil(total / per_page))
+        self.page_range = range(1, self.num_pages + 1)
+
+
+class ApiPage:
+    """Mimics Django's Page interface for use with the pagination partial template."""
+    def __init__(self, items: list, total: int, page: int, per_page: int) -> None:
+        self.object_list = items
+        self.number = page
+        self.paginator = _ApiPaginator(total, per_page)
+
+    @property
+    def has_previous(self) -> bool:
+        return self.number > 1
+
+    @property
+    def has_next(self) -> bool:
+        return self.number < self.paginator.num_pages
+
+    def previous_page_number(self) -> int:
+        return self.number - 1
+
+    def next_page_number(self) -> int:
+        return self.number + 1
+
+    def __iter__(self):
+        return iter(self.object_list)
+
+    def __len__(self) -> int:
+        return len(self.object_list)
+
+    def __bool__(self) -> bool:
+        return bool(self.object_list)
+
+
 def build_product_lookup() -> dict[int, dict[str, Any]]:
     try:
-        products = api_get("/products")
+        data = api_get("/products", {"limit": 500})
+        products = data.get("items", []) if isinstance(data, dict) else data
     except ApiClientError:
         return {}
 
@@ -44,7 +86,8 @@ def build_store_choices(country_id: int | None = None) -> list[dict[str, Any]]:
 
 def build_product_choices() -> list[dict[str, Any]]:
     try:
-        products = api_get("/products")
+        data = api_get("/products", {"limit": 500})
+        products = data.get("items", []) if isinstance(data, dict) else data
         return [
             {"id": p["id"], "code": p.get("code", ""), "name": p.get("name", f"#{p['id']}")}
             for p in products
@@ -92,11 +135,11 @@ def get_product_display(
     }
 
 
-class HomeView(TemplateView):
+class HomeView(LoginRequiredMixin, TemplateView):
     template_name = "core/home.html"
 
 
-class DashboardView(TemplateView):
+class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "core/dashboard.html"
 
     def get_context_data(self, **kwargs):
@@ -125,7 +168,7 @@ class DashboardView(TemplateView):
         context["active_filters"] = raw_filters
 
         try:
-            kpis = api_get("/kpis", params=raw_filters or None)
+            kpis = api_get("/kpis", params=raw_filters or None, user_email=self.request.user.email)
         except ApiClientError as exc:
             context["api_error"] = str(exc)
             return context
@@ -180,7 +223,8 @@ class DashboardView(TemplateView):
 
         # Demandes de prix par statut
         try:
-            requests_list = api_get("/price-change-requests")
+            requests_data = api_get("/price-change-requests", params={"limit": 500}, user_email=self.request.user.email)
+            requests_list = requests_data.get("items", requests_data) if isinstance(requests_data, dict) else requests_data
             counts: dict[str, int] = {}
             for r in requests_list:
                 s = (r.get("status") or "UNKNOWN").upper()
@@ -193,7 +237,8 @@ class DashboardView(TemplateView):
 
         # Anomalies par sévérité + résolues
         try:
-            anomalies_list = api_get("/anomalies")
+            anomalies_data = api_get("/anomalies", params={"limit": 200}, user_email=self.request.user.email)
+            anomalies_list = anomalies_data.get("items", anomalies_data) if isinstance(anomalies_data, dict) else anomalies_data
             sev_counts: dict[str, int] = {}
             resolved = unresolved = 0
             for a in anomalies_list:
@@ -214,7 +259,8 @@ class DashboardView(TemplateView):
 
         # Promotions actives + types de remise
         try:
-            promos_list = api_get("/promotions")
+            promos_data = api_get("/promotions", params={"limit": 500}, user_email=self.request.user.email)
+            promos_list = promos_data.get("items", promos_data) if isinstance(promos_data, dict) else promos_data
             type_counts: dict[str, int] = {}
             active = inactive = 0
             for p in promos_list:
@@ -254,7 +300,7 @@ class DashboardView(TemplateView):
             return str(value)
 
 
-class ProductsView(TemplateView):
+class ProductsView(LoginRequiredMixin, TemplateView):
     template_name = "core/products.html"
 
     def get_context_data(self, **kwargs):
@@ -262,8 +308,12 @@ class ProductsView(TemplateView):
         context["api_error"] = None
         context["products"] = []
 
+        PER_PAGE = 25
         active_val = self.request.GET.get("active", "").strip()
         family_val = self.request.GET.get("product_family_id", "").strip()
+        page = int(self.request.GET.get("page", 1) or 1)
+        offset = (page - 1) * PER_PAGE
+
         raw_filters = {}
         if active_val in ("true", "false"):
             raw_filters["active"] = active_val
@@ -271,19 +321,30 @@ class ProductsView(TemplateView):
             raw_filters["product_family_id"] = family_val
         context["active_filters"] = raw_filters
 
-        api_params = dict(raw_filters) or None
+        api_params = {**raw_filters, "limit": PER_PAGE, "offset": offset}
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            f_products  = executor.submit(api_get, "/products", api_params)
+            f_countries = executor.submit(build_country_choices)
+            f_stores    = executor.submit(build_store_choices)
 
         try:
-            products = api_get("/products", params={"active": raw_filters["active"]} if "active" in raw_filters else None)
+            data = f_products.result()
         except ApiClientError as exc:
             context["api_error"] = str(exc)
             return context
+
+        context["countries"] = f_countries.result()
+        context["stores"]    = f_stores.result()
+
+        items_raw = data.get("items", [])
+        total = data.get("total", 0)
 
         built = []
         families_seen: dict[str, str] = {}
         brands_seen: set[str] = set()
 
-        for product in products:
+        for product in items_raw:
             family = product.get("family") or {}
             family_id = str(family.get("id", ""))
             family_name = family.get("name") or ""
@@ -308,10 +369,9 @@ class ProductsView(TemplateView):
                 "image_alt": product.get("image_alt") or product.get("name") or "Image produit",
             })
 
-        if family_val.isdigit():
-            built = [p for p in built if p["family_id"] == family_val]
-
-        context["products"] = built
+        page_obj = ApiPage(built, total, page, PER_PAGE)
+        context["page_obj"] = page_obj
+        context["products"] = page_obj
         context["families"] = sorted(families_seen.items(), key=lambda x: x[1])
         context["brands"] = sorted(brands_seen)
         return context
@@ -326,7 +386,7 @@ class ProductsView(TemplateView):
         return family.get("name") or "Indisponible"
 
 
-class ProductAnalyticsView(View):
+class ProductAnalyticsView(LoginRequiredMixin, View):
     def get(self, _request, product_id):
         try:
             data = api_get("/analytics/sales/summary", params={"product_id": product_id})
@@ -335,13 +395,14 @@ class ProductAnalyticsView(View):
         return JsonResponse(data)
 
 
-class ProductPricesView(View):
+class ProductPricesView(LoginRequiredMixin, View):
     def get(self, _request, product_id):
         try:
-            prices = api_get("/prices", params={"product_id": product_id})
+            data = api_get("/prices", params={"product_id": product_id, "limit": 500}, user_email=_request.user.email)
         except ApiClientError as exc:
             return JsonResponse({"error": str(exc)}, status=502)
 
+        prices = data.get("items", data) if isinstance(data, dict) else data
         price_type_labels = {"STANDARD": "Standard", "PROMO": "Promotionnel"}
         price_scope_labels = {"COUNTRY": "Pays", "STORE": "Magasin"}
         status_labels = {"ACTIVE": "Actif", "INACTIVE": "Inactif", "EXPIRED": "Expiré"}
@@ -365,7 +426,7 @@ class ProductPricesView(View):
         })
 
 
-class PricesView(TemplateView):
+class PricesView(LoginRequiredMixin, TemplateView):
     template_name = "core/prices.html"
 
     def get_context_data(self, **kwargs):
@@ -384,16 +445,28 @@ class PricesView(TemplateView):
         store_id_val = self.request.GET.get("store_id", "").strip()
         if store_id_val.isdigit():
             raw_filters["store_id"] = store_id_val
+        date_from_val = self.request.GET.get("date_from", "").strip()
+        date_to_val = self.request.GET.get("date_to", "").strip()
+        if date_from_val:
+            raw_filters["date_from"] = date_from_val
+        if date_to_val:
+            raw_filters["date_to"] = date_to_val
         context["active_filters"] = raw_filters
 
+        PER_PAGE = 25
+        page = int(self.request.GET.get("page", 1) or 1)
+        offset = (page - 1) * PER_PAGE
+        pagination_params = {"limit": PER_PAGE, "offset": offset}
+        api_params = {**raw_filters, **pagination_params} if raw_filters else pagination_params
+
         with ThreadPoolExecutor(max_workers=4) as executor:
-            f_prices   = executor.submit(api_get, "/prices", raw_filters or None)
+            f_prices   = executor.submit(api_get, "/prices", api_params, self.request.user.email)
             f_products = executor.submit(build_product_lookup)
             f_countries = executor.submit(build_country_choices)
             f_stores    = executor.submit(build_store_choices)
 
         try:
-            prices = f_prices.result()
+            data = f_prices.result()
         except ApiClientError as exc:
             context["api_error"] = str(exc)
             return context
@@ -406,7 +479,11 @@ class PricesView(TemplateView):
         country_lookup = build_country_lookup(countries)
         store_lookup = build_store_lookup(stores)
 
-        for price in prices:
+        items_raw = data.get("items", [])
+        total = data.get("total", 0)
+
+        prices_list = []
+        for price in items_raw:
             product_display = get_product_display(
                 price.get("product_id"),
                 product_lookup,
@@ -414,7 +491,7 @@ class PricesView(TemplateView):
             cid = price.get("country_id")
             sid = price.get("store_id")
 
-            context["prices"].append(
+            prices_list.append(
                 {
                     "product_code": price.get("product_code") or product_display["product_code"],
                     "product_name": price.get("product_name") or product_display["product_name"],
@@ -435,6 +512,10 @@ class PricesView(TemplateView):
                     "promotion_id": price.get("promotion_id") or "Indisponible",
                 }
             )
+
+        page_obj = ApiPage(prices_list, total, page, PER_PAGE)
+        context["page_obj"] = page_obj
+        context["prices"] = page_obj
 
         return context
 
@@ -459,16 +540,13 @@ class PricesView(TemplateView):
         return str(amount)
 
 
-class PromotionsView(TemplateView):
+class PromotionsView(LoginRequiredMixin, TemplateView):
     template_name = "core/promotions.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["api_error"] = None
         context["promotions"] = []
-        context["countries"] = build_country_choices()
-        context["stores"] = build_store_choices()
-
         raw_filters = {}
         discount_type_val = self.request.GET.get("discount_type", "").strip()
         if discount_type_val:
@@ -482,19 +560,47 @@ class PromotionsView(TemplateView):
         store_id_val = self.request.GET.get("store_id", "").strip()
         if store_id_val.isdigit():
             raw_filters["store_id"] = store_id_val
+        date_from_val = self.request.GET.get("date_from", "").strip()
+        date_to_val = self.request.GET.get("date_to", "").strip()
+        if date_from_val:
+            raw_filters["date_from"] = date_from_val
+        if date_to_val:
+            raw_filters["date_to"] = date_to_val
         context["active_filters"] = raw_filters
 
+        PER_PAGE = 12
+        page = int(self.request.GET.get("page", 1) or 1)
+        offset = (page - 1) * PER_PAGE
+        pagination_params = {"limit": PER_PAGE, "offset": offset}
+        api_params = {**raw_filters, **pagination_params} if raw_filters else pagination_params
+
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            f_promotions = executor.submit(api_get, "/promotions", api_params, self.request.user.email)
+            f_countries  = executor.submit(build_country_choices)
+            f_stores     = executor.submit(build_store_choices)
+            f_products   = executor.submit(build_product_lookup)
+
         try:
-            promotions = api_get("/promotions", params=raw_filters or None)
+            data = f_promotions.result()
         except ApiClientError as exc:
             context["api_error"] = str(exc)
             return context
 
-        product_lookup = build_product_lookup()
-        country_lookup = build_country_lookup(context["countries"])
-        store_lookup = build_store_lookup(context["stores"])
+        context["countries"] = f_countries.result()
+        context["stores"]    = f_stores.result()
+        product_lookup  = f_products.result()
+        context["products"]  = [
+            {"id": pid, "code": p.get("code", ""), "name": p.get("name", f"#{pid}")}
+            for pid, p in product_lookup.items()
+        ]
+        country_lookup  = build_country_lookup(context["countries"])
+        store_lookup    = build_store_lookup(context["stores"])
 
-        for promotion in promotions:
+        items_raw = data.get("items", [])
+        total = data.get("total", 0)
+
+        promotions_list = []
+        for promotion in items_raw:
             product_display = get_product_display(
                 promotion.get("product_id"),
                 product_lookup,
@@ -502,8 +608,10 @@ class PromotionsView(TemplateView):
             cid = promotion.get("country_id")
             sid = promotion.get("store_id")
 
-            context["promotions"].append(
+            promotions_list.append(
                 {
+                    "id": promotion.get("id"),
+                    "product_id": promotion.get("product_id"),
                     "code": promotion.get("code") or "N/A",
                     "name": promotion.get("name") or "N/A",
                     "description": promotion.get("description") or "N/A",
@@ -526,6 +634,10 @@ class PromotionsView(TemplateView):
                 }
             )
 
+        page_obj = ApiPage(promotions_list, total, page, PER_PAGE)
+        context["page_obj"] = page_obj
+        context["promotions"] = page_obj
+
         return context
 
     @staticmethod
@@ -546,7 +658,7 @@ class PromotionsView(TemplateView):
         return str(discount_value)
 
 
-class PriceChangeRequestsView(TemplateView):
+class PriceChangeRequestsView(LoginRequiredMixin, TemplateView):
     template_name = "core/price_change_requests.html"
 
     def get_context_data(self, **kwargs):
@@ -562,18 +674,34 @@ class PriceChangeRequestsView(TemplateView):
         country_id_val = self.request.GET.get("country_id", "").strip()
         if country_id_val.isdigit():
             raw_filters["country_id"] = country_id_val
+        date_from_val = self.request.GET.get("date_from", "").strip()
+        date_to_val = self.request.GET.get("date_to", "").strip()
+        if date_from_val:
+            raw_filters["date_from"] = date_from_val
+        if date_to_val:
+            raw_filters["date_to"] = date_to_val
         context["active_filters"] = raw_filters
 
+        PER_PAGE = 20
+        page = int(self.request.GET.get("page", 1) or 1)
+        offset = (page - 1) * PER_PAGE
+        pagination_params = {"limit": PER_PAGE, "offset": offset}
+        api_params = {**raw_filters, **pagination_params} if raw_filters else pagination_params
+
         try:
-            requests = api_get("/price-change-requests", params=raw_filters or None)
+            data = api_get("/price-change-requests", params=api_params, user_email=self.request.user.email)
         except ApiClientError as exc:
             context["api_error"] = str(exc)
             return context
 
+        items_raw = data.get("items", [])
+        total = data.get("total", 0)
+
         product_lookup = build_product_lookup()
         country_lookup = build_country_lookup(context["countries"])
 
-        for request in requests:
+        price_change_requests_list = []
+        for request in items_raw:
             product_display = get_product_display(
                 request.get("product_id"),
                 product_lookup,
@@ -581,7 +709,7 @@ class PriceChangeRequestsView(TemplateView):
             cid = request.get("country_id")
             sid = request.get("store_id")
 
-            context["price_change_requests"].append(
+            price_change_requests_list.append(
                 {
                     "id": request.get("id") or "N/A",
                     "product_id": request.get("product_id") or "N/A",
@@ -606,6 +734,10 @@ class PriceChangeRequestsView(TemplateView):
                 }
             )
 
+        page_obj = ApiPage(price_change_requests_list, total, page, PER_PAGE)
+        context["page_obj"] = page_obj
+        context["price_change_requests"] = page_obj
+
         return context
 
     def post(self, request, *args, **kwargs):
@@ -626,14 +758,11 @@ class PriceChangeRequestsView(TemplateView):
         return redirect("core:price_change_requests")
 
     def approve_request(self, price_change_request_id):
-        payload = {
-            "approved_by_user_id": 1,
-        }
-
         try:
             api_post(
                 f"/price-change-requests/{price_change_request_id}/approve",
-                payload=payload,
+                payload=None,
+                user_email=self.request.user.email,
             )
         except ApiClientError as exc:
             messages.error(
@@ -656,7 +785,6 @@ class PriceChangeRequestsView(TemplateView):
             return redirect("core:price_change_requests")
 
         payload = {
-            "rejected_by_user_id": 1,
             "reason": reason,
         }
 
@@ -664,6 +792,7 @@ class PriceChangeRequestsView(TemplateView):
             api_post(
                 f"/price-change-requests/{price_change_request_id}/reject",
                 payload=payload,
+                user_email=request.user.email,
             )
         except ApiClientError as exc:
             messages.error(
@@ -697,24 +826,48 @@ class PriceChangeRequestsView(TemplateView):
         return "Demande magasin"
 
 
-class PriceChangeRequestCreateView(TemplateView):
+class PriceChangeRequestCreateView(LoginRequiredMixin, TemplateView):
     template_name = "core/price_change_request_form.html"
 
-    def _load_choices(self):
+    def _get_user_scope(self):
+        try:
+            me = api_get("/me", user_email=self.request.user.email)
+            return me.get("country_id"), me.get("store_id")
+        except ApiClientError:
+            return None, None
+
+    def _load_choices(self, scope_country_id=None, scope_store_id=None):
         products = build_product_choices()
         countries = build_country_choices()
         stores = build_store_choices()
+
+        if scope_country_id is not None:
+            countries = [c for c in countries if c["id"] == scope_country_id]
+            stores = [s for s in stores if s.get("country_id") == scope_country_id]
+
+        if scope_store_id is not None:
+            stores = [s for s in stores if s["id"] == scope_store_id]
+
         return products, countries, stores
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["api_error"] = kwargs.get("api_error")
-        products, countries, stores = self._load_choices()
+
+        scope_country_id, scope_store_id = self._get_user_scope()
+        context["scope_country_id"] = scope_country_id
+        context["scope_store_id"] = scope_store_id
+
+        products, countries, stores = self._load_choices(scope_country_id, scope_store_id)
         context["stores_json"] = json.dumps(
             [{"id": s["id"], "name": s["name"], "country_id": s.get("country_id")} for s in stores]
         )
         form = kwargs.get("form") or PriceChangeRequestForm(
-            products=products, countries=countries, stores=stores
+            products=products,
+            countries=countries,
+            stores=stores,
+            scope_country_id=scope_country_id,
+            scope_store_id=scope_store_id,
         )
         if not kwargs.get("form"):
             product_id = self.request.GET.get("product_id", "").strip()
@@ -724,9 +877,15 @@ class PriceChangeRequestCreateView(TemplateView):
         return context
 
     def post(self, request, *args, **kwargs):
-        products, countries, stores = self._load_choices()
+        scope_country_id, scope_store_id = self._get_user_scope()
+        products, countries, stores = self._load_choices(scope_country_id, scope_store_id)
         form = PriceChangeRequestForm(
-            request.POST, products=products, countries=countries, stores=stores
+            request.POST,
+            products=products,
+            countries=countries,
+            stores=stores,
+            scope_country_id=scope_country_id,
+            scope_store_id=scope_store_id,
         )
 
         if not form.is_valid():
@@ -737,7 +896,7 @@ class PriceChangeRequestCreateView(TemplateView):
             old_price = request.POST.get("old_price_amount", "").strip()
             if old_price:
                 payload["old_price_amount"] = old_price
-            api_post("/price-change-requests", payload=payload)
+            api_post("/price-change-requests", payload=payload, user_email=request.user.email)
         except ApiClientError as exc:
             return self.render_to_response(
                 self.get_context_data(form=form, api_error=str(exc))
@@ -747,7 +906,7 @@ class PriceChangeRequestCreateView(TemplateView):
         return redirect("core:price_change_requests")
 
 
-class PriceHistoryView(TemplateView):
+class PriceHistoryView(LoginRequiredMixin, TemplateView):
     template_name = "core/price_history.html"
 
     def get_context_data(self, **kwargs):
@@ -755,21 +914,40 @@ class PriceHistoryView(TemplateView):
         context["api_error"] = None
         context["price_history"] = []
 
+        raw_filters = {}
+        date_from_val = self.request.GET.get("date_from", "").strip()
+        date_to_val = self.request.GET.get("date_to", "").strip()
+        if date_from_val:
+            raw_filters["date_from"] = date_from_val
+        if date_to_val:
+            raw_filters["date_to"] = date_to_val
+        context["active_filters"] = raw_filters
+
+        PER_PAGE = 25
+        page = int(self.request.GET.get("page", 1) or 1)
+        offset = (page - 1) * PER_PAGE
+        pagination_params = {"limit": PER_PAGE, "offset": offset}
+        api_params = {**raw_filters, **pagination_params} if raw_filters else pagination_params
+
         try:
-            history_items = api_get("/price-history")
+            data = api_get("/price-history", params=api_params)
         except ApiClientError as exc:
             context["api_error"] = str(exc)
             return context
 
+        items_raw = data.get("items", [])
+        total = data.get("total", 0)
+
         product_lookup = build_product_lookup()
 
-        for item in history_items:
+        price_history_list = []
+        for item in items_raw:
             product_display = get_product_display(
                 item.get("product_id"),
                 product_lookup,
             )
 
-            context["price_history"].append(
+            price_history_list.append(
                 {
                     "history_id": item.get("history_id") or "N/A",
                     "price_change_request_id": item.get("price_change_request_id") or "N/A",
@@ -792,6 +970,10 @@ class PriceHistoryView(TemplateView):
                 }
             )
 
+        page_obj = ApiPage(price_history_list, total, page, PER_PAGE)
+        context["page_obj"] = page_obj
+        context["price_history"] = page_obj
+
         return context
 
     @staticmethod
@@ -802,7 +984,7 @@ class PriceHistoryView(TemplateView):
         return "Prix magasin"
 
 
-class AnalyticsSalesView(TemplateView):
+class AnalyticsSalesView(LoginRequiredMixin, TemplateView):
     template_name = "core/analytics_sales.html"
 
     def get_context_data(self, **kwargs):
@@ -825,21 +1007,37 @@ class AnalyticsSalesView(TemplateView):
         is_promo_val = self.request.GET.get("is_promo", "").strip()
         if is_promo_val in ("true", "false"):
             raw_filters["is_promo"] = is_promo_val
+        date_from_val = self.request.GET.get("date_from", "").strip()
+        date_to_val = self.request.GET.get("date_to", "").strip()
+        if date_from_val:
+            raw_filters["date_from"] = date_from_val
+        if date_to_val:
+            raw_filters["date_to"] = date_to_val
         context["active_filters"] = raw_filters
 
+        PER_PAGE = 25
+        page = int(self.request.GET.get("page", 1) or 1)
+        offset = (page - 1) * PER_PAGE
+        pagination_params = {"limit": PER_PAGE, "offset": offset}
+        api_params = {**raw_filters, **pagination_params} if raw_filters else pagination_params
+
         try:
-            sales = api_get("/analytics/sales", params=raw_filters or None)
+            data = api_get("/analytics/sales", params=api_params)
         except ApiClientError as exc:
             context["api_error"] = str(exc)
             return context
 
-        for row in sales:
+        items_raw = data.get("items", [])
+        total = data.get("total", 0)
+
+        sales_list = []
+        for row in items_raw:
             revenue = row.get("revenue")
             unit_price = row.get("unit_price")
             price_amount = row.get("price_amount")
             diff_rate = row.get("price_difference_rate")
 
-            context["sales"].append({
+            sales_list.append({
                 "transaction_id": row.get("transaction_id") or "N/A",
                 "transaction_day": str(row.get("transaction_day") or ""),
                 "product_code": row.get("product_code") or "N/A",
@@ -863,10 +1061,14 @@ class AnalyticsSalesView(TemplateView):
                 "discount_value": row.get("discount_value"),
             })
 
+        page_obj = ApiPage(sales_list, total, page, PER_PAGE)
+        context["page_obj"] = page_obj
+        context["sales"] = page_obj
+
         return context
 
 
-class AnomaliesView(TemplateView):
+class AnomaliesView(LoginRequiredMixin, TemplateView):
     template_name = "core/anomalies.html"
 
     def get_context_data(self, **kwargs):
@@ -888,11 +1090,20 @@ class AnomaliesView(TemplateView):
                 pass
         context["active_filters"] = raw_filters
 
+        PER_PAGE = 20
+        page = int(self.request.GET.get("page", 1) or 1)
+        offset = (page - 1) * PER_PAGE
+        pagination_params = {"limit": PER_PAGE, "offset": offset}
+        api_params = {**raw_filters, **pagination_params} if raw_filters else pagination_params
+
         try:
-            anomalies = api_get("/anomalies", params=raw_filters or None)
+            data = api_get("/anomalies", params=api_params, user_email=self.request.user.email)
         except ApiClientError as exc:
             context["api_error"] = str(exc)
             return context
+
+        items_raw = data.get("items", [])
+        total = data.get("total", 0)
 
         product_lookup = build_product_lookup()
 
@@ -903,7 +1114,8 @@ class AnomaliesView(TemplateView):
             r"Promotion (\d+) generated revenue below the configured threshold\."
         )
 
-        for anomaly in anomalies:
+        anomalies_list = []
+        for anomaly in items_raw:
             product_display = get_product_display(
                 anomaly.get("product_id"),
                 product_lookup,
@@ -918,7 +1130,7 @@ class AnomaliesView(TemplateView):
                 raw_message,
             ) or "N/A"
 
-            context["anomalies"].append(
+            anomalies_list.append(
                 {
                     "anomaly_type": translated_type,
                     "severity": anomaly.get("severity") or "N/A",
@@ -941,17 +1153,89 @@ class AnomaliesView(TemplateView):
                 }
             )
 
+        page_obj = ApiPage(anomalies_list, total, page, PER_PAGE)
+        context["page_obj"] = page_obj
+        context["anomalies"] = page_obj
+
         return context
 
 
-class PromotionDeactivateView(View):
+class PromotionDeactivateView(LoginRequiredMixin, View):
     def post(self, _request, promotion_id: int):
         try:
-            data = api_patch(f"/promotions/{promotion_id}/deactivate")
+            data = api_patch(f"/promotions/{promotion_id}/deactivate", user_email=_request.user.email)
         except ApiResponseError as exc:
             return JsonResponse({"error": str(exc)}, status=409)
         except ApiClientError as exc:
             return JsonResponse({"error": str(exc)}, status=502)
         return JsonResponse({"id": data["id"], "active": data["active"]})
 
-        return context
+
+class PromotionCreateView(LoginRequiredMixin, View):
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({"error": "Données invalides"}, status=400)
+
+        payload = {
+            "code": str(data.get("code", "")).strip(),
+            "name": str(data.get("name", "")).strip(),
+            "description": str(data.get("description", "")).strip() or None,
+            "discount_type": data.get("discount_type", ""),
+            "discount_value": data.get("discount_value"),
+            "product_id": data.get("product_id"),
+            "start_date": data.get("start_date"),
+            "end_date": data.get("end_date"),
+            "country_id": data.get("country_id"),
+            "store_id": data.get("store_id") or None,
+        }
+
+        try:
+            result = api_post("/promotions", payload, user_email=request.user.email)
+        except ApiResponseError as exc:
+            return JsonResponse({"error": str(exc)}, status=400)
+        except ApiClientError as exc:
+            return JsonResponse({"error": str(exc)}, status=502)
+
+        return JsonResponse(result, status=201)
+
+
+class ProductPromotionsView(LoginRequiredMixin, View):
+    def get(self, _request, product_id):
+        try:
+            data = api_get("/promotions", params={"product_id": product_id, "limit": 500}, user_email=_request.user.email)
+        except ApiClientError as exc:
+            return JsonResponse({"error": str(exc)}, status=502)
+
+        promotions = data.get("items", data) if isinstance(data, dict) else data
+        countries = build_country_choices()
+        stores = build_store_choices()
+        country_lookup = build_country_lookup(countries)
+        store_lookup = build_store_lookup(stores)
+
+        result = []
+        for p in promotions:
+            cid = p.get("country_id")
+            sid = p.get("store_id")
+            dt = p.get("discount_type", "")
+            dv = p.get("discount_value", "")
+            try:
+                label = f"{Decimal(str(dv)).normalize()}%" if dt == "PERCENTAGE" else f"{Decimal(str(dv)).normalize()} (prix fixe)"
+            except (InvalidOperation, TypeError):
+                label = str(dv)
+            result.append({
+                "id": p.get("id"),
+                "code": p.get("code", ""),
+                "name": p.get("name", ""),
+                "discount_label": label,
+                "discount_type": dt,
+                "discount_value": str(dv),
+                "start_date": p.get("start_date", ""),
+                "end_date": p.get("end_date", ""),
+                "active": p.get("active", False),
+                "country_name": country_lookup.get(cid, f"Pays #{cid}") if cid else "N/A",
+                "store_name": store_lookup.get(sid, f"Magasin #{sid}") if sid else None,
+            })
+
+        return JsonResponse({"promotions": result})

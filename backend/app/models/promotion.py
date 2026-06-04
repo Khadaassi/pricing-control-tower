@@ -42,11 +42,11 @@ class Promotion(Base):
     name: Mapped[str] = mapped_column(String(150), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Métier promotion
+    # Promotion business fields
     discount_type: Mapped[str] = mapped_column(String(20), nullable=False)
     discount_value: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
 
-    # Produit ciblé (une promo = un seul produit)
+    # Targeted product (one promotion = one product)
     product_id: Mapped[int] = mapped_column(
         ForeignKey("pct_core.product.id", name="fk_promotion_product"),
         nullable=False,
@@ -55,7 +55,7 @@ class Promotion(Base):
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
 
-    # Scope géographique
+    # Geographic scope
     country_id: Mapped[int] = mapped_column(Integer, nullable=False)
     store_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
