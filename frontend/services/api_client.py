@@ -1,7 +1,13 @@
+from __future__ import annotations
+
+import logging
+import time
 from typing import Any
 
 import requests
 from django.conf import settings
+
+logger = logging.getLogger("pricing_control_tower.frontend.api_client")
 
 
 class ApiClientError(Exception):
@@ -35,6 +41,7 @@ def api_get(
     user_email: str | None = None,
 ) -> Any:
     url = build_api_url(endpoint)
+    start_time = time.perf_counter()
 
     try:
         response = requests.get(
@@ -44,17 +51,72 @@ def api_get(
             timeout=5,
         )
         response.raise_for_status()
+
+        log_api_success(
+            method="GET",
+            endpoint=endpoint,
+            status_code=response.status_code,
+            duration_ms=get_duration_ms(start_time),
+            user_email=user_email,
+        )
+
         return response.json()
+
     except requests.exceptions.ConnectionError as exc:
-        raise ApiConnectionError("Unable to connect to FastAPI backend.") from exc
+        error_message = "Unable to connect to FastAPI backend."
+
+        log_api_failure(
+            method="GET",
+            endpoint=endpoint,
+            status_code=None,
+            duration_ms=get_duration_ms(start_time),
+            user_email=user_email,
+            error=error_message,
+        )
+
+        raise ApiConnectionError(error_message) from exc
+
     except requests.exceptions.Timeout as exc:
-        raise ApiConnectionError("FastAPI backend request timed out.") from exc
+        error_message = "FastAPI backend request timed out."
+
+        log_api_failure(
+            method="GET",
+            endpoint=endpoint,
+            status_code=None,
+            duration_ms=get_duration_ms(start_time),
+            user_email=user_email,
+            error=error_message,
+        )
+
+        raise ApiConnectionError(error_message) from exc
+
     except requests.exceptions.HTTPError as exc:
-        raise ApiResponseError(
-            f"FastAPI backend returned an error: {response.status_code}"
-        ) from exc
+        error_message = extract_api_error_message(response)
+
+        log_api_failure(
+            method="GET",
+            endpoint=endpoint,
+            status_code=response.status_code,
+            duration_ms=get_duration_ms(start_time),
+            user_email=user_email,
+            error=error_message,
+        )
+
+        raise ApiResponseError(error_message) from exc
+
     except requests.exceptions.JSONDecodeError as exc:
-        raise ApiResponseError("FastAPI backend returned invalid JSON.") from exc
+        error_message = "FastAPI backend returned invalid JSON."
+
+        log_api_failure(
+            method="GET",
+            endpoint=endpoint,
+            status_code=response.status_code,
+            duration_ms=get_duration_ms(start_time),
+            user_email=user_email,
+            error=error_message,
+        )
+
+        raise ApiResponseError(error_message) from exc
 
 
 def api_post(
@@ -63,6 +125,7 @@ def api_post(
     user_email: str | None = None,
 ) -> Any:
     url = build_api_url(endpoint)
+    start_time = time.perf_counter()
 
     try:
         response = requests.post(
@@ -72,15 +135,72 @@ def api_post(
             timeout=5,
         )
         response.raise_for_status()
+
+        log_api_success(
+            method="POST",
+            endpoint=endpoint,
+            status_code=response.status_code,
+            duration_ms=get_duration_ms(start_time),
+            user_email=user_email,
+        )
+
         return response.json()
+
     except requests.exceptions.ConnectionError as exc:
-        raise ApiConnectionError("Unable to connect to FastAPI backend.") from exc
+        error_message = "Unable to connect to FastAPI backend."
+
+        log_api_failure(
+            method="POST",
+            endpoint=endpoint,
+            status_code=None,
+            duration_ms=get_duration_ms(start_time),
+            user_email=user_email,
+            error=error_message,
+        )
+
+        raise ApiConnectionError(error_message) from exc
+
     except requests.exceptions.Timeout as exc:
-        raise ApiConnectionError("FastAPI backend request timed out.") from exc
+        error_message = "FastAPI backend request timed out."
+
+        log_api_failure(
+            method="POST",
+            endpoint=endpoint,
+            status_code=None,
+            duration_ms=get_duration_ms(start_time),
+            user_email=user_email,
+            error=error_message,
+        )
+
+        raise ApiConnectionError(error_message) from exc
+
     except requests.exceptions.HTTPError as exc:
-        raise ApiResponseError(extract_api_error_message(response)) from exc
+        error_message = extract_api_error_message(response)
+
+        log_api_failure(
+            method="POST",
+            endpoint=endpoint,
+            status_code=response.status_code,
+            duration_ms=get_duration_ms(start_time),
+            user_email=user_email,
+            error=error_message,
+        )
+
+        raise ApiResponseError(error_message) from exc
+
     except requests.exceptions.JSONDecodeError as exc:
-        raise ApiResponseError("FastAPI backend returned invalid JSON.") from exc
+        error_message = "FastAPI backend returned invalid JSON."
+
+        log_api_failure(
+            method="POST",
+            endpoint=endpoint,
+            status_code=response.status_code,
+            duration_ms=get_duration_ms(start_time),
+            user_email=user_email,
+            error=error_message,
+        )
+
+        raise ApiResponseError(error_message) from exc
 
 
 def api_patch(
@@ -89,6 +209,7 @@ def api_patch(
     user_email: str | None = None,
 ) -> Any:
     url = build_api_url(endpoint)
+    start_time = time.perf_counter()
 
     try:
         response = requests.patch(
@@ -98,15 +219,72 @@ def api_patch(
             timeout=5,
         )
         response.raise_for_status()
+
+        log_api_success(
+            method="PATCH",
+            endpoint=endpoint,
+            status_code=response.status_code,
+            duration_ms=get_duration_ms(start_time),
+            user_email=user_email,
+        )
+
         return response.json()
+
     except requests.exceptions.ConnectionError as exc:
-        raise ApiConnectionError("Unable to connect to FastAPI backend.") from exc
+        error_message = "Unable to connect to FastAPI backend."
+
+        log_api_failure(
+            method="PATCH",
+            endpoint=endpoint,
+            status_code=None,
+            duration_ms=get_duration_ms(start_time),
+            user_email=user_email,
+            error=error_message,
+        )
+
+        raise ApiConnectionError(error_message) from exc
+
     except requests.exceptions.Timeout as exc:
-        raise ApiConnectionError("FastAPI backend request timed out.") from exc
+        error_message = "FastAPI backend request timed out."
+
+        log_api_failure(
+            method="PATCH",
+            endpoint=endpoint,
+            status_code=None,
+            duration_ms=get_duration_ms(start_time),
+            user_email=user_email,
+            error=error_message,
+        )
+
+        raise ApiConnectionError(error_message) from exc
+
     except requests.exceptions.HTTPError as exc:
-        raise ApiResponseError(extract_api_error_message(response)) from exc
+        error_message = extract_api_error_message(response)
+
+        log_api_failure(
+            method="PATCH",
+            endpoint=endpoint,
+            status_code=response.status_code,
+            duration_ms=get_duration_ms(start_time),
+            user_email=user_email,
+            error=error_message,
+        )
+
+        raise ApiResponseError(error_message) from exc
+
     except requests.exceptions.JSONDecodeError as exc:
-        raise ApiResponseError("FastAPI backend returned invalid JSON.") from exc
+        error_message = "FastAPI backend returned invalid JSON."
+
+        log_api_failure(
+            method="PATCH",
+            endpoint=endpoint,
+            status_code=response.status_code,
+            duration_ms=get_duration_ms(start_time),
+            user_email=user_email,
+            error=error_message,
+        )
+
+        raise ApiResponseError(error_message) from exc
 
 
 def extract_api_error_message(response: requests.Response) -> str:
@@ -132,3 +310,53 @@ def extract_api_error_message(response: requests.Response) -> str:
         return " | ".join(messages)
 
     return f"FastAPI backend returned an error: {response.status_code}"
+
+
+def get_duration_ms(start_time: float) -> float:
+    return round((time.perf_counter() - start_time) * 1000, 2)
+
+
+def log_api_success(
+    method: str,
+    endpoint: str,
+    status_code: int,
+    duration_ms: float,
+    user_email: str | None,
+) -> None:
+    logger.info(
+        "FastAPI call succeeded",
+        extra={
+            "extra_fields": {
+                "event": "api_call_succeeded",
+                "method": method,
+                "endpoint": endpoint,
+                "status_code": status_code,
+                "duration_ms": duration_ms,
+                "user_email": user_email,
+            }
+        },
+    )
+
+
+def log_api_failure(
+    method: str,
+    endpoint: str,
+    status_code: int | None,
+    duration_ms: float,
+    user_email: str | None,
+    error: str,
+) -> None:
+    logger.warning(
+        "FastAPI call failed",
+        extra={
+            "extra_fields": {
+                "event": "api_call_failed",
+                "method": method,
+                "endpoint": endpoint,
+                "status_code": status_code,
+                "duration_ms": duration_ms,
+                "user_email": user_email,
+                "error": error,
+            }
+        },
+    )
