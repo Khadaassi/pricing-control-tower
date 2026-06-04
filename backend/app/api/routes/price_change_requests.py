@@ -11,17 +11,17 @@ from app.schemas.price_change_request import (
     PriceChangeRequestRead,
     PriceChangeRequestReject,
 )
-from app.services.rbac_service import ensure_user_has_permission
-from app.services.scope_service import (
-    ensure_country_filter_allowed,
-    ensure_store_belongs_to_country_scope,
-    ensure_store_filter_allowed,
-)
 from app.services.price_change_request_service import (
     approve_and_apply_price_change_request,
     create_price_change_request,
     list_price_change_requests,
     reject_price_change_request,
+)
+from app.services.rbac_service import ensure_user_has_permission
+from app.services.scope_service import (
+    ensure_country_filter_allowed,
+    ensure_store_belongs_to_country_scope,
+    ensure_store_filter_allowed,
 )
 
 router = APIRouter(
@@ -109,7 +109,10 @@ def get_price_change_requests_endpoint(
         limit=limit,
         offset=offset,
     )
-    return {"items": [PriceChangeRequestRead.model_validate(item).model_dump() for item in items], "total": total}
+    return {
+        "items": [PriceChangeRequestRead.model_validate(item).model_dump() for item in items],
+        "total": total,
+    }
 
 
 @router.post(

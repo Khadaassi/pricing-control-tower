@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-
 from app.api.dependencies.current_user import get_current_business_user
 from app.db import get_db
 from app.models.price import Price

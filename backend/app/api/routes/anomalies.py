@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.api.dependencies.current_user import get_current_business_user
 from app.db import get_db
 from app.models.user_account import UserAccount
-from app.schemas.anomaly import BusinessAnomalyRead
 from app.services.anomaly_service import get_business_anomalies
 from app.services.scope_service import (
     ensure_store_belongs_to_country_scope,
@@ -22,7 +21,8 @@ router = APIRouter(prefix="/anomalies", tags=["anomalies"])
     summary="List pricing and commercial anomalies",
     description=(
         "Returns pricing anomalies detected by four business rules. "
-        "(1) UNDERPERFORMING_PROMO — promotion daily revenue below pre-promotion baseline by more than 10 %; "
+        "(1) UNDERPERFORMING_PROMO — promotion daily revenue below pre-promotion baseline "
+        "by more than 10 %; "
         "(2) INEFFECTIVE_DISCOUNT — effective discount ≥ 20 % with no volume uplift; "
         "(3) PRICE_ABOVE_REFERENCE — store price exceeds the national reference price; "
         "(4) INTER_STORE_PRICE_GAP — abnormal deviation between a store price "

@@ -632,7 +632,9 @@ def _get_inter_store_price_gaps(
             family_cache[row.product_family_id] = _family_name_by_id(db, row.product_family_id)
         family_name = family_cache[row.product_family_id]
 
-        direction = "au-dessus" if _to_decimal(row.amount) > _to_decimal(row.avg_price) else "en dessous"
+        direction = (
+            "au-dessus" if _to_decimal(row.amount) > _to_decimal(row.avg_price) else "en dessous"
+        )
 
         anomalies.append(
             BusinessAnomalyRead(
