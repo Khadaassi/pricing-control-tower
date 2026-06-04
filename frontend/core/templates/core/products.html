@@ -29,7 +29,7 @@
                             </span>
                         {% endif %}
                     </p>
-                    <p class="text-xs text-gray-400">{{ products|length }} produit{% if products|length > 1 %}s{% endif %} dans le catalogue</p>
+                    <p class="text-xs text-gray-400">{{ page_obj.paginator.count }} produit{% if page_obj.paginator.count > 1 %}s{% endif %} dans le catalogue</p>
                 </div>
             </div>
         </div>
@@ -262,14 +262,16 @@
                                 </svg>
                                 <p class="text-sm font-semibold text-gray-900">Promotions</p>
                             </div>
-                            <button id="btn-create-promo-product"
-                                    onclick="openProductCreateModal()"
-                                    class="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[11px] font-semibold text-amber-700 hover:bg-amber-100 transition-colors">
-                                <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
-                                </svg>
-                                Nouvelle promotion
-                            </button>
+                            {% if can_create_promotion %}
+                                <button id="btn-create-promo-product"
+                                        onclick="openProductCreateModal()"
+                                        class="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[11px] font-semibold text-amber-700 hover:bg-amber-100 transition-colors">
+                                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                                    </svg>
+                                    Nouvelle promotion
+                                </button>
+                            {% endif %}
                         </div>
 
                         <div id="promos-loading" class="flex items-center gap-2 text-xs text-gray-400 py-2">
@@ -360,6 +362,7 @@
         })();
 
         /* ── Countries / Stores data for create modal ── */
+        const CAN_CREATE_PROMOTION = {{ can_create_promotion|yesno:"true,false" }};
         const PROD_COUNTRIES = [{% for c in countries %}{"id": {{ c.id }}, "name": "{{ c.name }}"},{% endfor %}];
         const PROD_STORES    = [{% for s in stores %}{"id": {{ s.id }}, "name": "{{ s.name }}", "country_id": {{ s.country_id }}},{% endfor %}];
 
@@ -643,7 +646,7 @@
 
         // ── Create promotion from product page ──
         function openProductCreateModal() {
-            if (!_currentProductId) return;
+            if (!CAN_CREATE_PROMOTION || !_currentProductId) return;
             openProductPromoModal(_currentProductId);
         }
 
@@ -662,6 +665,7 @@
         });
         </script>
 
+        {% include "core/partials/pagination.html" %}
     </div>
 {% else %}
     {% include "core/partials/empty_state.html" with title="Aucun produit trouvé" description="L'API a répondu mais aucun produit n'a été retourné." %}

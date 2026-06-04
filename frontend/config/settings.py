@@ -67,6 +67,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                "core.context_processors.rbac_context",
             ],
         },
     },
@@ -124,6 +125,10 @@ STATIC_URL = 'static/'
 TAILWIND_APP_NAME = "theme"
 
 NPM_BIN_PATH = "/usr/local/bin/npm"
+
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "core:dashboard"
+LOGOUT_REDIRECT_URL = "login"
 
 if DEBUG:
     # Add django_browser_reload only in DEBUG mode

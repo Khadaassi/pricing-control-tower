@@ -13,8 +13,6 @@ class PriceChangeRequestCreate(BaseModel):
     justification: str = Field(min_length=1)
     requested_effective_date: date
 
-    requested_by_user_id: int = Field(gt=0)
-
     @field_validator("justification")
     @classmethod
     def validate_justification_not_empty(cls, value: str) -> str:
@@ -44,17 +42,12 @@ class PriceChangeRequestRead(BaseModel):
     rejection_reason: str | None = None
     rejected_by_user_id: int | None = None
     rejected_at: datetime | None = None
-    
+
     created_at: datetime
     updated_at: datetime
 
 
-class PriceChangeRequestApprove(BaseModel):
-    approved_by_user_id: int = Field(gt=0)
-
-
 class PriceChangeRequestReject(BaseModel):
-    rejected_by_user_id: int = Field(gt=0)
     reason: str = Field(min_length=1)
 
     @field_validator("reason")

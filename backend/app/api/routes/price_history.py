@@ -1,8 +1,9 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.schemas.price_history import PriceHistoryRead
 from app.services.price_history_service import list_price_history
 
 router = APIRouter(
@@ -11,27 +12,29 @@ router = APIRouter(
 )
 
 
-@router.get(
-    "",
-    response_model=list[PriceHistoryRead],
-)
+@router.get("")
 def get_price_history_endpoint(
     price_change_request_id: int | None = Query(default=None, gt=0),
     product_id: int | None = Query(default=None, gt=0),
     country_id: int | None = Query(default=None, gt=0),
     store_id: int | None = Query(default=None, gt=0),
     applied_by_user_id: int | None = Query(default=None, gt=0),
-    limit: int = Query(default=100, ge=1, le=500),
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
+    limit: int = Query(default=25, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
-) -> list[PriceHistoryRead]:
-    return list_price_history(
+) -> dict:
+    items, total = list_price_history(
         db=db,
         price_change_request_id=price_change_request_id,
         product_id=product_id,
         country_id=country_id,
         store_id=store_id,
         applied_by_user_id=applied_by_user_id,
+        date_from=date_from,
+        date_to=date_to,
         limit=limit,
         offset=offset,
     )
+    return {"items": items, "total": total}
