@@ -74,6 +74,7 @@ Documented business rules:
 {json.dumps(rules_context, indent=2, ensure_ascii=False)}
 
 Answer requirements:
+- Always answer in French.
 - Answer in clear business language.
 - Be concise.
 - Do not invent capabilities.

@@ -75,6 +75,7 @@ Documented RBAC context:
 {json.dumps(rbac_context, indent=2, ensure_ascii=False)}
 
 Answer requirements:
+- Always answer in French.
 - Answer in clear business language.
 - Be concise.
 - Explain role, permissions, and scope when relevant.
