@@ -1,4 +1,8 @@
+import json
+import logging
 from unittest.mock import MagicMock
+
+import pytest
 
 from app.core.chatbot_messages import (
     CHATBOT_MISSING_STORE_ID_MESSAGE,
@@ -7,6 +11,15 @@ from app.core.chatbot_messages import (
     CHATBOT_SUPPORTED_SCOPE_MESSAGE,
 )
 from app.orchestrator.chatbot_orchestrator import ChatbotOrchestrator
+
+
+def logged_events(caplog: pytest.LogCaptureFixture, event_name: str) -> list[dict]:
+    return [
+        json.loads(record.getMessage())
+        for record in caplog.records
+        if record.name == "ai_service.orchestrator"
+        and json.loads(record.getMessage())["event"] == event_name
+    ]
 
 
 def assert_no_business_tool_was_called(
@@ -259,3 +272,47 @@ class TestRevenueIntentNotYetWired:
         assert result["status"] == "not_implemented"
         assert result["answer"] == CHATBOT_NOT_IMPLEMENTED_MESSAGE
         mock_kpi_service.explain.assert_not_called()
+
+
+class TestLogging:
+    def test_logs_chat_tool_selected_for_a_recognized_question(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_rbac_service: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": "...",
+            "source": "rbac_tool + llm",
+            "roles_used": [],
+            "llm_used": True,
+        }
+
+        with caplog.at_level(logging.INFO):
+            orchestrator.answer_question(
+                "Que peut faire un store manager ?",
+                user_email="user@example.com",
+                store_id=42,
+            )
+
+        events = logged_events(caplog, "chat_tool_selected")
+        assert len(events) == 1
+        assert events[0]["intent"] == "explain_rbac"
+        assert events[0]["tool_name"] == "rbac_tool"
+        assert events[0]["user_email_present"] is True
+        assert events[0]["store_id_present"] is True
+
+    def test_logs_tool_name_none_for_unrecognized_question(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        with caplog.at_level(logging.INFO):
+            orchestrator.answer_question("Raconte-moi une blague.")
+
+        events = logged_events(caplog, "chat_tool_selected")
+        assert len(events) == 1
+        assert events[0]["intent"] == "unknown"
+        assert events[0]["tool_name"] == "none"
+        assert events[0]["user_email_present"] is False
+        assert events[0]["store_id_present"] is False

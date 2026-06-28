@@ -1,6 +1,9 @@
+import json
+import logging
 from typing import Any
 from unittest.mock import MagicMock
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.core.chatbot_messages import (
@@ -8,6 +11,15 @@ from app.core.chatbot_messages import (
     CHATBOT_TECHNICAL_ERROR_MESSAGE,
     CHATBOT_UNSUPPORTED_USE_CASE_MESSAGE,
 )
+
+
+def logged_events(caplog: pytest.LogCaptureFixture, event_name: str) -> list[dict]:
+    return [
+        json.loads(record.getMessage())
+        for record in caplog.records
+        if record.name == "ai_service.chatbot"
+        and json.loads(record.getMessage())["event"] == event_name
+    ]
 
 
 def make_raw_response(**overrides: Any) -> dict[str, Any]:
@@ -231,3 +243,79 @@ class TestChatHealthEndpoint:
         assert body["service"] == "ai_service"
         assert body["component"] == "chatbot"
         assert body["status"] in {"ok", "degraded"}
+
+
+class TestChatEndpointLogging:
+    def test_logs_request_received_and_response_generated(
+        self,
+        client: TestClient,
+        mock_orchestrator: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        mock_orchestrator.answer_question.return_value = make_raw_response()
+        question = "Peux-tu m'expliquer ce KPI ?"
+
+        with caplog.at_level(logging.INFO):
+            response = client.post("/chat", json={"question": question})
+
+        assert response.status_code == 200
+
+        received = logged_events(caplog, "chat_request_received")
+        assert len(received) == 1
+        assert received[0]["question_length"] == len(question)
+        assert received[0]["user_email"] is None
+        assert received[0]["store_id"] is None
+        assert "request_id" in received[0]
+
+        generated = logged_events(caplog, "chat_response_generated")
+        assert len(generated) == 1
+        assert generated[0]["request_id"] == received[0]["request_id"]
+        assert generated[0]["status"] == "routed"
+        assert generated[0]["llm_used"] is True
+        assert generated[0]["tools_used"] == ["kpi_explanation_tool"]
+        assert generated[0]["kpis_used"] == ["margin"]
+        assert generated[0]["latency_ms"] >= 0
+
+        assert logged_events(caplog, "chat_request_failed") == []
+
+    def test_never_logs_the_raw_question_text(
+        self,
+        client: TestClient,
+        mock_orchestrator: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        secret_question = "Mon numéro de carte est 4242 4242 4242 4242, explique ce KPI"
+        mock_orchestrator.answer_question.return_value = make_raw_response(
+            question=secret_question
+        )
+
+        with caplog.at_level(logging.INFO):
+            client.post("/chat", json={"question": secret_question})
+
+        for record in caplog.records:
+            assert secret_question not in record.getMessage()
+
+    def test_logs_request_failed_on_unexpected_exception(
+        self,
+        client: TestClient,
+        mock_orchestrator: MagicMock,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        mock_orchestrator.answer_question.side_effect = RuntimeError("boom")
+
+        with caplog.at_level(logging.INFO):
+            response = client.post("/chat", json={"question": "Peux-tu m'expliquer ce KPI ?"})
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "error"
+        assert body["answer"] == CHATBOT_TECHNICAL_ERROR_MESSAGE
+        assert body["metadata"]["error_type"] == "RuntimeError"
+
+        failed = logged_events(caplog, "chat_request_failed")
+        assert len(failed) == 1
+        assert failed[0]["error_type"] == "RuntimeError"
+        assert failed[0]["error_message"] == "boom"
+        assert failed[0]["latency_ms"] >= 0
+
+        assert logged_events(caplog, "chat_response_generated") == []
