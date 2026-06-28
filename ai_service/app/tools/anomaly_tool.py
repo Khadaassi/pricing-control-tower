@@ -107,7 +107,10 @@ class AnomalyTool:
             "anomaly": anomaly,
             "explanation": explanation,
         }
-    
+
+    def explain_anomalies(self, anomalies: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [self.explain_anomaly(anomaly) for anomaly in anomalies]
+
     def list_store_country_price_mismatches(
         self,
         user_email: str,

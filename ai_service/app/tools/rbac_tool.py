@@ -86,11 +86,11 @@ RBAC_ROLES: dict[str, dict[str, Any]] = {
         "label": "Pricing analyst",
         "scope": "Full MVP scope",
         "keywords": [
-            "country director",
-            "country_director",
-            "country scope",
-            "country data",
-            "stores within country",
+            "pricing analyst",
+            "pricing_analyst",
+            "analyst",
+            "full scope",
+            "broader scope",
         ],
         "description": (
             "A pricing analyst has a broader scope in the MVP. "
