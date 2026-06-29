@@ -14,7 +14,7 @@ The goal is to make the chatbot observable enough to answer, locally, the follow
 
 This complements [`application_monitoring_metrics.md`](application_monitoring_metrics.md), which covers the FastAPI backend and the Django frontend. That document does not cover `ai_service`; this one does.
 
-`GET /metrics` exposes a Prometheus-compatible text format, ready to be scraped by a Prometheus server (added in a follow-up ticket together with Grafana). Logs remain local, console-based, and not yet aggregated, which is intentional for the MVP.
+`GET /metrics` exposes a Prometheus-compatible text format, scraped by the `prometheus` service and visualized in Grafana (see section 8). Logs remain local, console-based, and not yet aggregated, which is intentional for the MVP.
 
 ---
 
@@ -185,20 +185,7 @@ curl http://127.0.0.1:8001/metrics
 
 No authentication is required in the MVP.
 
-A `prometheus` service is now wired up in the root [`docker-compose.yml`](../../docker-compose.yml), scraping `ai_service:8001/metrics` every 15s using the config in [`monitoring/prometheus/prometheus.yml`](../../monitoring/prometheus/prometheus.yml). Run `docker compose up` from the repo root and check `http://localhost:9090/targets` to confirm the `ai_service` target is `UP`.
-
-A `grafana` service is also wired up in the same `docker-compose.yml`, with its Prometheus data source provisioned automatically from [`monitoring/grafana/provisioning/datasources/prometheus.yml`](../../monitoring/grafana/provisioning/datasources/prometheus.yml) (fixed `uid: prometheus`, so dashboards can reference it without depending on an auto-generated id). Open `http://localhost:3000` (default credentials `admin` / `admin`, local development only) and check **Connections → Data sources → Prometheus → Save & test** to confirm Grafana can query Prometheus.
-
-A dashboard named **AI Chatbot Monitoring** is provisioned automatically in the **Pricing Control Tower** folder, from [`monitoring/grafana/provisioning/dashboards/dashboards.yml`](../../monitoring/grafana/provisioning/dashboards/dashboards.yml) (provider config) and [`monitoring/grafana/provisioning/dashboards/ai_chatbot_dashboard.json`](../../monitoring/grafana/provisioning/dashboards/ai_chatbot_dashboard.json) (dashboard definition). It has four panels:
-
-| Panel | Type | Query |
-| ----- | ---- | ----- |
-| Chatbot requests | Time series | `increase(ai_chat_requests_total[5m])` |
-| Chatbot errors | Stat | `sum(ai_chat_responses_total{status="error"})` |
-| Average response latency | Time series | `rate(ai_chat_response_latency_seconds_sum[5m]) / rate(ai_chat_response_latency_seconds_count[5m])` |
-| Business tool usage | Bar chart | `sum by (tool_name) (ai_chat_tool_usage_total)` |
-
-The "Business tool usage" panel is the one to point at during a demo: it shows that the chatbot's routing decisions (which business tool answered a given question) are observable, not a black box.
+A `prometheus` service and a `grafana` service are wired up in the root [`docker-compose.yml`](../../docker-compose.yml), scraping `ai_service:8001/metrics` and visualizing it through a provisioned dashboard. See section 8 for the full observability stack documentation (configuration, dashboard panels, demonstration procedure, and stack-specific limitations).
 
 ### 4.4 Alert thresholds
 
@@ -214,7 +201,7 @@ The "Business tool usage" panel is the one to point at during a demo: it shows t
 
 * metrics are held in a single in-process Prometheus `CollectorRegistry` (`app/core/metrics.py`); they reset to zero whenever the `ai_service` process restarts;
 * metrics are not aggregated across multiple workers/replicas if the service is scaled horizontally — each process exposes its own `/metrics`, so a real deployment needs either one scrape target per replica or a push-based aggregation layer;
-* there is no persistence, history, or time-series view on the `ai_service` side — `/metrics` always reflects the current process's lifetime only; Prometheus (see section 4.3) now retains history once scraping, and the Grafana dashboard (see section 4.3) visualizes it;
+* there is no persistence, history, or time-series view on the `ai_service` side — `/metrics` always reflects the current process's lifetime only; Prometheus retains history once scraping, and the Grafana dashboard visualizes it (see section 8);
 * `reset_metrics()` exists for test isolation; it is not exposed over HTTP and must not be called in production;
 * the debug JSON shape used before this format change is no longer served — `/metrics` now only returns the Prometheus text format.
 
@@ -309,7 +296,7 @@ A missing or invalid `GROQ_API_KEY` will not be caught by `/chat/health` — it 
 ## 7. Current MVP limitations
 
 * logs are visible in the local console/process only; there is no log aggregation;
-* Prometheus scrapes `/metrics` (see section 4.3), and a Grafana dashboard (requests, errors, latency, tool usage) is provisioned automatically;
+* Prometheus and Grafana now provide metric collection and visualization (see section 8);
 * metrics reset on every process restart;
 * `/chat/health` checks configuration presence, not actual LLM or backend reachability;
 * no automated alerting; the thresholds in section 4.4 are manual reference points;
@@ -319,7 +306,152 @@ These limitations are acceptable for the MVP and can be addressed in a future pr
 
 ---
 
-## 8. RNCP evidence
+## 8. Observability stack: Prometheus & Grafana
+
+### 8.1 Stack overview
+
+The AI chatbot observability stack is composed of:
+
+* the AI FastAPI service (`ai_service`), exposing Prometheus metrics on `GET /metrics` (see section 4);
+* Prometheus, scraping those metrics on a fixed interval and retaining their history;
+* Grafana, visualizing the scraped metrics through a provisioned dashboard.
+
+Flow:
+
+```text
+ai_service /metrics → Prometheus scrape → Grafana dashboard
+```
+
+All three run as services in the root [`docker-compose.yml`](../../docker-compose.yml): `ai_service`, `prometheus`, `grafana`.
+
+### 8.2 Exposed metrics
+
+See section 4.2 for the full metric reference. Summary:
+
+| Metric                                | Type      | Description                                                       |
+| -------------------------------------- | --------- | ------------------------------------------------------------------- |
+| `ai_chat_requests_total`              | Counter   | Total number of chatbot requests received                         |
+| `ai_chat_responses_total{status=...}` | Counter   | Total number of chatbot responses by application status           |
+| `ai_chat_errors_total{error_type=...}`| Counter   | Total number of unexpected chatbot errors by exception type        |
+| `ai_chat_tool_usage_total{tool_name=...}` | Counter | Total number of times each business tool is selected by the orchestrator |
+| `ai_chat_response_latency_seconds`    | Histogram | Chatbot response latency in seconds                                |
+
+Known response statuses (`ChatResponse.status`, see [`chatbot_orchestrator.py`](../../ai_service/app/orchestrator/chatbot_orchestrator.py)):
+
+* `routed`
+* `answered`
+* `unsupported`
+* `missing_context`
+* `not_implemented`
+* `error`
+
+Known tool names (`_select_tool` in [`chatbot_orchestrator.py:261`](../../ai_service/app/orchestrator/chatbot_orchestrator.py#L261)):
+
+* `kpi_tool`
+* `price_change_tool`
+* `anomaly_tool`
+* `kpi_explanation_tool`
+* `business_rules_tool`
+* `rbac_tool`
+* `none` (no intent matched)
+
+### 8.3 Prometheus configuration
+
+Configured in [`monitoring/prometheus/prometheus.yml`](../../monitoring/prometheus/prometheus.yml). Prometheus scrapes the AI service every 15 seconds using the Docker Compose service name:
+
+```text
+ai_service:8001/metrics
+```
+
+Inside Docker Compose, Prometheus must target `ai_service`, not `localhost` — `localhost` from inside the `prometheus` container would refer to the Prometheus container itself, not `ai_service`.
+
+Verification commands:
+
+```bash
+docker compose up -d --build
+curl http://localhost:9090/-/ready
+```
+
+In the Prometheus UI (`http://localhost:9090`): **Status → Targets** → the `ai_service` target must be `UP`.
+
+### 8.4 Grafana configuration
+
+Provisioned automatically at startup from:
+
+* [`monitoring/grafana/provisioning/datasources/prometheus.yml`](../../monitoring/grafana/provisioning/datasources/prometheus.yml) — the Prometheus datasource, with a fixed UID (`prometheus`) so the dashboard JSON can reference it reliably instead of relying on an auto-generated id;
+* [`monitoring/grafana/provisioning/dashboards/dashboards.yml`](../../monitoring/grafana/provisioning/dashboards/dashboards.yml) — the dashboard provider, loading dashboards into the "Pricing Control Tower" folder;
+* [`monitoring/grafana/provisioning/dashboards/ai_chatbot_dashboard.json`](../../monitoring/grafana/provisioning/dashboards/ai_chatbot_dashboard.json) — the dashboard definition itself (see section 8.5).
+
+Grafana is available locally at:
+
+```text
+http://localhost:3000
+```
+
+Default MVP credentials: `admin` / `admin`. These credentials are only for the local demonstration environment, not for any deployed environment.
+
+### 8.5 AI Chatbot Monitoring dashboard
+
+The dashboard is named **AI Chatbot Monitoring** and is located in the **Pricing Control Tower** Grafana folder. It contains four panels:
+
+| Panel | Purpose |
+| ----- | ------- |
+| Chatbot requests | Shows chatbot request volume |
+| Chatbot errors | Shows chatbot error responses |
+| Average response latency | Shows average chatbot response latency |
+| Business tool usage | Shows which business tools are selected by the orchestrator |
+
+Examples of PromQL queries used in the panels:
+
+```promql
+ai_chat_requests_total
+sum(ai_chat_responses_total{status="error"})
+ai_chat_response_latency_seconds_sum / ai_chat_response_latency_seconds_count
+sum by (tool_name) (ai_chat_tool_usage_total)
+```
+
+The "Business tool usage" panel uses an instant query (`"instant": true` on the Prometheus target) rather than a range query, so each `tool_name` renders as exactly one bar with its current value, instead of one bar per scrape sample.
+
+### 8.6 RNCP demonstration procedure
+
+1. Start the stack:
+   ```bash
+   docker compose up -d --build
+   ```
+2. Check the AI service metrics:
+   ```bash
+   curl http://localhost:8001/metrics
+   ```
+3. Open Prometheus at `http://localhost:9090` and check that the `ai_service` target is `UP` (**Status → Targets**).
+4. Generate chatbot traffic:
+   ```bash
+   curl -X POST http://localhost:8001/chat \
+     -H "Content-Type: application/json" \
+     -d '{"question":"Que peut faire un store manager ?"}'
+   ```
+5. Open Grafana at `http://localhost:3000`, then **Dashboards → Pricing Control Tower → AI Chatbot Monitoring**.
+6. Verify that request volume, errors, latency, and tool usage are visible.
+
+### 8.7 Observability stack limitations
+
+* metrics are collected only while the local Docker Compose stack is running;
+* no persistent Grafana volume is configured in the MVP — Grafana's own state (dashboards aside, which are re-provisioned from disk) does not survive a container recreation;
+* Grafana uses local development credentials (`admin` / `admin`);
+* no alerting rules are configured in Grafana yet (see section 4.4 for manual threshold references);
+* the dashboard focuses on technical observability (requests, errors, latency, tool usage), not business KPI analysis;
+* metrics do not expose user questions or personal data (see section 3.3);
+* the chatbot currently selects one business tool per question.
+
+If Grafana provisioning fails after changing datasource or dashboard configuration (for example, after changing a datasource UID while Grafana's internal database still references the old one), recreate the local stack instead of just restarting the `grafana` container:
+
+```bash
+docker compose down
+docker compose up -d --build
+```
+
+---
+
+## 9. RNCP evidence
 
 | Evidence                  | Description                                                                 |
 | -------------------------- | ----------------------------------------------------------------------------- |
@@ -327,8 +459,8 @@ These limitations are acceptable for the MVP and can be addressed in a future pr
 | Metrics exposure           | `GET /metrics` in Prometheus text format, with request volume, response status, errors, tool usage, latency |
 | Healthcheck                | `GET /chat/health` for configuration status                                   |
 | Incident diagnosis         | `request_id` correlation between `chat_request_received` and `chat_response_generated`/`chat_request_failed` |
-| Metrics visualization      | Grafana dashboard ("AI Chatbot Monitoring") provisioned automatically, showing request volume, errors, latency, and business tool usage |
+| Metrics visualization      | Grafana dashboard ("AI Chatbot Monitoring") provisioned automatically, showing request volume, errors, latency, and business tool usage (see section 8) |
 | Privacy-aware logging      | Raw question text is never logged, only its length                            |
-| Technical documentation    | This document explains logs, metrics, health checks, and diagnostic procedures |
+| Technical documentation    | This document explains logs, metrics, health checks, the observability stack, and diagnostic procedures |
 
 This supports the Bloc 3 expectation related to application monitoring and operational reliability, extending the backend/frontend monitoring documented in [`application_monitoring_metrics.md`](application_monitoring_metrics.md) to the AI chatbot component.

@@ -454,7 +454,9 @@ These logs and metrics trace:
 * unhandled technical errors, with a `request_id` correlating the failure to the originating request;
 * request volume, response status breakdown, error counts, tool usage counts, and response latency.
 
-Full details (event payloads, metrics reference, health check behavior, and diagnostic procedures) are documented in [`ai_chatbot_monitoring.md`](../05_runbook/ai_chatbot_monitoring.md).
+The AI service observability stack relies on Prometheus for metrics collection and Grafana for visualization, both provisioned in the root `docker-compose.yml`.
+
+Full details (event payloads, metrics reference, health check behavior, the Prometheus/Grafana stack, and diagnostic procedures) are documented in [`ai_chatbot_monitoring.md`](../05_runbook/ai_chatbot_monitoring.md).
 
 ## 12. Data Flows
 
