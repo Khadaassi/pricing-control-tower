@@ -1,5 +1,7 @@
 # Functional and Technical Architecture of the AI Chatbot
 
+> This document covers `ai_service` itself. For how the Django frontend integrates with it (request/response flow, session handling, error mapping, UX), see [`ai_chatbot_frontend_integration.md`](ai_chatbot_frontend_integration.md).
+
 ## 1. Purpose of the AI Component
 
 The AI chatbot of Pricing Control Tower is designed to assist users in understanding data, business rules, and anomalies related to pricing management.

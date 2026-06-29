@@ -1,9 +1,11 @@
 # Chatbot Security Rules
 
-This document complements `docs/02_functional/chatbot_use_cases.md`.
+This document complements [`docs/01_functional/chatbot_use_cases.md`](../01_functional/chatbot_use_cases.md).
 
 The chatbot use cases are defined in T144.  
 This document focuses only on security rules, limitations, RBAC constraints, and refusal behaviors.
+
+For how these rules are enforced across the full Django ↔ AI service integration, see [`ai_chatbot_frontend_integration.md`](ai_chatbot_frontend_integration.md).
 
 ## Core rule
 
