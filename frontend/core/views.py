@@ -1,4 +1,5 @@
 import json
+import logging
 import math
 import re
 from concurrent.futures import ThreadPoolExecutor
@@ -13,7 +14,14 @@ from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 
 from core.forms import PriceChangeRequestForm
+from core.services.ai_chatbot_client import (
+    AiChatbotConnectionError,
+    AiChatbotResponseError,
+    ask_chatbot,
+)
 from services.api_client import ApiClientError, ApiResponseError, api_get, api_patch, api_post
+
+logger = logging.getLogger("pricing_control_tower.frontend.chatbot")
 
 
 class _ApiPaginator:
@@ -1158,6 +1166,83 @@ class AnomaliesView(LoginRequiredMixin, TemplateView):
         context["anomalies"] = page_obj
 
         return context
+
+
+class ChatbotView(LoginRequiredMixin, TemplateView):
+    """Chatbot UI: forwards questions to the AI service and displays its
+    response. No intent detection, tool selection or KPI/RBAC/anomaly
+    interpretation here — that logic lives entirely in ai_service."""
+
+    template_name = "core/chatbot.html"
+
+    CONNECTION_ERROR_REPLY = "Le service IA est momentanément indisponible. Veuillez réessayer plus tard."
+    RESPONSE_ERROR_REPLY = "Le service IA a retourné une réponse inattendue. Veuillez réessayer."
+    TECHNICAL_ERROR_REPLY = "Une erreur technique est survenue pendant l'appel au chatbot."
+    EXAMPLE_QUESTIONS = [
+        "Explique le chiffre d'affaires.",
+        "Que peut faire un store manager ?",
+        "Explique les anomalies du magasin 1.",
+        "Le chatbot peut-il approuver une demande de changement de prix ?",
+    ]
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["chatbot_history"] = self.request.session.get("chatbot_history", [])
+        context["example_questions"] = self.EXAMPLE_QUESTIONS
+        return context
+
+    def post(self, request, *args, **kwargs):
+        question = request.POST.get("message", "").strip()
+        is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+        if not question:
+            if is_ajax:
+                return JsonResponse({"error": "empty_question"}, status=400)
+            return redirect("core:chatbot")
+
+        history = request.session.get("chatbot_history", [])
+        history.append({"role": "user", "content": question})
+        assistant_turn = self._get_assistant_turn(request, question)
+        history.append(assistant_turn)
+        request.session["chatbot_history"] = history[-20:]
+
+        if is_ajax:
+            return JsonResponse({"assistant": assistant_turn})
+
+        return redirect("core:chatbot")
+
+    def _get_assistant_turn(self, request, question: str) -> dict:
+        try:
+            result = ask_chatbot(
+                question=question,
+                user_email=request.user.email or None,
+                store_id=request.session.get("store_id"),
+            )
+        except AiChatbotConnectionError:
+            return self._error_turn(self.CONNECTION_ERROR_REPLY)
+        except AiChatbotResponseError:
+            return self._error_turn(self.RESPONSE_ERROR_REPLY)
+        except Exception:
+            logger.exception("Unexpected error while calling the AI service")
+            return self._error_turn(self.TECHNICAL_ERROR_REPLY)
+
+        metadata = result.get("metadata") or {}
+
+        return {
+            "role": "assistant",
+            "content": result.get("answer") or metadata.get("message") or self.TECHNICAL_ERROR_REPLY,
+            "status": result.get("status"),
+            "selected_tool": result.get("selected_tool"),
+        }
+
+    @staticmethod
+    def _error_turn(content: str) -> dict:
+        return {
+            "role": "assistant",
+            "content": content,
+            "status": "error",
+            "selected_tool": None,
+        }
 
 
 class PromotionDeactivateView(LoginRequiredMixin, View):

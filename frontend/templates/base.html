@@ -144,9 +144,8 @@
             max-width: 0;
         }
 
-        /* Section headings + AI card hidden when collapsed */
-        #desktop-sidebar.is-collapsed .sidebar-section-label,
-        #desktop-sidebar.is-collapsed .sidebar-ai-card {
+        /* Section headings hidden when collapsed */
+        #desktop-sidebar.is-collapsed .sidebar-section-label {
             opacity: 0;
             height: 0;
             overflow: hidden;
@@ -154,6 +153,36 @@
             padding: 0;
             pointer-events: none;
             transition: opacity 160ms ease;
+        }
+
+        /* AI card collapses to a centered icon link, like other nav items */
+        #desktop-sidebar.is-collapsed .sidebar-ai-card {
+            justify-content: center;
+            padding: 0.75rem;
+            position: relative;
+        }
+
+        #desktop-sidebar.is-collapsed .sidebar-ai-card::after {
+            content: attr(data-label);
+            position: absolute;
+            left: calc(100% + 10px);
+            top: 50%;
+            transform: translateY(-50%);
+            background: #0f172a;
+            color: #fff;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 120ms ease;
+            z-index: 100;
+        }
+
+        #desktop-sidebar.is-collapsed .sidebar-ai-card:hover::after {
+            opacity: 1;
         }
 
         /* Center icons when collapsed */
@@ -382,19 +411,20 @@
                 <span class="sidebar-label">Historique des prix</span>
             </a>
 
-            <div class="sidebar-ai-card mt-auto rounded-3xl border border-white/10 bg-white/[0.04] p-4">
-                <div class="flex items-center gap-3">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-lg shadow-violet-950/30">
-                        <svg class="h-5 w-5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846A4.5 4.5 0 005.096 12.813L2.25 12l2.846-.813A4.5 4.5 0 008.187 8.096L9 5.25l.813 2.846a4.5 4.5 0 003.091 3.091L15.75 12l-2.846.813a4.5 4.5 0 00-3.091 3.091z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <p class="text-sm font-semibold text-white">Analyses IA</p>
-                        <p class="mt-0.5 text-xs text-slate-400">Support à la décision uniquement</p>
-                    </div>
+            <a href="{% url 'core:chatbot' %}"
+               data-label="Chatbot IA"
+               class="sidebar-ai-card mt-auto flex items-center gap-3 rounded-3xl border p-4 transition-colors
+               {% if request.resolver_match.url_name == 'chatbot' %}border-violet-400/40 bg-violet-500/10{% else %}border-white/10 bg-white/[0.04] hover:border-white/20 hover:bg-white/[0.07]{% endif %}">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-lg shadow-violet-950/30">
+                    <svg class="h-5 w-5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846A4.5 4.5 0 005.096 12.813L2.25 12l2.846-.813A4.5 4.5 0 008.187 8.096L9 5.25l.813 2.846a4.5 4.5 0 003.091 3.091L15.75 12l-2.846.813a4.5 4.5 0 00-3.091 3.091z"/>
+                    </svg>
                 </div>
-            </div>
+                <div class="sidebar-label min-w-0">
+                    <p class="text-sm font-semibold text-white">Chatbot IA</p>
+                    <p class="mt-0.5 text-xs text-slate-400">Support à la décision uniquement</p>
+                </div>
+            </a>
         </nav>
     </aside>
 
@@ -495,6 +525,14 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M21 3v5.25h-5.25"/>
                 </svg>
                 Historique des prix
+            </a>
+
+            <a href="{% url 'core:chatbot' %}"
+               class="pct-nav-link flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold {% if request.resolver_match.url_name == 'chatbot' %}pct-nav-active{% else %}text-slate-300{% endif %}">
+                <svg class="h-5 w-5 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846A4.5 4.5 0 005.096 12.813L2.25 12l2.846-.813A4.5 4.5 0 008.187 8.096L9 5.25l.813 2.846a4.5 4.5 0 003.091 3.091L15.75 12l-2.846.813a4.5 4.5 0 00-3.091 3.091z"/>
+                </svg>
+                Chatbot IA
             </a>
         </nav>
     </aside>
