@@ -3,10 +3,18 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.clients.backend_client import BackendClient
+from app.core.metrics import reset_metrics
 from app.tools.anomaly_tool import AnomalyTool
 from app.tools.business_rules_tool import BusinessRulesTool
 from app.tools.kpi_tool import KPITool
 from app.tools.rbac_tool import RBACTool
+
+
+@pytest.fixture(autouse=True)
+def _reset_metrics() -> None:
+    reset_metrics()
+    yield
+    reset_metrics()
 
 
 @pytest.fixture

@@ -7,6 +7,12 @@ from fastapi import APIRouter
 
 from app.core.chatbot_messages import CHATBOT_TECHNICAL_ERROR_MESSAGE
 from app.core.logging_config import get_logger, log_event
+from app.core.metrics import (
+    increment_chat_errors_total,
+    increment_chat_requests_total,
+    increment_chat_responses_total,
+    observe_chat_response_latency_seconds,
+)
 from app.orchestrator.chatbot_orchestrator import ChatbotOrchestrator
 from app.schemas.chat import ChatMetadata, ChatRequest, ChatResponse
 
@@ -62,6 +68,8 @@ def chat(request: ChatRequest) -> ChatResponse:
     request_id = str(uuid.uuid4())
     started_at = time.perf_counter()
 
+    increment_chat_requests_total()
+
     log_event(
         logger,
         "chat_request_received",
@@ -82,6 +90,12 @@ def chat(request: ChatRequest) -> ChatResponse:
 
         response = build_chat_response(raw_response)
     except Exception as error:
+        latency_ms = round((time.perf_counter() - started_at) * 1000, 2)
+
+        increment_chat_responses_total("error")
+        increment_chat_errors_total(type(error).__name__)
+        observe_chat_response_latency_seconds(latency_ms / 1000)
+
         log_event(
             logger,
             "chat_request_failed",
@@ -89,10 +103,15 @@ def chat(request: ChatRequest) -> ChatResponse:
             request_id=request_id,
             error_type=type(error).__name__,
             error_message=str(error),
-            latency_ms=round((time.perf_counter() - started_at) * 1000, 2),
+            latency_ms=latency_ms,
         )
 
         return build_technical_error_response(request.question, error)
+
+    latency_ms = round((time.perf_counter() - started_at) * 1000, 2)
+
+    increment_chat_responses_total(response.status)
+    observe_chat_response_latency_seconds(latency_ms / 1000)
 
     log_event(
         logger,
@@ -104,7 +123,7 @@ def chat(request: ChatRequest) -> ChatResponse:
         rules_used=[rule.get("rule_code") for rule in response.metadata.rules_used],
         roles_used=[role.get("role_code") for role in response.metadata.roles_used],
         kpis_used=[kpi.get("kpi_code") for kpi in response.metadata.kpis_used],
-        latency_ms=round((time.perf_counter() - started_at) * 1000, 2),
+        latency_ms=latency_ms,
     )
 
     return response

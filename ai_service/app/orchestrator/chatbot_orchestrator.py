@@ -16,6 +16,7 @@ from app.core.chatbot_messages import (
     CHATBOT_UNSUPPORTED_USE_CASE_MESSAGE,
 )
 from app.core.logging_config import get_logger, log_event
+from app.core.metrics import increment_chat_tool_usage_total
 
 logger = get_logger("ai_service.orchestrator")
 
@@ -62,15 +63,17 @@ class ChatbotOrchestrator:
         store_id: int | None = None,
     ) -> dict[str, Any]:
         routed = self.route_question(question)
+        tool_name = routed["selected_tool"] or "none"
 
         log_event(
             logger,
             "chat_tool_selected",
             intent=routed["intent"],
-            tool_name=routed["selected_tool"] or "none",
+            tool_name=tool_name,
             user_email_present=user_email is not None,
             store_id_present=store_id is not None,
         )
+        increment_chat_tool_usage_total(tool_name)
 
         if routed["status"] == "unsupported":
             return {

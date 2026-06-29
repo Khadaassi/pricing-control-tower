@@ -10,6 +10,7 @@ from app.core.chatbot_messages import (
     CHATBOT_NOT_IMPLEMENTED_MESSAGE,
     CHATBOT_SUPPORTED_SCOPE_MESSAGE,
 )
+from app.core.metrics import get_metric_value
 from app.orchestrator.chatbot_orchestrator import ChatbotOrchestrator
 
 
@@ -316,3 +317,62 @@ class TestLogging:
         assert events[0]["tool_name"] == "none"
         assert events[0]["user_email_present"] is False
         assert events[0]["store_id_present"] is False
+
+
+class TestToolUsageMetrics:
+    """`chat_tool_usage_total` is incremented at the same call site as the
+    `chat_tool_selected` log, so it is exercised here rather than through the
+    `/chat` endpoint tests, which mock the whole orchestrator and never reach
+    this code path.
+    """
+
+    def test_recognized_question_increments_tool_usage_for_its_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_rbac_service: MagicMock,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": "...",
+            "source": "rbac_tool + llm",
+            "roles_used": [],
+            "llm_used": True,
+        }
+
+        orchestrator.answer_question("Que peut faire un store manager ?")
+
+        assert get_metric_value(
+            "ai_chat_tool_usage_total", {"tool_name": "rbac_tool"}
+        ) == 1.0
+
+    def test_unrecognized_question_increments_tool_usage_for_none(
+        self,
+        orchestrator: ChatbotOrchestrator,
+    ) -> None:
+        orchestrator.answer_question("Raconte-moi une blague.")
+
+        assert get_metric_value(
+            "ai_chat_tool_usage_total", {"tool_name": "none"}
+        ) == 1.0
+
+    def test_each_call_adds_to_the_running_total(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_rbac_service: MagicMock,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": "...",
+            "source": "rbac_tool + llm",
+            "roles_used": [],
+            "llm_used": True,
+        }
+
+        orchestrator.answer_question("Que peut faire un store manager ?")
+        orchestrator.answer_question("Que peut faire un store manager ?")
+        orchestrator.answer_question("Raconte-moi une blague.")
+
+        assert get_metric_value(
+            "ai_chat_tool_usage_total", {"tool_name": "rbac_tool"}
+        ) == 2.0
+        assert get_metric_value(
+            "ai_chat_tool_usage_total", {"tool_name": "none"}
+        ) == 1.0
