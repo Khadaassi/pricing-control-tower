@@ -226,6 +226,8 @@ The LLM is used.
 Validated
 ```
 
+> **2026-06-29 update:** re-running this exact question live during the [T174 end-to-end validation](ai_chatbot_end_to_end_validation.md#81-business-rule-question-not-routed-as-expected--fixed) returned `status=unsupported` / `intent=unknown`, not `routed` / `business_rules_tool` as recorded above — the keyword list in `ChatbotOrchestrator._detect_intent` did not match this French phrasing. **Fixed** the same day: French keyword phrases (`"chatbot peut-il approuver"` and siblings) were added to the business-rule keyword list, with a regression test using this exact question. Re-running it now correctly returns `routed` / `business_rules_tool` again, as originally recorded above.
+
 ---
 
 ### TC04 — Anomaly question with missing user context

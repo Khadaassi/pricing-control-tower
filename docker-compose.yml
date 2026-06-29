@@ -6,6 +6,14 @@ services:
     restart: unless-stopped
     env_file:
       - ./ai_service/.env
+    environment:
+      # Overrides ai_service/.env's BACKEND_API_URL (meant for running ai_service
+      # directly on the host), which is unreachable from inside this container:
+      # "localhost" here would mean the container itself, not the host running
+      # the backend API.
+      - BACKEND_API_URL=http://host.docker.internal:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8001:8001"
 

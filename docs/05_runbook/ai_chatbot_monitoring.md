@@ -464,3 +464,5 @@ docker compose up -d --build
 | Technical documentation    | This document explains logs, metrics, health checks, the observability stack, and diagnostic procedures |
 
 This supports the Bloc 3 expectation related to application monitoring and operational reliability, extending the backend/frontend monitoring documented in [`application_monitoring_metrics.md`](application_monitoring_metrics.md) to the AI chatbot component.
+
+For a live end-to-end confirmation that real Django-driven chatbot traffic actually reaches these logs, metrics, Prometheus, and Grafana, see [`ai_chatbot_end_to_end_validation.md`](../06_validation/ai_chatbot_end_to_end_validation.md).

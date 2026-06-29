@@ -354,7 +354,7 @@ Secrets are stored in the local `.env` file (not committed — see [`ai_service/
 * no automated deployment to staging or production yet;
 * no container registry publishing yet;
 * no automated rollback strategy for `ai_service` yet;
-* frontend ↔ chatbot integration is not covered by this CI pipeline;
+* frontend ↔ chatbot integration is not covered by this CI pipeline — it is covered by manual end-to-end validation instead, see [`ai_chatbot_end_to_end_validation.md`](../06_validation/ai_chatbot_end_to_end_validation.md);
 * `ruff format --check` is not enforced, only `ruff check` (see [`ai_service_quality_checks.md`, section 6](../06_validation/ai_service_quality_checks.md#6-mvp-limitations));
 * branch protection is configured manually in GitHub settings, not version-controlled.
 

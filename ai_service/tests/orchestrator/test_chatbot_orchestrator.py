@@ -62,6 +62,16 @@ class TestRouting:
         assert routed["intent"] == "explain_business_rule"
         assert routed["selected_tool"] == "business_rules_tool"
 
+    def test_approve_price_change_question_in_french_is_routed_to_business_rules_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "Le chatbot peut-il approuver une demande de changement de prix ?"
+        )
+
+        assert routed["intent"] == "explain_business_rule"
+        assert routed["selected_tool"] == "business_rules_tool"
+
     def test_rbac_question_is_routed_to_rbac_tool(
         self, orchestrator: ChatbotOrchestrator
     ) -> None:

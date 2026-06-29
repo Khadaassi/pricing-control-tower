@@ -641,6 +641,8 @@ How do I install PostgreSQL?
 Which products have a store price higher than the country price?
 ```
 
+The validations above cover the AI service in isolation. The full chain, starting from the Django `/chatbot/` UI through to logs, metrics, Prometheus, and Grafana, is validated in [`ai_chatbot_end_to_end_validation.md`](../06_validation/ai_chatbot_end_to_end_validation.md).
+
 ## 17. Conclusion
 
 The AI chatbot architecture of Pricing Control Tower is modular, controlled, and traceable.
