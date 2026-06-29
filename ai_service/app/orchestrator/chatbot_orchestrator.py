@@ -1,12 +1,6 @@
 import re
 from typing import Any
 
-from app.services.business_rules_explanation_service import (
-    BusinessRulesExplanationService,
-)
-from app.services.rbac_explanation_service import RBACExplanationService
-from app.services.kpi_explanation_service import KPIExplanationService
-from app.tools.anomaly_tool import AnomalyTool
 from app.core.chatbot_messages import (
     CHATBOT_MISSING_STORE_ID_MESSAGE,
     CHATBOT_MISSING_USER_EMAIL_MESSAGE,
@@ -17,6 +11,12 @@ from app.core.chatbot_messages import (
 )
 from app.core.logging_config import get_logger, log_event
 from app.core.metrics import increment_chat_tool_usage_total
+from app.services.business_rules_explanation_service import (
+    BusinessRulesExplanationService,
+)
+from app.services.kpi_explanation_service import KPIExplanationService
+from app.services.rbac_explanation_service import RBACExplanationService
+from app.tools.anomaly_tool import AnomalyTool
 
 logger = get_logger("ai_service.orchestrator")
 

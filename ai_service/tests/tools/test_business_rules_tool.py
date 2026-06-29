@@ -9,7 +9,9 @@ class TestListRules:
         returned_codes = {rule["rule_code"] for rule in result["rules"]}
         assert returned_codes == set(BUSINESS_RULES.keys())
 
-    def test_each_entry_exposes_code_and_title(self, business_rules_tool: BusinessRulesTool) -> None:
+    def test_each_entry_exposes_code_and_title(
+        self, business_rules_tool: BusinessRulesTool
+    ) -> None:
         result = business_rules_tool.list_rules()
 
         for entry in result["rules"]:

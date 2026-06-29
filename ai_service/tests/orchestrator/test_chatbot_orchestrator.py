@@ -126,7 +126,9 @@ class TestAnswerQuestionDispatch:
         mock_rbac_service.explain.return_value = {
             "answer": "Un store manager accède uniquement aux données de son magasin.",
             "source": "rbac_tool + llm",
-            "roles_used": [{"role_code": "STORE_MANAGER", "label": "Store manager", "scope": "Single store"}],
+            "roles_used": [
+                {"role_code": "STORE_MANAGER", "label": "Store manager", "scope": "Single store"}
+            ],
             "llm_used": True,
         }
 
@@ -158,7 +160,10 @@ class TestAnswerQuestionDispatch:
         )
         assert result["status"] == "answered"
         assert result["selected_tool"] == "anomaly_tool"
-        assert result["answer"] == mock_anomaly_tool.list_store_country_price_mismatches.return_value
+        assert (
+            result["answer"]
+            == mock_anomaly_tool.list_store_country_price_mismatches.return_value
+        )
 
     def test_anomaly_question_without_user_email_does_not_call_anomaly_tool(
         self,

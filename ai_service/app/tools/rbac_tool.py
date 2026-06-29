@@ -1,6 +1,5 @@
 from typing import Any
 
-
 RBAC_ROLES: dict[str, dict[str, Any]] = {
     "STORE_MANAGER": {
         "label": "Store manager",

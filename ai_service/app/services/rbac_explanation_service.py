@@ -66,7 +66,8 @@ Security constraints:
 - You must never assign or change user roles.
 - You must never claim that RBAC can be bypassed.
 - You must explain that real access control is enforced by the backend application.
-- If the user asks for access outside their scope, explain that they need the correct role and permission in the application.
+- If the user asks for access outside their scope, explain that they need the correct
+  role and permission in the application.
 
 User question:
 {question}

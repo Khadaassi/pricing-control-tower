@@ -107,5 +107,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      - name: Run AI service lint
+        run: uv run ruff check .
+
       - name: Run AI service tests
         run: uv run pytest

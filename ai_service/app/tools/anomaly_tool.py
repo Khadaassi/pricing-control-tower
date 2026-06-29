@@ -10,20 +10,24 @@ class AnomalyTool:
             "label": "Underperforming promotion",
             "business_explanation": (
                 "The promotion appears to generate weaker performance than expected. "
-                "This may indicate that the promoted product did not attract enough additional sales."
+                "This may indicate that the promoted product did not attract enough "
+                "additional sales."
             ),
             "suggested_review": (
-                "Review the promotion period, discount level, product attractiveness, and sales trend before and during the promotion."
+                "Review the promotion period, discount level, product attractiveness, "
+                "and sales trend before and during the promotion."
             ),
         },
         "INEFFECTIVE_DISCOUNT": {
             "label": "Ineffective discount",
             "business_explanation": (
                 "The discount does not seem to produce a meaningful business impact. "
-                "The price reduction may be too low, poorly targeted, or applied to a product with limited demand."
+                "The price reduction may be too low, poorly targeted, or applied to "
+                "a product with limited demand."
             ),
             "suggested_review": (
-                "Check whether the discount increased sales volume, revenue, or margin compared with the expected baseline."
+                "Check whether the discount increased sales volume, revenue, or margin "
+                "compared with the expected baseline."
             ),
         },
         "PRICE_ABOVE_REFERENCE": {
@@ -33,17 +37,19 @@ class AnomalyTool:
                 "This may create price inconsistency for customers and should be reviewed."
             ),
             "suggested_review": (
-                "Compare the store price with the country reference price and verify whether the difference is justified locally."
+                "Compare the store price with the country reference price and verify "
+                "whether the difference is justified locally."
             ),
         },
         "INTER_STORE_PRICE_GAP": {
             "label": "Inter-store price gap",
             "business_explanation": (
-                "The product price differs significantly from the average price observed across stores. "
-                "This may indicate a local pricing inconsistency."
+                "The product price differs significantly from the average price observed "
+                "across stores. This may indicate a local pricing inconsistency."
             ),
             "suggested_review": (
-                "Compare the store price with other stores and check whether the gap is explained by a local business rule."
+                "Compare the store price with other stores and check whether the gap "
+                "is explained by a local business rule."
             ),
         },
     }
