@@ -458,6 +458,8 @@ The AI service observability stack relies on Prometheus for metrics collection a
 
 Full details (event payloads, metrics reference, health check behavior, the Prometheus/Grafana stack, and diagnostic procedures) are documented in [`ai_chatbot_monitoring.md`](../05_runbook/ai_chatbot_monitoring.md).
 
+The CI/CD pipeline validating this service (lint, tests, branch protection, deployment strategy) is documented in [`ai_chatbot_cicd_pipeline.md`](../05_runbook/ai_chatbot_cicd_pipeline.md).
+
 ## 12. Data Flows
 
 ### 12.1 KPI Flow
