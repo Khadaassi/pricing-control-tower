@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     AnalyticsSalesView,
     AnomaliesView,
+    ChatbotView,
     DashboardView,
     HomeView,
     PriceChangeRequestsView,
@@ -44,4 +45,5 @@ urlpatterns = [
     path("historique-prix/", PriceHistoryView.as_view(), name="price_history"),
     path("anomalies/", AnomaliesView.as_view(), name="anomalies"),
     path("analytique/ventes/", AnalyticsSalesView.as_view(), name="analytics_sales"),
+    path("chatbot/", ChatbotView.as_view(), name="chatbot"),
 ]

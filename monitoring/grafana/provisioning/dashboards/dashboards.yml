@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: "Pricing Control Tower Dashboards"
+    orgId: 1
+    folder: "Pricing Control Tower"
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards

@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}Assistant IA | Pricing Control Tower{% endblock %}
+{% block page_title %}Assistant IA{% endblock %}
+{% block page_subtitle %}<p class="text-xs text-gray-400">Posez vos questions sur les KPI, les rôles, les anomalies et les règles de prix</p>{% endblock %}
+
+{% block content %}
+
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+
+    {# ── Conversation ── #}
+    <div class="lg:col-span-2">
+        <div class="relative flex h-[70vh] min-h-[26rem] max-h-[44rem] flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm ring-1 ring-gray-100 lg:h-[calc(100vh-12rem)]">
+
+            <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-violet-500 via-violet-400 to-purple-300"></div>
+
+            <div class="flex items-center gap-3 border-b border-gray-100 px-6 py-4 pt-5">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+                    <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846A4.5 4.5 0 005.096 12.813L2.25 12l2.846-.813A4.5 4.5 0 008.187 8.096L9 5.25l.813 2.846a4.5 4.5 0 003.091 3.091L15.75 12l-2.846.813a4.5 4.5 0 00-3.091 3.091z"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-gray-900">Conversation</p>
+                    <p class="text-xs text-gray-400">Assistant de support à la décision sur la plateforme</p>
+                </div>
+            </div>
+
+            <div id="chatbot-history" class="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+                {% if not chatbot_history %}
+                    <div id="chatbot-empty-state" class="flex h-full items-center justify-center text-center">
+                        <div class="max-w-sm">
+                            <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-violet-50 text-violet-500">
+                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/>
+                                </svg>
+                            </div>
+                            <p class="text-sm font-semibold text-gray-700">Aucun message pour l'instant</p>
+                            <p class="mt-1 text-xs text-gray-400">Posez une question ou essayez un exemple ci-contre.</p>
+                        </div>
+                    </div>
+                {% else %}
+                    {% for entry in chatbot_history %}
+                        {% if entry.role == "user" %}
+                            <div class="flex justify-end">
+                                <div class="max-w-[85%] rounded-2xl bg-violet-600 px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">
+                                    <p class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-violet-200">Utilisateur</p>
+                                    {{ entry.content|linebreaksbr }}
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="flex justify-start">
+                                <div class="max-w-[85%] rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm
+                                    {% if entry.status == "error" %}border-red-200 bg-red-50 text-red-700{% else %}border-gray-100 bg-gray-50 text-gray-700{% endif %}">
+                                    <p class="mb-1.5 text-[10px] font-semibold uppercase tracking-wide {% if entry.status == "error" %}text-red-400{% else %}text-gray-400{% endif %}">Assistant</p>
+                                    <div class="space-y-1.5">{{ entry.content|linebreaksbr }}</div>
+                                    <p class="mt-2.5 flex flex-wrap items-center gap-x-1.5 border-t pt-2 text-[10px]
+                                        {% if entry.status == "error" %}border-red-200 text-red-400{% else %}border-gray-200 text-gray-400{% endif %}">
+                                        <span>Statut : {{ entry.status|default:"inconnu" }}</span>
+                                        <span>·</span>
+                                        <span>Outil : {{ entry.selected_tool|default:"none" }}</span>
+                                    </p>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <form id="chatbot-form" method="post" class="flex items-center gap-3 border-t border-gray-100 px-6 py-4">
+                {% csrf_token %}
+                <label for="chatbot-message" class="sr-only">Votre question</label>
+                <input type="text"
+                       id="chatbot-message"
+                       name="message"
+                       required
+                       autocomplete="off"
+                       placeholder="Posez votre question sur les prix, promotions, rôles ou anomalies..."
+                       class="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-700 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100">
+                <button type="submit"
+                        id="chatbot-send"
+                        class="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violet-700 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-60">
+                    Envoyer
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/>
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {# ── Sidebar : aide & exemples ── #}
+    <div class="space-y-4 self-start">
+
+        <div class="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-100">
+            <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-violet-500 via-violet-400 to-purple-300"></div>
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Que peut faire l'assistant ?</p>
+            <p class="mt-3 text-sm leading-relaxed text-gray-600">
+                L'assistant peut expliquer vos indicateurs clés (KPI), détailler les rôles et permissions,
+                analyser les anomalies détectées et clarifier les règles métier liées aux changements de prix.
+            </p>
+        </div>
+
+        <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-gray-100">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Exemples de questions</p>
+            <div class="mt-3 space-y-2">
+                {% for question in example_questions %}
+                    <button type="button"
+                            class="chatbot-example w-full rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2 text-left text-xs text-gray-600 transition-colors hover:border-violet-200 hover:bg-violet-50/30">
+                        {{ question }}
+                    </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+            <div class="flex items-start gap-3">
+                <svg class="mt-0.5 h-4 w-4 shrink-0 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"/>
+                </svg>
+                <div>
+                    <p class="text-xs font-semibold text-blue-700">Connecté au service IA</p>
+                    <p class="mt-1 text-xs leading-relaxed text-blue-600">
+                        Les réponses sont générées par l'orchestrateur du service IA (sélection d'outil, KPI, rôles, anomalies, règles métier).
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const form = document.getElementById("chatbot-form");
+        const input = document.getElementById("chatbot-message");
+        const sendButton = document.getElementById("chatbot-send");
+        const historyEl = document.getElementById("chatbot-history");
+
+        document.querySelectorAll(".chatbot-example").forEach(function (button) {
+            button.addEventListener("click", function () {
+                input.value = button.textContent.trim();
+                input.focus();
+            });
+        });
+
+        function scrollToBottom() {
+            historyEl.scrollTop = historyEl.scrollHeight;
+        }
+
+        function removeEmptyState() {
+            const emptyState = document.getElementById("chatbot-empty-state");
+            if (emptyState) emptyState.remove();
+        }
+
+        function withLineBreaks(text) {
+            const span = document.createElement("span");
+            span.textContent = text;
+            return span.innerHTML.replace(/\n/g, "<br>");
+        }
+
+        function appendUserBubble(text) {
+            removeEmptyState();
+            const wrapper = document.createElement("div");
+            wrapper.className = "flex justify-end";
+            wrapper.innerHTML = `
+                <div class="max-w-[85%] rounded-2xl bg-violet-600 px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">
+                    <p class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-violet-200">Utilisateur</p>
+                    ${withLineBreaks(text)}
+                </div>`;
+            historyEl.appendChild(wrapper);
+            scrollToBottom();
+        }
+
+        function appendTypingIndicator() {
+            const wrapper = document.createElement("div");
+            wrapper.id = "chatbot-typing";
+            wrapper.className = "flex justify-start";
+            wrapper.innerHTML = `
+                <div class="flex items-center gap-2 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 shadow-sm">
+                    <span class="flex items-center gap-1.5">
+                        <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style="animation-delay:0ms"></span>
+                        <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style="animation-delay:150ms"></span>
+                        <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style="animation-delay:300ms"></span>
+                    </span>
+                    <span class="text-xs text-gray-400">Le chatbot analyse votre demande...</span>
+                </div>`;
+            historyEl.appendChild(wrapper);
+            scrollToBottom();
+        }
+
+        function removeTypingIndicator() {
+            const typing = document.getElementById("chatbot-typing");
+            if (typing) typing.remove();
+        }
+
+        function appendAssistantBubble(entry) {
+            removeTypingIndicator();
+            const isError = entry.status === "error";
+            const bubbleClasses = isError
+                ? "border-red-200 bg-red-50 text-red-700"
+                : "border-gray-100 bg-gray-50 text-gray-700";
+            const labelClasses = isError ? "text-red-400" : "text-gray-400";
+            const metaClasses = isError ? "border-red-200 text-red-400" : "border-gray-200 text-gray-400";
+            const metaHtml = `
+                <p class="mt-2.5 flex flex-wrap items-center gap-x-1.5 border-t pt-2 text-[10px] ${metaClasses}">
+                    <span>Statut : ${withLineBreaks(entry.status || "inconnu")}</span>
+                    <span>·</span>
+                    <span>Outil : ${withLineBreaks(entry.selected_tool || "none")}</span>
+                </p>`;
+            const wrapper = document.createElement("div");
+            wrapper.className = "flex justify-start";
+            wrapper.innerHTML = `
+                <div class="max-w-[85%] rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm ${bubbleClasses}">
+                    <p class="mb-1.5 text-[10px] font-semibold uppercase tracking-wide ${labelClasses}">Assistant</p>
+                    <div class="space-y-1.5">${withLineBreaks(entry.content)}</div>
+                    ${metaHtml}
+                </div>`;
+            historyEl.appendChild(wrapper);
+            scrollToBottom();
+        }
+
+        if (form) {
+            const sendButtonDefaultHtml = sendButton.innerHTML;
+
+            form.addEventListener("submit", function (event) {
+                event.preventDefault();
+
+                if (sendButton.disabled) return;
+
+                const question = input.value.trim();
+                if (!question) return;
+
+                const formData = new FormData(form);
+
+                appendUserBubble(question);
+                input.value = "";
+                input.disabled = true;
+                sendButton.disabled = true;
+                sendButton.innerText = "Réponse en cours...";
+                appendTypingIndicator();
+
+                fetch(window.location.pathname, {
+                    method: "POST",
+                    headers: { "X-Requested-With": "XMLHttpRequest" },
+                    body: formData,
+                })
+                    .then(function (response) {
+                        if (!response.ok) throw new Error("network_error");
+                        return response.json();
+                    })
+                    .then(function (data) {
+                        appendAssistantBubble(data.assistant);
+                    })
+                    .catch(function () {
+                        appendAssistantBubble({
+                            content: "Le service IA est momentanément indisponible. Veuillez réessayer plus tard.",
+                            status: "error",
+                            selected_tool: null,
+                        });
+                    })
+                    .finally(function () {
+                        input.disabled = false;
+                        sendButton.disabled = false;
+                        sendButton.innerHTML = sendButtonDefaultHtml;
+                        input.focus();
+                    });
+            });
+        }
+
+        scrollToBottom();
+    });
+</script>
+{% endblock %}

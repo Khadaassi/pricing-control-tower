@@ -1,12 +1,6 @@
 import re
 from typing import Any
 
-from app.services.business_rules_explanation_service import (
-    BusinessRulesExplanationService,
-)
-from app.services.rbac_explanation_service import RBACExplanationService
-from app.services.kpi_explanation_service import KPIExplanationService
-from app.tools.anomaly_tool import AnomalyTool
 from app.core.chatbot_messages import (
     CHATBOT_MISSING_STORE_ID_MESSAGE,
     CHATBOT_MISSING_USER_EMAIL_MESSAGE,
@@ -15,6 +9,16 @@ from app.core.chatbot_messages import (
     CHATBOT_TECHNICAL_ERROR_MESSAGE,
     CHATBOT_UNSUPPORTED_USE_CASE_MESSAGE,
 )
+from app.core.logging_config import get_logger, log_event
+from app.core.metrics import increment_chat_tool_usage_total
+from app.services.business_rules_explanation_service import (
+    BusinessRulesExplanationService,
+)
+from app.services.kpi_explanation_service import KPIExplanationService
+from app.services.rbac_explanation_service import RBACExplanationService
+from app.tools.anomaly_tool import AnomalyTool
+
+logger = get_logger("ai_service.orchestrator")
 
 
 class ChatbotOrchestrator:
@@ -59,6 +63,17 @@ class ChatbotOrchestrator:
         store_id: int | None = None,
     ) -> dict[str, Any]:
         routed = self.route_question(question)
+        tool_name = routed["selected_tool"] or "none"
+
+        log_event(
+            logger,
+            "chat_tool_selected",
+            intent=routed["intent"],
+            tool_name=tool_name,
+            user_email_present=user_email is not None,
+            store_id_present=store_id is not None,
+        )
+        increment_chat_tool_usage_total(tool_name)
 
         if routed["status"] == "unsupported":
             return {
@@ -178,6 +193,11 @@ class ChatbotOrchestrator:
                 "chatbot approve",
                 "chatbot update",
                 "chatbot modify",
+                "chatbot peut-il approuver",
+                "chatbot peut approuver",
+                "chatbot peut-il rejeter",
+                "chatbot peut-il valider",
+                "chatbot peut-il modifier",
                 "règle métier",
                 "règle",
                 "traçabilité",

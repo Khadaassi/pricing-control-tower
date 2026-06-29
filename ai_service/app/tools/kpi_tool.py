@@ -1,6 +1,5 @@
 from typing import Any
 
-
 KPI_DEFINITIONS: dict[str, dict[str, Any]] = {
     "revenue": {
         "label": "Revenue",

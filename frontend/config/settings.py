@@ -29,6 +29,7 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 FASTAPI_BASE_URL = os.getenv("FASTAPI_BASE_URL", "http://127.0.0.1:8000")
+AI_SERVICE_BASE_URL = os.getenv("AI_SERVICE_BASE_URL", "http://localhost:8001")
 
 # Application definition
 

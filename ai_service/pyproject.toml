@@ -8,6 +8,31 @@ dependencies = [
     "fastapi>=0.137.1",
     "groq>=1.4.0",
     "httpx>=0.28.1",
+    "prometheus-client>=0.25.0",
     "pydantic-settings>=2.14.1",
+    "pytest>=9.1.1",
     "uvicorn[standard]>=0.49.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]  # erreurs, flake, imports
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.20",
 ]
