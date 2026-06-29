@@ -1,6 +1,5 @@
 from typing import Any
 
-
 BUSINESS_RULES: dict[str, dict[str, Any]] = {
     "price_scope": {
         "title": "Price scope rule",

@@ -226,6 +226,8 @@ The LLM is used.
 Validated
 ```
 
+> **2026-06-29 update:** re-running this exact question live during the [T174 end-to-end validation](ai_chatbot_end_to_end_validation.md#81-business-rule-question-not-routed-as-expected--fixed) returned `status=unsupported` / `intent=unknown`, not `routed` / `business_rules_tool` as recorded above — the keyword list in `ChatbotOrchestrator._detect_intent` did not match this French phrasing. **Fixed** the same day: French keyword phrases (`"chatbot peut-il approuver"` and siblings) were added to the business-rule keyword list, with a regression test using this exact question. Re-running it now correctly returns `routed` / `business_rules_tool` again, as originally recorded above.
+
 ---
 
 ### TC04 — Anomaly question with missing user context
@@ -403,38 +405,97 @@ Validated
 
 #### Objective
 
-Verify that chatbot interactions are logged.
+Verify that chatbot interactions are logged as structured JSON events.
 
 #### Expected result
 
-Each `/chat` call generates a log entry containing:
+Each `/chat` call generates, at minimum, three log lines:
 
 ```text
-event
-question
-intent
-selected_tool
-status
-source
-llm_used
-error_type
+chat_request_received   (app/api/routes/chat.py)
+chat_tool_selected      (app/orchestrator/chatbot_orchestrator.py)
+chat_response_generated (app/api/routes/chat.py)
 ```
+
+`chat_request_received` and `chat_response_generated` share the same `request_id`. The raw question text is never logged, only `question_length`.
 
 #### Observed result
 
-Example log:
+Example logs for a single `/chat` call:
 
 ```text
-2026-06-22 12:07:02,963 | INFO | ai_service.chatbot | {"event": "chat_interaction", "question": "Explique le KPI marge", "intent": "explain_kpi", "selected_tool": "kpi_explanation_tool", "status": "routed", "source": "kpi_explanation_tool + llm", "llm_used": true, "error_type": null}
+2026-06-28 10:54:50,464 | INFO | ai_service.chatbot | {"timestamp": "2026-06-28T08:54:50.464518+00:00", "level": "INFO", "service": "ai_service", "event": "chat_request_received", "request_id": "c39d54c0-87ce-443c-9bc3-cf118b280b75", "user_email": "pricing.analyst@example.com", "store_id": null, "question_length": 25}
+2026-06-28 10:54:50,580 | INFO | ai_service.orchestrator | {"timestamp": "2026-06-28T08:54:50.580174+00:00", "level": "INFO", "service": "ai_service", "event": "chat_tool_selected", "intent": "explain_kpi", "tool_name": "kpi_explanation_tool", "user_email_present": true, "store_id_present": false}
+2026-06-28 10:54:51,136 | INFO | ai_service.chatbot | {"timestamp": "2026-06-28T08:54:51.136866+00:00", "level": "INFO", "service": "ai_service", "event": "chat_response_generated", "request_id": "c39d54c0-87ce-443c-9bc3-cf118b280b75", "status": "routed", "llm_used": true, "tools_used": ["kpi_explanation_tool"], "rules_used": [], "roles_used": [], "kpis_used": ["margin"], "latency_ms": 672.33}
 ```
 
-The logs make the selected tools and response statuses visible.
+The logs make the selected tool, response status, and latency visible, and can be correlated by `request_id`.
 
 #### Status
 
 ```text
 Validated
 ```
+
+---
+
+### TC09 — Metrics endpoint
+
+#### Objective
+
+Verify that `GET /metrics` reflects chatbot activity.
+
+#### Request
+
+```bash
+curl http://127.0.0.1:8001/metrics
+```
+
+#### Expected result
+
+```text
+HTTP 200
+chat_requests_total increases by 1 per /chat call that passes validation
+chat_responses_total[<status>] increases for the status returned
+chat_tool_usage_total[<tool_name or "none">] increases for the tool selected
+chat_response_latency_ms.count increases, with avg/min/max populated
+```
+
+#### Observed result
+
+After three `/chat` calls (one KPI question, one out-of-scope question, one anomaly question without `user_email`):
+
+```json
+{
+  "service": "ai_service",
+  "chat_requests_total": 3,
+  "chat_responses_total": {
+    "routed": 1,
+    "unsupported": 1,
+    "missing_context": 1
+  },
+  "chat_errors_total": {},
+  "chat_tool_usage_total": {
+    "kpi_explanation_tool": 1,
+    "none": 1,
+    "anomaly_tool": 1
+  },
+  "chat_response_latency_ms": {
+    "count": 3,
+    "avg": 248.05,
+    "min": 32.85,
+    "max": 677.61
+  }
+}
+```
+
+#### Status
+
+```text
+Validated
+```
+
+See [`ai_chatbot_monitoring.md`](../05_runbook/ai_chatbot_monitoring.md) for the full metrics reference, alert thresholds, and diagnostic procedures.
 
 ## 6. Summary of validation results
 
@@ -448,6 +509,7 @@ Validated
 | TC06      | Out-of-scope question               | Validated |
 | TC07      | Standard response format            | Validated |
 | TC08      | Interaction logging                 | Validated |
+| TC09      | Metrics endpoint                    | Validated |
 
 ## 7. Identified limitations
 
@@ -488,11 +550,11 @@ The LLM reformulates answers based on controlled context.
 
 The meaning remains aligned with the documented rules, but wording may vary between calls.
 
-### 7.6 Logs are available in application output only
+### 7.6 Logs and metrics are available in application output only
 
-The current MVP logs interactions in the service output.
+The current MVP logs interactions in the service console output, and exposes metrics in-memory via `GET /metrics`.
 
-They are not yet exported to a monitoring dashboard.
+They are not yet exported to a monitoring dashboard, and metrics reset on every process restart. See [`ai_chatbot_monitoring.md`](../05_runbook/ai_chatbot_monitoring.md) for the full picture.
 
 ## 8. Anomalies observed during validation
 
@@ -519,7 +581,7 @@ The chatbot correctly:
 * refuses out-of-scope questions;
 * handles missing context;
 * returns a standard response format;
-* logs interactions;
+* logs interactions and exposes activity metrics;
 * preserves read-only behavior.
 
 The chatbot is therefore considered valid for the Sprint 10 MVP scope.

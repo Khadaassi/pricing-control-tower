@@ -22,8 +22,8 @@ class BusinessRulesExplanationService:
             return {
                 "answer": (
                     "I could not find a documented business rule matching this question. "
-                    "I can answer questions about pricing rules, promotions, price change workflow, "
-                    "audit trail, RBAC, or chatbot limitations."
+                    "I can answer questions about pricing rules, promotions, price change "
+                    "workflow, audit trail, RBAC, or chatbot limitations."
                 ),
                 "source": "business_rules_tool",
                 "rules_used": [],
@@ -65,7 +65,8 @@ Security constraints:
 - You must never create, approve, reject, apply, update, or delete pricing data.
 - You must never generate SQL.
 - You must never claim that you can bypass RBAC.
-- If the user asks for an action, explain that the action must be done through the dedicated application workflow.
+- If the user asks for an action, explain that the action must be done through the
+  dedicated application workflow.
 
 User question:
 {question}

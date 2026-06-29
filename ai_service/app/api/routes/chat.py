@@ -1,9 +1,18 @@
-import json
+import logging
+import time
+import uuid
 from typing import Any
 
 from fastapi import APIRouter
 
-from app.core.logging_config import get_logger
+from app.core.chatbot_messages import CHATBOT_TECHNICAL_ERROR_MESSAGE
+from app.core.logging_config import get_logger, log_event
+from app.core.metrics import (
+    increment_chat_errors_total,
+    increment_chat_requests_total,
+    increment_chat_responses_total,
+    observe_chat_response_latency_seconds,
+)
 from app.orchestrator.chatbot_orchestrator import ChatbotOrchestrator
 from app.schemas.chat import ChatMetadata, ChatRequest, ChatResponse
 
@@ -33,23 +42,16 @@ def build_chat_response(raw_response: dict[str, Any]) -> ChatResponse:
     )
 
 
-def log_chat_interaction(response: ChatResponse) -> None:
-    log_payload = {
-        "event": "chat_interaction",
-        "question": response.question,
-        "intent": response.intent,
-        "selected_tool": response.selected_tool,
-        "status": response.status,
-        "source": response.source,
-        "llm_used": response.metadata.llm_used,
-        "error_type": response.metadata.error_type,
-    }
-
-    if response.status == "error":
-        logger.error(json.dumps(log_payload, ensure_ascii=False))
-        return
-
-    logger.info(json.dumps(log_payload, ensure_ascii=False))
+def build_technical_error_response(question: str, error: Exception) -> ChatResponse:
+    return ChatResponse(
+        question=question,
+        answer=CHATBOT_TECHNICAL_ERROR_MESSAGE,
+        status="error",
+        intent="error",
+        selected_tool=None,
+        source="orchestrator",
+        metadata=ChatMetadata(error_type=type(error).__name__),
+    )
 
 
 @router.post(
@@ -63,15 +65,65 @@ def log_chat_interaction(response: ChatResponse) -> None:
     ),
 )
 def chat(request: ChatRequest) -> ChatResponse:
-    orchestrator = ChatbotOrchestrator()
+    request_id = str(uuid.uuid4())
+    started_at = time.perf_counter()
 
-    raw_response = orchestrator.answer_question(
-        question=request.question,
+    increment_chat_requests_total()
+
+    log_event(
+        logger,
+        "chat_request_received",
+        request_id=request_id,
         user_email=request.user_email,
         store_id=request.store_id,
+        question_length=len(request.question),
     )
 
-    response = build_chat_response(raw_response)
-    log_chat_interaction(response)
+    try:
+        orchestrator = ChatbotOrchestrator()
+
+        raw_response = orchestrator.answer_question(
+            question=request.question,
+            user_email=request.user_email,
+            store_id=request.store_id,
+        )
+
+        response = build_chat_response(raw_response)
+    except Exception as error:
+        latency_ms = round((time.perf_counter() - started_at) * 1000, 2)
+
+        increment_chat_responses_total("error")
+        increment_chat_errors_total(type(error).__name__)
+        observe_chat_response_latency_seconds(latency_ms / 1000)
+
+        log_event(
+            logger,
+            "chat_request_failed",
+            level=logging.ERROR,
+            request_id=request_id,
+            error_type=type(error).__name__,
+            error_message=str(error),
+            latency_ms=latency_ms,
+        )
+
+        return build_technical_error_response(request.question, error)
+
+    latency_ms = round((time.perf_counter() - started_at) * 1000, 2)
+
+    increment_chat_responses_total(response.status)
+    observe_chat_response_latency_seconds(latency_ms / 1000)
+
+    log_event(
+        logger,
+        "chat_response_generated",
+        request_id=request_id,
+        status=response.status,
+        llm_used=response.metadata.llm_used,
+        tools_used=[response.selected_tool] if response.selected_tool else [],
+        rules_used=[rule.get("rule_code") for rule in response.metadata.rules_used],
+        roles_used=[role.get("role_code") for role in response.metadata.roles_used],
+        kpis_used=[kpi.get("kpi_code") for kpi in response.metadata.kpis_used],
+        latency_ms=latency_ms,
+    )
 
     return response

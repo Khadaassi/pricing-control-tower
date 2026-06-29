@@ -1,5 +1,7 @@
 # Functional and Technical Architecture of the AI Chatbot
 
+> This document covers `ai_service` itself. For how the Django frontend integrates with it (request/response flow, session handling, error mapping, UX), see [`ai_chatbot_frontend_integration.md`](ai_chatbot_frontend_integration.md).
+
 ## 1. Purpose of the AI Component
 
 The AI chatbot of Pricing Control Tower is designed to assist users in understanding data, business rules, and anomalies related to pricing management.
@@ -84,10 +86,12 @@ ai_service/
       routes/
         chat.py
         health.py
+        metrics.py
     core/
       config.py
       chatbot_messages.py
       logging_config.py
+      metrics.py
     llm/
       base.py
       factory.py
@@ -423,44 +427,40 @@ Example refusal:
 Je peux uniquement répondre aux questions liées aux données tarifaires de Pricing Control Tower, aux règles métier, aux anomalies, aux KPI, aux rôles, aux permissions et aux périmètres utilisateurs.
 ```
 
-## 11. Logging
+## 11. Logging and Monitoring
 
-Chatbot interactions are logged from:
+Chatbot interactions are logged as structured JSON events from two places:
 
 ```text
-app/api/routes/chat.py
+app/api/routes/chat.py            -> chat_request_received, chat_response_generated, chat_request_failed
+app/orchestrator/chatbot_orchestrator.py -> chat_tool_selected
 ```
 
-The logger is defined in:
+The logger and JSON event helper are defined in:
 
 ```text
 app/core/logging_config.py
 ```
 
-Log format:
+Each `/chat` request is also reflected in the Prometheus-format metrics exposed at `GET /metrics`, backed by:
 
-```json
-{
-  "event": "chat_interaction",
-  "question": "Explain the margin KPI",
-  "intent": "explain_kpi",
-  "selected_tool": "kpi_explanation_tool",
-  "status": "routed",
-  "source": "kpi_explanation_tool + llm",
-  "llm_used": true,
-  "error_type": null
-}
+```text
+app/core/metrics.py
 ```
 
-These logs trace:
+These logs and metrics trace:
 
-* questions received;
-* detected intents;
-* tools used;
-* response statuses;
-* any errors.
+* requests received (question length only, never the raw question text);
+* detected intents and the tool selected for each one;
+* response statuses, LLM usage, and tools/rules/roles/KPIs used;
+* unhandled technical errors, with a `request_id` correlating the failure to the originating request;
+* request volume, response status breakdown, error counts, tool usage counts, and response latency.
 
-They prepare for future monitoring and observability phases.
+The AI service observability stack relies on Prometheus for metrics collection and Grafana for visualization, both provisioned in the root `docker-compose.yml`.
+
+Full details (event payloads, metrics reference, health check behavior, the Prometheus/Grafana stack, and diagnostic procedures) are documented in [`ai_chatbot_monitoring.md`](../05_runbook/ai_chatbot_monitoring.md).
+
+The CI/CD pipeline validating this service (lint, tests, branch protection, deployment strategy) is documented in [`ai_chatbot_cicd_pipeline.md`](../05_runbook/ai_chatbot_cicd_pipeline.md).
 
 ## 12. Data Flows
 
@@ -616,7 +616,7 @@ Current limitations are:
 * some advanced analytical tools are not yet connected;
 * actual country revenue calculation is not yet exposed via a complete tool;
 * the chatbot does not yet manage conversational history;
-* logs are application-level but not yet exploited in a monitoring dashboard;
+* logs and metrics are application-level (console output, in-memory counters) and not yet exploited in a monitoring dashboard; metrics reset on every process restart;
 * intent matching relies on simple rules;
 * the LLM provider is external.
 
@@ -642,6 +642,8 @@ Can a store manager access data from another store?
 How do I install PostgreSQL?
 Which products have a store price higher than the country price?
 ```
+
+The validations above cover the AI service in isolation. The full chain, starting from the Django `/chatbot/` UI through to logs, metrics, Prometheus, and Grafana, is validated in [`ai_chatbot_end_to_end_validation.md`](../06_validation/ai_chatbot_end_to_end_validation.md).
 
 ## 17. Conclusion
 

@@ -80,3 +80,35 @@ jobs:
       - name: Run backend tests
         working-directory: backend
         run: uv run pytest
+
+  ai-service-tests:
+    name: AI service tests
+    runs-on: ubuntu-latest
+
+    env:
+      GROQ_API_KEY: test_groq_key
+
+    defaults:
+      run:
+        working-directory: ai_service
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run AI service lint
+        run: uv run ruff check .
+
+      - name: Run AI service tests
+        run: uv run pytest
