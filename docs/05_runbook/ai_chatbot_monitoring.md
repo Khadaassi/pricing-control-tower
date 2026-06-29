@@ -183,7 +183,9 @@ Latency is tracked in seconds (`ai_chat_response_latency_seconds`), per Promethe
 curl http://127.0.0.1:8001/metrics
 ```
 
-No authentication is required in the MVP. A Prometheus server can scrape this endpoint directly once configured (planned in a follow-up ticket, together with Grafana dashboards).
+No authentication is required in the MVP.
+
+A `prometheus` service is now wired up in the root [`docker-compose.yml`](../../docker-compose.yml), scraping `ai_service:8001/metrics` every 15s using the config in [`monitoring/prometheus/prometheus.yml`](../../monitoring/prometheus/prometheus.yml). Run `docker compose up` from the repo root and check `http://localhost:9090/targets` to confirm the `ai_service` target is `UP`. Grafana dashboards are planned in a follow-up ticket.
 
 ### 4.4 Alert thresholds
 
@@ -199,7 +201,7 @@ No authentication is required in the MVP. A Prometheus server can scrape this en
 
 * metrics are held in a single in-process Prometheus `CollectorRegistry` (`app/core/metrics.py`); they reset to zero whenever the `ai_service` process restarts;
 * metrics are not aggregated across multiple workers/replicas if the service is scaled horizontally — each process exposes its own `/metrics`, so a real deployment needs either one scrape target per replica or a push-based aggregation layer;
-* there is no persistence, history, or time-series view on the `ai_service` side — `/metrics` always reflects the current process's lifetime only; history/visualization is expected to come from the Prometheus + Grafana stack planned in follow-up tickets;
+* there is no persistence, history, or time-series view on the `ai_service` side — `/metrics` always reflects the current process's lifetime only; Prometheus (see section 4.3) now retains history once scraping, but there is no Grafana dashboard yet to visualize it (planned in a follow-up ticket);
 * `reset_metrics()` exists for test isolation; it is not exposed over HTTP and must not be called in production;
 * the debug JSON shape used before this format change is no longer served — `/metrics` now only returns the Prometheus text format.
 
@@ -294,7 +296,7 @@ A missing or invalid `GROQ_API_KEY` will not be caught by `/chat/health` — it 
 ## 7. Current MVP limitations
 
 * logs are visible in the local console/process only; there is no log aggregation;
-* `/metrics` exposes the Prometheus text format but is not yet scraped by an actual Prometheus server, and there is no Grafana dashboard yet (planned in follow-up tickets);
+* Prometheus scrapes `/metrics` (see section 4.3), but there is no Grafana dashboard yet (planned in a follow-up ticket);
 * metrics reset on every process restart;
 * `/chat/health` checks configuration presence, not actual LLM or backend reachability;
 * no automated alerting; the thresholds in section 4.4 are manual reference points;
