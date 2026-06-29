@@ -2,6 +2,9 @@ from app.tools.kpi_tool import KPI_DEFINITIONS, KPITool
 
 
 class TestListKpis:
+    def test_ci_pipeline_blocks_on_failure_TEMPORARY(self) -> None:
+        assert False
+
     def test_returns_all_defined_kpis(self, kpi_tool: KPITool) -> None:
         result = kpi_tool.list_kpis()
 
