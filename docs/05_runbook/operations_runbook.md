@@ -52,11 +52,11 @@ The project uses `uv` for Python dependency management.
 
 ## 4. Start the database
 
-From the backend directory:
+PostgreSQL is defined in the root `docker-compose.yml` (alongside `backend`, `frontend`, `ai_service`,
+`prometheus` and `grafana`). From the repo root:
 
 ```bash
-cd backend
-docker compose up -d
+docker compose up -d postgres
 ```
 
 Expected result:

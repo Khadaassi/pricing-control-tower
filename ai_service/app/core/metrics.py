@@ -38,6 +38,24 @@ def _build_metrics(registry: CollectorRegistry) -> dict[str, Any]:
             "Chat response latency in seconds",
             registry=registry,
         ),
+        "service_requests": Counter(
+            "ai_requests_total",
+            "Total number of HTTP requests received by the AI service",
+            ["method", "path"],
+            registry=registry,
+        ),
+        "service_duration": Histogram(
+            "ai_request_duration_seconds",
+            "AI service HTTP request duration in seconds",
+            ["method", "path"],
+            registry=registry,
+        ),
+        "service_errors": Counter(
+            "ai_errors_total",
+            "Total number of HTTP error responses (4xx/5xx) from the AI service",
+            ["method", "path", "status_code"],
+            registry=registry,
+        ),
     }
 
 
@@ -68,6 +86,21 @@ def increment_chat_tool_usage_total(tool_name: str) -> None:
 def observe_chat_response_latency_seconds(latency_seconds: float) -> None:
     with _lock:
         _metrics["latency"].observe(latency_seconds)
+
+
+def increment_ai_requests_total(method: str, path: str) -> None:
+    with _lock:
+        _metrics["service_requests"].labels(method=method, path=path).inc()
+
+
+def observe_ai_request_duration_seconds(method: str, path: str, duration_seconds: float) -> None:
+    with _lock:
+        _metrics["service_duration"].labels(method=method, path=path).observe(duration_seconds)
+
+
+def increment_ai_errors_total(method: str, path: str, status_code: str) -> None:
+    with _lock:
+        _metrics["service_errors"].labels(method=method, path=path, status_code=status_code).inc()
 
 
 def generate_metrics_text() -> bytes:
