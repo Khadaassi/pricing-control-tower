@@ -214,3 +214,7 @@ __pycache__/
 *.pyc
 frontend/db.sqlite3
 db.sqlite3
+
+# PostgreSQL backups — keep folder structure, exclude dump files
+backups/postgres/*.dump
+backups/postgres/*.sql
