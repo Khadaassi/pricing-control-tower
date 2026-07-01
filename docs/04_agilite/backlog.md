@@ -216,6 +216,27 @@ T110 — API logs
 T111 — Error logs
 T112 — Health checks
 
+## EPIC 9 — Observability & Operations
+
+### Feature 9.1 — Prometheus Metrics
+T181 — Add Prometheus metrics to backend (http_requests_total, http_responses_total, http_request_duration_seconds)
+T182 — Add Prometheus metrics to frontend (django_http_requests_total, django_http_responses_total, django_http_request_duration_seconds)
+T183 — Add Prometheus metrics to AI service (ai_requests_total, ai_chat_requests_total, ai_chat_responses_total, ai_errors_total)
+
+### Feature 9.2 — Incident Simulation & Diagnosis
+T184 — Define and reproduce backend connectivity failure scenario (invalid BACKEND_API_URL)
+T185 — Execute monitoring-driven diagnosis: Prometheus, metrics, logs
+T186 — Apply resolution and validate return to normal state
+
+### Feature 9.3 — Operations Documentation
+T187 — Create application operations runbook (docs/07_operations/application_operations_runbook.md)
+T188 — Create database backup and restore runbook (docs/07_operations/database_backup_restore_runbook.md)
+T189 — Create application maintenance runbook (docs/07_operations/application_maintenance_runbook.md)
+
+### Feature 9.4 — Validation & Reporting
+T190 — Validate complete monitoring stack end-to-end (all services, Prometheus, Grafana, logs)
+T191 — Write full incident report consolidating T184–T186 and T190
+
 ## Definition of Done (global)
 
 A ticket is considered done if:

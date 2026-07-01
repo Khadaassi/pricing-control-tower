@@ -26,12 +26,17 @@ Pricing Control Tower is composed of several technical components.
 | Component       | Technology                  | Purpose                                                     |
 | --------------- | --------------------------- | ----------------------------------------------------------- |
 | Backend API     | FastAPI                     | Exposes business and analytical data through REST endpoints |
-| Frontend        | Django + Tailwind           | Provides the user interface                                 |
-| Database        | PostgreSQL                  | Stores business, pricing, workflow and analytical data      |
+| Frontend        | Django + Tailwind           | Provides the user interface and chatbot UI                  |
+| AI Service      | FastAPI + Groq              | Chatbot orchestration, intent routing, tool execution       |
+| Database        | PostgreSQL 16               | Stores business, pricing, workflow and analytical data      |
 | Migrations      | Alembic                     | Manages backend database schema evolution                   |
 | Analytics layer | dbt                         | Builds analytical models and KPI tables                     |
 | CI pipeline     | GitHub Actions              | Runs quality checks and backend tests                       |
-| Monitoring      | Structured logs + `/health` | Supports diagnosis and supervision                          |
+| Prometheus      | prom/prometheus             | Scrapes `/metrics` on all services; stores time series      |
+| Grafana         | grafana/grafana             | Visualizes Prometheus metrics via global observability dashboard |
+| cAdvisor        | gcr.io/cadvisor             | Exposes container-level CPU, memory and I/O metrics         |
+
+> For Docker Compose operations (start, stop, restart, health checks, logs), see the dedicated runbooks in `docs/07_operations/`.
 
 ---
 
@@ -545,12 +550,19 @@ The GitHub Actions workflow also runs these checks automatically.
 
 ## 13. Useful URLs
 
-| Service         | URL                                              |
-| --------------- | ------------------------------------------------ |
-| FastAPI root    | `http://127.0.0.1:8000/`                         |
-| FastAPI docs    | `http://127.0.0.1:8000/docs`                     |
-| FastAPI health  | `http://127.0.0.1:8000/health`                   |
-| Django frontend | `http://127.0.0.1:8001/` if started on port 8001 |
+| Service         | URL (Docker Compose)            |
+| --------------- | ------------------------------- |
+| Backend API     | `http://localhost:8000`         |
+| Backend docs    | `http://localhost:8000/docs`    |
+| Backend health  | `http://localhost:8000/health`  |
+| Frontend        | `http://localhost:8001`         |
+| Frontend health | `http://localhost:8001/health`  |
+| AI Service      | `http://localhost:8002`         |
+| AI health       | `http://localhost:8002/chat/health` |
+| Prometheus      | `http://localhost:9090`         |
+| Prometheus targets | `http://localhost:9090/targets` |
+| Grafana         | `http://localhost:3000`         |
+| cAdvisor        | `http://localhost:8080`         |
 
 ---
 
@@ -558,20 +570,43 @@ The GitHub Actions workflow also runs these checks automatically.
 
 The current MVP operations setup is intentionally lightweight.
 
-Current limitations:
+**In place:**
 
-* no centralized log aggregation
-* no automated alerting
-* no production deployment pipeline yet
-* no automated rollback
-* no frontend tests in CI
-* no dbt tests in GitHub Actions yet
+- structured JSON logs on backend, frontend and AI service
+- Prometheus metrics on all three application services
+- Grafana global observability dashboard
+- cAdvisor container-level metrics
+- health endpoints on all three services
+- Docker Compose operations runbooks (`docs/07_operations/`)
+- database backup and restore procedure (`docs/07_operations/database_backup_restore_runbook.md`)
 
-These limitations are acceptable for the Sprint 9 MVP scope and are documented for future improvement.
+**Not yet in place:**
+
+- no centralized log aggregation (Loki or equivalent)
+- no automated alerting (Alertmanager not configured)
+- no production deployment pipeline
+- no automated rollback
+- no frontend tests in CI
+- no dbt tests in GitHub Actions
+- health checks are service-local and do not validate downstream dependencies
+
+These limitations are documented as candidates for future iteration.
 
 ---
 
-## 15. RNCP evidence
+## 15. Operations runbooks
+
+For day-to-day operations in the Docker Compose environment, refer to the dedicated runbooks:
+
+| Runbook | Content |
+| ------- | ------- |
+| [`docs/07_operations/application_operations_runbook.md`](../07_operations/application_operations_runbook.md) | Start, stop, health checks, metrics, Prometheus, Grafana, logs, troubleshooting |
+| [`docs/07_operations/application_maintenance_runbook.md`](../07_operations/application_maintenance_runbook.md) | Service updates, rebuilds, restarts, post-maintenance validation |
+| [`docs/07_operations/database_backup_restore_runbook.md`](../07_operations/database_backup_restore_runbook.md) | PostgreSQL backup with `pg_dump`, restore with `pg_restore`, post-restore validation |
+
+---
+
+## 16. RNCP evidence
 
 This runbook provides operational evidence for the RNCP project.
 
@@ -586,7 +621,7 @@ This runbook provides operational evidence for the RNCP project.
 
 ---
 
-## 16. Conclusion
+## 17. Conclusion
 
 This runbook makes the Pricing Control Tower MVP exploitable in a local and demonstration context.
 

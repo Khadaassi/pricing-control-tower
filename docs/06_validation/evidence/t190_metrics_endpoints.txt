@@ -1,0 +1,42 @@
+Command: curl http://localhost:{8000,8001,8002}/metrics (grep key metrics)
+Date: 2026-07-01
+
+=== backend (http://localhost:8000/metrics) ===
+http_requests_total{method="GET",path="/metrics"} 482.0
+http_requests_total{method="GET",path="/countries"} 5.0
+http_requests_total{method="GET",path="/stores"} 6.0
+http_requests_total{method="GET",path="/products"} 2.0
+http_requests_total{method="GET",path="/health"} 5.0
+http_requests_total{method="GET",path="/kpis"} 1.0
+http_requests_total{method="GET",path="/anomalies"} 5.0
+http_requests_total{method="GET",path="/promotions"} 2.0
+http_requests_total{method="GET",path="/prices"} 1.0
+http_requests_total{method="GET",path="/analytics/sales"} 2.0
+http_responses_total{method="GET",path="/metrics",status_code="200"} 482.0
+http_responses_total{method="GET",path="/health",status_code="200"} 5.0
+
+=== frontend (http://localhost:8001/metrics) ===
+django_http_requests_total{method="GET",path="/metrics"} 465.0
+django_http_requests_total{method="GET",path="/health"} 5.0
+django_http_requests_total{method="GET",path="/produits/"} 2.0
+django_http_requests_total{method="GET",path="/dashboard/"} 1.0
+django_http_requests_total{method="GET",path="/chatbot/"} 1.0
+django_http_requests_total{method="POST",path="/chatbot/"} 10.0
+django_http_requests_total{method="GET",path="/analytique/ventes/"} 2.0
+django_http_responses_total{method="GET",path="/metrics",status_code="200"} 465.0
+django_http_responses_total{method="POST",path="/accounts/login/",status_code="302"} 2.0
+django_http_responses_total{method="POST",path="/chatbot/",status_code="200"} 10.0
+
+=== ai_service (http://localhost:8002/metrics) ===
+ai_requests_total{method="GET",path="/metrics"} 32.0
+ai_requests_total{method="GET",path="/chat/health"} 2.0
+ai_request_duration_seconds_count{method="GET",path="/metrics"} 32.0
+ai_request_duration_seconds_count{method="GET",path="/chat/health"} 2.0
+ai_chat_requests_total 0.0
+ai_errors_total (not triggered — no errors recorded)
+
+Note: ai_chat_requests_total is 0 because the ai_service was restarted during T189 maintenance
+validation and counters were reset. The metric is correctly defined and exposed.
+
+Result: All three /metrics endpoints return Prometheus plain-text format.
+No user question text or sensitive data appears in metric labels.
