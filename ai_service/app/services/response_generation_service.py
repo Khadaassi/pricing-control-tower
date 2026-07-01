@@ -28,8 +28,8 @@ class ResponseGenerationService:
     def format_guardrail_response(self) -> str:
         return CHATBOT_GUARDRAIL_ACTION_MESSAGE
 
-    def format_clarification_response(self) -> str:
-        return CHATBOT_AMBIGUOUS_QUESTION_MESSAGE
+    def format_clarification_response(self, message: str | None = None) -> str:
+        return message if message is not None else CHATBOT_AMBIGUOUS_QUESTION_MESSAGE
 
     def format_fallback_response(self) -> str:
         return CHATBOT_OUT_OF_SCOPE_MESSAGE

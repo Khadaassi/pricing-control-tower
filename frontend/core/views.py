@@ -13,6 +13,7 @@ from django.views import View
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 
+from core.chatbot_suggestions import get_chatbot_suggestions
 from core.forms import PriceChangeRequestForm
 from core.services.ai_chatbot_client import (
     AiChatbotConnectionError,
@@ -152,6 +153,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["chatbot_suggestions"] = get_chatbot_suggestions("dashboard")
         context["api_error"] = None
         context["kpi_cards"] = []
         context["stores"] = build_store_choices()
@@ -313,6 +315,7 @@ class ProductsView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["chatbot_suggestions"] = get_chatbot_suggestions("products")
         context["api_error"] = None
         context["products"] = []
 
@@ -439,6 +442,7 @@ class PricesView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["chatbot_suggestions"] = get_chatbot_suggestions("prices")
         context["api_error"] = None
         context["prices"] = []
 
@@ -553,6 +557,7 @@ class PromotionsView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["chatbot_suggestions"] = get_chatbot_suggestions("promotions")
         context["api_error"] = None
         context["promotions"] = []
         raw_filters = {}
@@ -671,6 +676,7 @@ class PriceChangeRequestsView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["chatbot_suggestions"] = get_chatbot_suggestions("price_change_requests")
         context["api_error"] = None
         context["price_change_requests"] = []
         context["countries"] = build_country_choices()
@@ -1081,6 +1087,7 @@ class AnomaliesView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["chatbot_suggestions"] = get_chatbot_suggestions("anomalies")
         context["api_error"] = None
         context["anomalies"] = []
         context["stores"] = build_store_choices()
@@ -1188,6 +1195,8 @@ class ChatbotView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["chatbot_history"] = self.request.session.get("chatbot_history", [])
+        page = self.request.GET.get("page")
+        context["chatbot_suggestions"] = get_chatbot_suggestions(page)
         context["example_questions"] = self.EXAMPLE_QUESTIONS
         return context
 

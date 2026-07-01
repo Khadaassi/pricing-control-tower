@@ -1,5 +1,10 @@
 import pytest
 
+from app.core.chatbot_messages import (
+    CHATBOT_AMBIGUOUS_QUESTION_MESSAGE,
+    CHATBOT_PRICE_CLARIFICATION_MESSAGE,
+    CHATBOT_STORE_CLARIFICATION_MESSAGE,
+)
 from app.services.response_generation_service import ResponseGenerationService
 
 
@@ -161,6 +166,51 @@ class TestFormatClarificationResponse:
 
     def test_is_non_empty(self, service: ResponseGenerationService) -> None:
         assert service.format_clarification_response()
+
+
+# ---------------------------------------------------------------------------
+# format_clarification_response — with targeted message (T203)
+# ---------------------------------------------------------------------------
+
+
+class TestFormatClarificationResponseWithMessage:
+    def test_custom_message_is_returned_verbatim(
+        self, service: ResponseGenerationService
+    ) -> None:
+        custom = "Please specify what you need."
+        result = service.format_clarification_response(custom)
+
+        assert result == custom
+
+    def test_price_clarification_message_is_returned(
+        self, service: ResponseGenerationService
+    ) -> None:
+        result = service.format_clarification_response(CHATBOT_PRICE_CLARIFICATION_MESSAGE)
+
+        assert result == CHATBOT_PRICE_CLARIFICATION_MESSAGE
+        assert "prices" in result.lower() or "price" in result.lower()
+
+    def test_store_clarification_message_is_returned(
+        self, service: ResponseGenerationService
+    ) -> None:
+        result = service.format_clarification_response(CHATBOT_STORE_CLARIFICATION_MESSAGE)
+
+        assert result == CHATBOT_STORE_CLARIFICATION_MESSAGE
+        assert "store" in result.lower()
+
+    def test_none_falls_back_to_generic_message(
+        self, service: ResponseGenerationService
+    ) -> None:
+        result = service.format_clarification_response(None)
+
+        assert result == CHATBOT_AMBIGUOUS_QUESTION_MESSAGE
+
+    def test_no_arg_falls_back_to_generic_message(
+        self, service: ResponseGenerationService
+    ) -> None:
+        result = service.format_clarification_response()
+
+        assert result == CHATBOT_AMBIGUOUS_QUESTION_MESSAGE
 
 
 # ---------------------------------------------------------------------------

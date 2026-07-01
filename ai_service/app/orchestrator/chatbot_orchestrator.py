@@ -5,6 +5,11 @@ from app.core.chatbot_messages import (
     CHATBOT_MISSING_STORE_ID_MESSAGE,
     CHATBOT_MISSING_USER_EMAIL_MESSAGE,
     CHATBOT_NOT_IMPLEMENTED_MESSAGE,
+    CHATBOT_PRICE_CLARIFICATION_MESSAGE,
+    CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE,
+    CHATBOT_PRODUCT_CLARIFICATION_MESSAGE,
+    CHATBOT_PROMOTION_CLARIFICATION_MESSAGE,
+    CHATBOT_STORE_CLARIFICATION_MESSAGE,
     CHATBOT_TECHNICAL_ERROR_MESSAGE,
     CHATBOT_UNSUPPORTED_USE_CASE_MESSAGE,
 )
@@ -66,12 +71,47 @@ _GUARDRAIL_PHRASES = [
     "valide la demande",
 ]
 
-_AMBIGUOUS_PHRASES = [
+# T203 — granular clarification intents replace the single ambiguous_question.
+# Exact-match sets for bare, scope-less commands.
+_CLARIFY_PRICES_EXACT: frozenset[str] = frozenset(
+    {"show prices", "list prices", "what prices", "explain price", "prix"}
+)
+_CLARIFY_PROMOTIONS_EXACT: frozenset[str] = frozenset(
+    {"show promotions", "list promotions", "promotions"}
+)
+_CLARIFY_PRICE_REQUESTS_EXACT: frozenset[str] = frozenset(
+    {"show requests", "list requests"}
+)
+
+# Substring phrases for questions that include an entity reference ("store 1", "product 42").
+_CLARIFY_STORE_PHRASES = [
     "tell me about store",
-    "tell me about product",
-    "tell me about promotion",
-    "explain price",
+    "what about store",
+    "analyse this store",
+    "analyze this store",
 ]
+_CLARIFY_PRODUCT_PHRASES = [
+    "tell me about product",
+    "what about product",
+    "analyse this product",
+    "analyze this product",
+]
+_CLARIFY_PROMOTION_PHRASES = [
+    "tell me about promotion",
+]
+
+# Mapping from clarification intent to the targeted message to return.
+_CLARIFICATION_MESSAGES: dict[str, str | None] = {
+    "clarify_prices": CHATBOT_PRICE_CLARIFICATION_MESSAGE,
+    "clarify_promotions": CHATBOT_PROMOTION_CLARIFICATION_MESSAGE,
+    "clarify_store": CHATBOT_STORE_CLARIFICATION_MESSAGE,
+    "clarify_product": CHATBOT_PRODUCT_CLARIFICATION_MESSAGE,
+    "clarify_price_requests": CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE,
+    "ambiguous_question": None,  # falls back to CHATBOT_AMBIGUOUS_QUESTION_MESSAGE
+}
+
+# Kept as empty fallback list; add phrases here for any future generic ambiguity.
+_AMBIGUOUS_PHRASES: list[str] = []
 
 
 class ChatbotOrchestrator:
@@ -162,11 +202,13 @@ class ChatbotOrchestrator:
                 "source": "orchestrator",
             }
 
-        if intent == "ambiguous_question":
+        if intent in _CLARIFICATION_MESSAGES:
             return {
                 **routed,
                 "status": "clarification",
-                "answer": self._response_service.format_clarification_response(),
+                "answer": self._response_service.format_clarification_response(
+                    _CLARIFICATION_MESSAGES[intent]
+                ),
                 "source": "orchestrator",
             }
 
@@ -418,12 +460,11 @@ class ChatbotOrchestrator:
         ):
             return "explain_kpi"
 
-        # 6. Promotions — active or filtered promotions from the backend.
+        # 6. Promotions — active or scoped promotions from the backend.
+        # Bare "show/list promotions" are handled later as clarify_promotions.
         if self._contains_any_phrase(
             normalized_question,
             [
-                "list promotions",
-                "show promotions",
                 "active promotions",
                 "list active promotions",
                 "what promotions",
@@ -439,12 +480,10 @@ class ChatbotOrchestrator:
             return "promotions"
 
         # 7. Prices — price data from the backend.
+        # Bare "show/list/what prices" are handled later as clarify_prices.
         if self._contains_any_phrase(
             normalized_question,
             [
-                "list prices",
-                "show prices",
-                "what prices",
                 "prices for product",
                 "prices for store",
                 "liste des prix",
@@ -528,8 +567,13 @@ class ChatbotOrchestrator:
         if self._contains_revenue_intent(normalized_question):
             return "get_country_revenue"
 
-        # 10. Ambiguous question: recognized topic but missing context for routing.
-        # Offers clarification instead of a generic unsupported fallback.
+        # 10. Granular clarification intents (T203): recognized topic but missing scope.
+        # Placed after all tool-calling intents so clear questions are never intercepted.
+        clarification_intent = self._detect_clarification_intent(normalized_question)
+        if clarification_intent:
+            return clarification_intent
+
+        # Generic ambiguous fallback (kept for any future phrase additions).
         if self._contains_any_phrase(normalized_question, _AMBIGUOUS_PHRASES):
             return "ambiguous_question"
 
@@ -549,6 +593,11 @@ class ChatbotOrchestrator:
             "documentary_knowledge": "rag_retriever",
             "guardrail_action_request": None,
             "ambiguous_question": None,
+            "clarify_prices": None,
+            "clarify_promotions": None,
+            "clarify_store": None,
+            "clarify_product": None,
+            "clarify_price_requests": None,
         }
 
         return tool_by_intent.get(intent)
@@ -744,6 +793,27 @@ class ChatbotOrchestrator:
             "llm_used": True,
             "rag_sources": deduplicated,
         }
+
+    def _detect_clarification_intent(self, normalized_question: str) -> str | None:
+        if normalized_question in _CLARIFY_PRICES_EXACT:
+            return "clarify_prices"
+
+        if normalized_question in _CLARIFY_PROMOTIONS_EXACT:
+            return "clarify_promotions"
+
+        if normalized_question in _CLARIFY_PRICE_REQUESTS_EXACT:
+            return "clarify_price_requests"
+
+        if self._contains_any_phrase(normalized_question, _CLARIFY_STORE_PHRASES):
+            return "clarify_store"
+
+        if self._contains_any_phrase(normalized_question, _CLARIFY_PRODUCT_PHRASES):
+            return "clarify_product"
+
+        if self._contains_any_phrase(normalized_question, _CLARIFY_PROMOTION_PHRASES):
+            return "clarify_promotions"
+
+        return None
 
     def _contains_any_phrase(self, text: str, keywords: list[str]) -> bool:
         return any(keyword in text for keyword in keywords)

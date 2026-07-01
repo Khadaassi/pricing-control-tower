@@ -11,6 +11,11 @@ from app.core.chatbot_messages import (
     CHATBOT_MISSING_USER_EMAIL_MESSAGE,
     CHATBOT_NOT_IMPLEMENTED_MESSAGE,
     CHATBOT_OUT_OF_SCOPE_MESSAGE,
+    CHATBOT_PRICE_CLARIFICATION_MESSAGE,
+    CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE,
+    CHATBOT_PRODUCT_CLARIFICATION_MESSAGE,
+    CHATBOT_PROMOTION_CLARIFICATION_MESSAGE,
+    CHATBOT_STORE_CLARIFICATION_MESSAGE,
     CHATBOT_SUPPORTED_SCOPE_MESSAGE,
 )
 from app.core.metrics import get_metric_value
@@ -1292,10 +1297,10 @@ class TestPromotionsAnswering:
 
 
 class TestPricesRouting:
-    def test_list_prices_routes_to_price_tool(
+    def test_list_prices_for_product_routes_to_price_tool(
         self, orchestrator: ChatbotOrchestrator
     ) -> None:
-        routed = orchestrator.route_question("List prices")
+        routed = orchestrator.route_question("List prices for product 3")
 
         assert routed["intent"] == "prices"
         assert routed["selected_tool"] == "price_tool"
@@ -1318,7 +1323,7 @@ class TestPricesRouting:
 
 
 class TestPricesAnswering:
-    def test_list_prices_calls_price_tool(
+    def test_prices_for_product_calls_price_tool(
         self,
         orchestrator: ChatbotOrchestrator,
         mock_price_tool: MagicMock,
@@ -1333,7 +1338,7 @@ class TestPricesAnswering:
             }
         ]
 
-        result = orchestrator.answer_question("List prices")
+        result = orchestrator.answer_question("List prices for product 3")
 
         mock_price_tool.list_prices.assert_called_once_with(user_email=None)
         assert result["status"] == "answered"
@@ -1349,7 +1354,7 @@ class TestPricesAnswering:
     ) -> None:
         mock_price_tool.list_prices.return_value = []
 
-        result = orchestrator.answer_question("List prices")
+        result = orchestrator.answer_question("List prices for product 3")
 
         assert result["answer"] == "No matching data was found."
 
@@ -1360,7 +1365,7 @@ class TestPricesAnswering:
     ) -> None:
         mock_price_tool.list_prices.side_effect = RuntimeError("Backend error")
 
-        result = orchestrator.answer_question("List prices")
+        result = orchestrator.answer_question("List prices for product 3")
 
         assert result["status"] == "error"
 
@@ -1436,7 +1441,7 @@ class TestT200NonRegression:
     ) -> None:
         mock_price_tool.list_prices.return_value = []
 
-        orchestrator.answer_question("List prices")
+        orchestrator.answer_question("List prices for product 3")
 
         mock_document_retriever.search.assert_not_called()
 
@@ -1542,36 +1547,36 @@ class TestGuardrailAnswering:
 
 
 class TestAmbiguousQuestionRouting:
-    def test_tell_me_about_store_routes_to_ambiguous(
+    def test_tell_me_about_store_routes_to_clarify_store(
         self, orchestrator: ChatbotOrchestrator
     ) -> None:
         routed = orchestrator.route_question("Tell me about store 1")
 
-        assert routed["intent"] == "ambiguous_question"
+        assert routed["intent"] == "clarify_store"
         assert routed["selected_tool"] is None
 
-    def test_explain_price_routes_to_ambiguous(
+    def test_explain_price_routes_to_clarify_prices(
         self, orchestrator: ChatbotOrchestrator
     ) -> None:
         routed = orchestrator.route_question("Explain price")
 
-        assert routed["intent"] == "ambiguous_question"
+        assert routed["intent"] == "clarify_prices"
 
-    def test_tell_me_about_product_routes_to_ambiguous(
+    def test_tell_me_about_product_routes_to_clarify_product(
         self, orchestrator: ChatbotOrchestrator
     ) -> None:
         routed = orchestrator.route_question("Tell me about product 42")
 
-        assert routed["intent"] == "ambiguous_question"
+        assert routed["intent"] == "clarify_product"
 
-    def test_specific_price_question_does_not_route_to_ambiguous(
+    def test_scoped_price_question_does_not_route_to_clarification(
         self, orchestrator: ChatbotOrchestrator
     ) -> None:
-        routed = orchestrator.route_question("List prices")
+        routed = orchestrator.route_question("List prices for product 3")
 
         assert routed["intent"] == "prices"
 
-    def test_specific_store_list_does_not_route_to_ambiguous(
+    def test_specific_store_list_does_not_route_to_clarification(
         self, orchestrator: ChatbotOrchestrator
     ) -> None:
         routed = orchestrator.route_question("List stores")
@@ -1580,22 +1585,22 @@ class TestAmbiguousQuestionRouting:
 
 
 class TestAmbiguousQuestionAnswering:
-    def test_ambiguous_question_returns_clarification_status(
+    def test_clarify_store_returns_clarification_status(
         self, orchestrator: ChatbotOrchestrator
     ) -> None:
         result = orchestrator.answer_question("Tell me about store 1")
 
         assert result["status"] == "clarification"
-        assert result["intent"] == "ambiguous_question"
+        assert result["intent"] == "clarify_store"
 
-    def test_ambiguous_question_returns_clarification_message(
+    def test_clarify_store_returns_targeted_message(
         self, orchestrator: ChatbotOrchestrator
     ) -> None:
         result = orchestrator.answer_question("Tell me about store 1")
 
-        assert result["answer"] == CHATBOT_AMBIGUOUS_QUESTION_MESSAGE
+        assert result["answer"] == CHATBOT_STORE_CLARIFICATION_MESSAGE
 
-    def test_ambiguous_question_does_not_call_document_retriever(
+    def test_clarification_does_not_call_document_retriever(
         self,
         orchestrator: ChatbotOrchestrator,
         mock_document_retriever: MagicMock,
@@ -1604,7 +1609,7 @@ class TestAmbiguousQuestionAnswering:
 
         mock_document_retriever.search.assert_not_called()
 
-    def test_ambiguous_question_does_not_call_reference_data_tool(
+    def test_clarification_does_not_call_reference_data_tool(
         self,
         orchestrator: ChatbotOrchestrator,
         mock_reference_data_tool: MagicMock,
@@ -1760,7 +1765,7 @@ class TestT202ToolResponseStructure:
             }
         ]
 
-        result = orchestrator.answer_question("List prices")
+        result = orchestrator.answer_question("List prices for product 3")
 
         assert "Summary:" in result["answer"]
         assert "Details:" in result["answer"]
@@ -1870,3 +1875,204 @@ class TestT202StaticResponseStructure:
         forbidden = ["apply now", "approve now", "reject now", "delete now"]
         for phrase in forbidden:
             assert phrase not in result["answer"].lower()
+
+
+# ---------------------------------------------------------------------------
+# T203 — Granular ambiguity handling
+# ---------------------------------------------------------------------------
+
+
+class TestT203ClarificationRouting:
+    def test_show_prices_routes_to_clarify_prices(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Show prices")
+
+        assert routed["intent"] == "clarify_prices"
+        assert routed["selected_tool"] is None
+
+    def test_list_prices_routes_to_clarify_prices(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List prices")
+
+        assert routed["intent"] == "clarify_prices"
+        assert routed["selected_tool"] is None
+
+    def test_explain_price_routes_to_clarify_prices(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Explain price")
+
+        assert routed["intent"] == "clarify_prices"
+
+    def test_show_promotions_routes_to_clarify_promotions(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Show promotions")
+
+        assert routed["intent"] == "clarify_promotions"
+        assert routed["selected_tool"] is None
+
+    def test_tell_me_about_store_routes_to_clarify_store(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Tell me about store 1")
+
+        assert routed["intent"] == "clarify_store"
+        assert routed["selected_tool"] is None
+
+    def test_what_about_product_routes_to_clarify_product(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("What about product 3?")
+
+        assert routed["intent"] == "clarify_product"
+        assert routed["selected_tool"] is None
+
+    def test_show_requests_routes_to_clarify_price_requests(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Show requests")
+
+        assert routed["intent"] == "clarify_price_requests"
+        assert routed["selected_tool"] is None
+
+    def test_list_requests_routes_to_clarify_price_requests(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List requests")
+
+        assert routed["intent"] == "clarify_price_requests"
+
+    # Non-regression: clear questions must still route to their tool.
+
+    def test_list_active_promotions_routes_to_promotion_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List active promotions")
+
+        assert routed["intent"] == "promotions"
+        assert routed["selected_tool"] == "promotion_tool"
+
+    def test_list_prices_for_product_routes_to_price_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List prices for product 3")
+
+        assert routed["intent"] == "prices"
+        assert routed["selected_tool"] == "price_tool"
+
+    def test_list_stores_routes_to_reference_data_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List stores")
+
+        assert routed["intent"] == "reference_data"
+        assert routed["selected_tool"] == "reference_data_tool"
+
+    def test_list_pending_price_change_requests_routes_to_price_change_request_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List pending price change requests")
+
+        assert routed["intent"] == "list_store_price_changes"
+        assert routed["selected_tool"] == "price_change_request_tool"
+
+    def test_price_change_workflow_documentation_routes_to_documentary_knowledge(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("How does the price change workflow work?")
+
+        assert routed["intent"] == "documentary_knowledge"
+        assert routed["selected_tool"] == "rag_retriever"
+
+
+class TestT203ClarificationAnswering:
+    def test_clarify_prices_returns_clarification_status(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Show prices")
+
+        assert result["status"] == "clarification"
+        assert result["intent"] == "clarify_prices"
+
+    def test_clarify_prices_returns_targeted_message(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Show prices")
+
+        assert result["answer"] == CHATBOT_PRICE_CLARIFICATION_MESSAGE
+
+    def test_clarify_promotions_returns_targeted_message(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Show promotions")
+
+        assert result["answer"] == CHATBOT_PROMOTION_CLARIFICATION_MESSAGE
+
+    def test_clarify_store_returns_targeted_message(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Tell me about store 1")
+
+        assert result["answer"] == CHATBOT_STORE_CLARIFICATION_MESSAGE
+
+    def test_clarify_product_returns_targeted_message(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("What about product 3?")
+
+        assert result["answer"] == CHATBOT_PRODUCT_CLARIFICATION_MESSAGE
+
+    def test_clarify_price_requests_returns_targeted_message(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Show requests")
+
+        assert result["answer"] == CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE
+
+    def test_clarification_does_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Show prices")
+
+        mock_document_retriever.search.assert_not_called()
+
+    def test_clarification_does_not_call_promotion_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Show promotions")
+
+        mock_promotion_tool.list_promotions.assert_not_called()
+
+    def test_clarification_does_not_call_price_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Show prices")
+
+        mock_price_tool.list_prices.assert_not_called()
+
+    def test_clarification_does_not_call_reference_data_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Tell me about store 1")
+
+        mock_reference_data_tool.list_stores.assert_not_called()
+
+    def test_clarification_does_not_call_price_change_request_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Show requests")
+
+        mock_price_change_request_tool.list_price_change_requests.assert_not_called()

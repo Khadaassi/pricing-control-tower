@@ -62,3 +62,51 @@ CHATBOT_NO_TOOL_AVAILABLE_MESSAGE = (
     "Cette question porte sur des données opérationnelles, "
     "mais aucun outil dédié n’est encore disponible pour y répondre."
 )
+
+# T203 — targeted clarification messages per ambiguous intent
+
+CHATBOT_PRICE_CLARIFICATION_MESSAGE = (
+    "I need one detail to answer correctly.\n\n"
+    "Are you asking about:\n"
+    "- current prices for a product, store, or country\n"
+    "- price change requests\n"
+    "- pricing rules or price scope documentation?"
+)
+
+CHATBOT_PROMOTION_CLARIFICATION_MESSAGE = (
+    "I need one detail to answer correctly.\n\n"
+    "Are you asking about:\n"
+    "- active promotions\n"
+    "- promotions for a specific store\n"
+    "- promotions for a specific product\n"
+    "- documentation about promotion rules?"
+)
+
+CHATBOT_STORE_CLARIFICATION_MESSAGE = (
+    "I need one detail to answer correctly.\n\n"
+    "For this store, do you want to see:\n"
+    "- store reference information\n"
+    "- prices\n"
+    "- promotions\n"
+    "- anomalies\n"
+    "- price change requests?"
+)
+
+CHATBOT_PRODUCT_CLARIFICATION_MESSAGE = (
+    "I need one detail to answer correctly.\n\n"
+    "For this product, do you want to see:\n"
+    "- product reference information\n"
+    "- current prices\n"
+    "- promotions\n"
+    "- anomalies\n"
+    "- price change requests?"
+)
+
+CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE = (
+    "I need one detail to answer correctly.\n\n"
+    "Are you asking about:\n"
+    "- pending price change requests\n"
+    "- approved price change requests\n"
+    "- rejected price change requests\n"
+    "- all price change requests regardless of status?"
+)
