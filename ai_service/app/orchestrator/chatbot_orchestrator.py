@@ -23,6 +23,9 @@ from app.services.business_rules_explanation_service import (
 from app.services.kpi_explanation_service import KPIExplanationService
 from app.services.rbac_explanation_service import RBACExplanationService
 from app.tools.anomaly_tool import AnomalyTool
+from app.tools.price_change_request_tool import PriceChangeRequestTool
+from app.tools.price_tool import PriceTool
+from app.tools.promotion_tool import PromotionTool
 from app.tools.reference_data_tool import ReferenceDataTool
 
 logger = get_logger("ai_service.orchestrator")
@@ -40,6 +43,9 @@ class ChatbotOrchestrator:
         rbac_service: RBACExplanationService | None = None,
         anomaly_tool: AnomalyTool | None = None,
         kpi_service: KPIExplanationService | None = None,
+        price_change_request_tool: PriceChangeRequestTool | None = None,
+        promotion_tool: PromotionTool | None = None,
+        price_tool: PriceTool | None = None,
         reference_data_tool: ReferenceDataTool | None = None,
         document_retriever: DocumentRetriever | None = None,
         llm_provider: BaseLLMProvider | None = None,
@@ -50,6 +56,11 @@ class ChatbotOrchestrator:
         self.rbac_service = rbac_service or RBACExplanationService()
         self.anomaly_tool = anomaly_tool or AnomalyTool()
         self.kpi_service = kpi_service or KPIExplanationService()
+        self.price_change_request_tool = (
+            price_change_request_tool or PriceChangeRequestTool()
+        )
+        self.promotion_tool = promotion_tool or PromotionTool()
+        self.price_tool = price_tool or PriceTool()
         self.reference_data_tool = reference_data_tool or ReferenceDataTool()
         self.document_retriever = document_retriever or DocumentRetriever()
         self.llm_provider = llm_provider or get_llm_provider()
@@ -165,6 +176,42 @@ class ChatbotOrchestrator:
             except Exception as error:
                 return self._build_error_response(routed, error)
 
+        if intent == "list_store_price_changes":
+            try:
+                answer = self._answer_price_change_requests_question(question, user_email)
+                return {
+                    **routed,
+                    "status": "answered",
+                    "answer": answer,
+                    "source": "price_change_request_tool",
+                }
+            except Exception as error:
+                return self._build_error_response(routed, error)
+
+        if intent == "promotions":
+            try:
+                answer = self._answer_promotions_question(question, user_email)
+                return {
+                    **routed,
+                    "status": "answered",
+                    "answer": answer,
+                    "source": "promotion_tool",
+                }
+            except Exception as error:
+                return self._build_error_response(routed, error)
+
+        if intent == "prices":
+            try:
+                answer = self._answer_prices_question(question, user_email)
+                return {
+                    **routed,
+                    "status": "answered",
+                    "answer": answer,
+                    "source": "price_tool",
+                }
+            except Exception as error:
+                return self._build_error_response(routed, error)
+
         if intent == "reference_data":
             try:
                 answer = self._answer_reference_data_question(question, user_email)
@@ -274,11 +321,16 @@ class ChatbotOrchestrator:
                 "show price changes",
                 "price changes for store",
                 "price change history",
+                "price change request",
                 "change requests",
                 "price requests",
+                "pending price",
+                "approved price",
+                "waiting for approval",
                 "historique prix",
                 "liste des changements de prix",
                 "demandes de changement de prix",
+                "demandes de prix",
             ],
         ):
             return "list_store_price_changes"
@@ -298,7 +350,44 @@ class ChatbotOrchestrator:
         ):
             return "explain_kpi"
 
-        # 6. Reference data — applicative master data (countries, stores, products,
+        # 6. Promotions — active or filtered promotions from the backend.
+        if self._contains_any_phrase(
+            normalized_question,
+            [
+                "list promotions",
+                "show promotions",
+                "active promotions",
+                "list active promotions",
+                "what promotions",
+                "available promotions",
+                "current promotions",
+                "promotions for store",
+                "promotions for product",
+                "liste des promotions",
+                "promotions actives",
+                "quelles promotions",
+            ],
+        ):
+            return "promotions"
+
+        # 7. Prices — price data from the backend.
+        if self._contains_any_phrase(
+            normalized_question,
+            [
+                "list prices",
+                "show prices",
+                "what prices",
+                "prices for product",
+                "prices for store",
+                "liste des prix",
+                "quels prix",
+                "prix du produit",
+                "prix du magasin",
+            ],
+        ):
+            return "prices"
+
+        # 9. Reference data — applicative master data (countries, stores, products,
         # product families). Placed before RAG so data questions never hit the
         # document retriever.
         if self._contains_any_phrase(
@@ -370,16 +459,96 @@ class ChatbotOrchestrator:
     def _select_tool(self, intent: str) -> str | None:
         tool_by_intent = {
             "get_country_revenue": "kpi_tool",
-            "list_store_price_changes": "price_change_tool",
+            "list_store_price_changes": "price_change_request_tool",
             "list_store_country_price_mismatches": "anomaly_tool",
             "explain_kpi": "kpi_explanation_tool",
             "explain_business_rule": "business_rules_tool",
             "explain_rbac": "rbac_tool",
+            "promotions": "promotion_tool",
+            "prices": "price_tool",
             "reference_data": "reference_data_tool",
             "documentary_knowledge": "rag_retriever",
         }
 
         return tool_by_intent.get(intent)
+
+    def _answer_price_change_requests_question(
+        self, question: str, user_email: str | None
+    ) -> str:
+        normalized = question.lower()
+        status: str | None = None
+        if self._contains_any_phrase(normalized, ["pending", "waiting", "en attente"]):
+            status = "PENDING"
+        elif self._contains_any_phrase(normalized, ["approved", "approuvé", "approuvée"]):
+            status = "APPROVED"
+        elif self._contains_any_phrase(normalized, ["rejected", "rejeté", "rejetée"]):
+            status = "REJECTED"
+
+        items = self.price_change_request_tool.list_price_change_requests(
+            status=status,
+            user_email=user_email,
+        )
+        return self._format_price_change_requests(items)
+
+    def _answer_promotions_question(
+        self, question: str, user_email: str | None
+    ) -> str:
+        normalized = question.lower()
+        active: bool | None = None
+        if self._contains_any_phrase(normalized, ["active", "activ"]):
+            active = True
+        elif "inactive" in normalized:
+            active = False
+
+        items = self.promotion_tool.list_promotions(active=active, user_email=user_email)
+        return self._format_promotions(items)
+
+    def _answer_prices_question(
+        self, question: str, user_email: str | None
+    ) -> str:
+        items = self.price_tool.list_prices(user_email=user_email)
+        return self._format_prices(items)
+
+    def _format_price_change_requests(self, items: list[dict[str, Any]]) -> str:
+        if not items:
+            return "No matching data was found."
+        lines = ["Price change requests found:"]
+        for item in items:
+            lines.append(
+                f"- Request #{item['id']} — Product {item['product_id']}"
+                f" — {item['status'].lower()}"
+                f" — requested price: {item['requested_price_amount']}"
+            )
+        return "\n".join(lines)
+
+    def _format_promotions(self, items: list[dict[str, Any]]) -> str:
+        if not items:
+            return "No matching data was found."
+        lines = ["Promotions found:"]
+        for item in items:
+            discount_type = item.get("discount_type", "")
+            discount_value = item.get("discount_value", "")
+            if discount_type == "PERCENTAGE":
+                discount_label = f"{discount_value}% discount"
+            else:
+                discount_label = f"fixed price {discount_value}"
+            lines.append(
+                f"- Product {item['product_id']} — {discount_label}"
+                f" — from {item['start_date']} to {item['end_date']}"
+            )
+        return "\n".join(lines)
+
+    def _format_prices(self, items: list[dict[str, Any]]) -> str:
+        if not items:
+            return "No matching data was found."
+        lines = ["Prices found:"]
+        for item in items:
+            code = item.get("product_code", f"Product {item.get('product_id', '?')}")
+            name = item.get("product_name", "")
+            amount = item.get("amount", "?")
+            currency = item.get("currency_code", "")
+            lines.append(f"- {code} — {name} — {amount} {currency}".strip(" —"))
+        return "\n".join(lines)
 
     def _answer_reference_data_question(
         self, question: str, user_email: str | None

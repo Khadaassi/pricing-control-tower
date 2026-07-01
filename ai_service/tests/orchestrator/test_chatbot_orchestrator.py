@@ -31,11 +31,20 @@ def assert_no_business_tool_was_called(
     mock_rbac_service: MagicMock,
     mock_business_rules_service: MagicMock,
     mock_anomaly_tool: MagicMock,
+    mock_price_change_request_tool: MagicMock | None = None,
+    mock_promotion_tool: MagicMock | None = None,
+    mock_price_tool: MagicMock | None = None,
 ) -> None:
     mock_kpi_service.explain.assert_not_called()
     mock_rbac_service.explain.assert_not_called()
     mock_business_rules_service.explain.assert_not_called()
     mock_anomaly_tool.list_store_country_price_mismatches.assert_not_called()
+    if mock_price_change_request_tool is not None:
+        mock_price_change_request_tool.list_price_change_requests.assert_not_called()
+    if mock_promotion_tool is not None:
+        mock_promotion_tool.list_promotions.assert_not_called()
+    if mock_price_tool is not None:
+        mock_price_tool.list_prices.assert_not_called()
 
 
 class TestRouting:
@@ -1075,3 +1084,359 @@ class TestReferenceDataRAGNonRegression:
 
         mock_reference_data_tool.list_stores.assert_not_called()
         assert result["intent"] == "explain_rbac"
+
+
+# ---------------------------------------------------------------------------
+# T200 — Business tools extension
+# ---------------------------------------------------------------------------
+
+
+class TestPriceChangeRequestsRouting:
+    def test_list_pending_price_change_requests_routes_to_price_change_request_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List pending price change requests")
+
+        assert routed["intent"] == "list_store_price_changes"
+        assert routed["selected_tool"] == "price_change_request_tool"
+
+    def test_show_approved_price_requests_routes_to_price_change_request_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Show approved price requests")
+
+        assert routed["intent"] == "list_store_price_changes"
+        assert routed["selected_tool"] == "price_change_request_tool"
+
+    def test_waiting_for_approval_routes_to_price_change_request_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "What price changes are waiting for approval?"
+        )
+
+        assert routed["intent"] == "list_store_price_changes"
+        assert routed["selected_tool"] == "price_change_request_tool"
+
+    def test_french_price_change_requests_routes_correctly(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "Liste les demandes de changement de prix en attente"
+        )
+
+        assert routed["intent"] == "list_store_price_changes"
+        assert routed["selected_tool"] == "price_change_request_tool"
+
+
+class TestPriceChangeRequestsAnswering:
+    def test_pending_question_calls_tool_with_pending_status(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.return_value = [
+            {
+                "id": 12,
+                "product_id": 4,
+                "status": "PENDING",
+                "requested_price_amount": "19.99",
+            }
+        ]
+
+        result = orchestrator.answer_question("List pending price change requests")
+
+        mock_price_change_request_tool.list_price_change_requests.assert_called_once_with(
+            status="PENDING",
+            user_email=None,
+        )
+        assert result["status"] == "answered"
+        assert result["source"] == "price_change_request_tool"
+        assert "Request #12" in result["answer"]
+        assert "19.99" in result["answer"]
+
+    def test_no_status_filter_when_unspecified(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.return_value = []
+
+        orchestrator.answer_question("List price change requests")
+
+        mock_price_change_request_tool.list_price_change_requests.assert_called_once_with(
+            status=None,
+            user_email=None,
+        )
+
+    def test_empty_result_returns_no_data_message(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.return_value = []
+
+        result = orchestrator.answer_question("List pending price change requests")
+
+        assert result["answer"] == "No matching data was found."
+        assert result["status"] == "answered"
+
+    def test_exception_returns_error_response(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.side_effect = RuntimeError(
+            "Backend error"
+        )
+
+        result = orchestrator.answer_question("List pending price change requests")
+
+        assert result["status"] == "error"
+        assert result["error_type"] == "RuntimeError"
+
+
+class TestPromotionsRouting:
+    def test_list_active_promotions_routes_to_promotion_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List active promotions")
+
+        assert routed["intent"] == "promotions"
+        assert routed["selected_tool"] == "promotion_tool"
+
+    def test_what_promotions_are_currently_active_routes_correctly(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("What promotions are currently active?")
+
+        assert routed["intent"] == "promotions"
+        assert routed["selected_tool"] == "promotion_tool"
+
+    def test_french_promotions_question_routes_correctly(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Liste les promotions actives")
+
+        assert routed["intent"] == "promotions"
+        assert routed["selected_tool"] == "promotion_tool"
+
+
+class TestPromotionsAnswering:
+    def test_active_promotions_calls_tool_with_active_true(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        mock_promotion_tool.list_promotions.return_value = [
+            {
+                "product_id": 5,
+                "discount_type": "PERCENTAGE",
+                "discount_value": "20.00",
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-15",
+                "active": True,
+            }
+        ]
+
+        result = orchestrator.answer_question("List active promotions")
+
+        mock_promotion_tool.list_promotions.assert_called_once_with(
+            active=True, user_email=None
+        )
+        assert result["status"] == "answered"
+        assert result["source"] == "promotion_tool"
+        assert "20.00% discount" in result["answer"]
+        assert "2026-06-01" in result["answer"]
+
+    def test_fixed_price_promotion_formatted_correctly(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        mock_promotion_tool.list_promotions.return_value = [
+            {
+                "product_id": 9,
+                "discount_type": "FIXED_PRICE",
+                "discount_value": "14.99",
+                "start_date": "2026-06-10",
+                "end_date": "2026-06-20",
+                "active": True,
+            }
+        ]
+
+        result = orchestrator.answer_question("List active promotions")
+
+        assert "fixed price 14.99" in result["answer"]
+
+    def test_empty_result_returns_no_data_message(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        mock_promotion_tool.list_promotions.return_value = []
+
+        result = orchestrator.answer_question("List active promotions")
+
+        assert result["answer"] == "No matching data was found."
+
+    def test_exception_returns_error_response(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        mock_promotion_tool.list_promotions.side_effect = RuntimeError("Backend error")
+
+        result = orchestrator.answer_question("List active promotions")
+
+        assert result["status"] == "error"
+
+
+class TestPricesRouting:
+    def test_list_prices_routes_to_price_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List prices")
+
+        assert routed["intent"] == "prices"
+        assert routed["selected_tool"] == "price_tool"
+
+    def test_show_prices_for_product_routes_correctly(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Show prices for product 3")
+
+        assert routed["intent"] == "prices"
+        assert routed["selected_tool"] == "price_tool"
+
+    def test_french_prices_question_routes_correctly(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Liste des prix du magasin 2")
+
+        assert routed["intent"] == "prices"
+        assert routed["selected_tool"] == "price_tool"
+
+
+class TestPricesAnswering:
+    def test_list_prices_calls_price_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        mock_price_tool.list_prices.return_value = [
+            {
+                "product_id": 3,
+                "product_code": "RUN-001",
+                "product_name": "Running Shoes",
+                "amount": "29.99",
+                "currency_code": "EUR",
+            }
+        ]
+
+        result = orchestrator.answer_question("List prices")
+
+        mock_price_tool.list_prices.assert_called_once_with(user_email=None)
+        assert result["status"] == "answered"
+        assert result["source"] == "price_tool"
+        assert "RUN-001" in result["answer"]
+        assert "Running Shoes" in result["answer"]
+        assert "29.99" in result["answer"]
+
+    def test_empty_result_returns_no_data_message(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        mock_price_tool.list_prices.return_value = []
+
+        result = orchestrator.answer_question("List prices")
+
+        assert result["answer"] == "No matching data was found."
+
+    def test_exception_returns_error_response(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        mock_price_tool.list_prices.side_effect = RuntimeError("Backend error")
+
+        result = orchestrator.answer_question("List prices")
+
+        assert result["status"] == "error"
+
+
+class TestT200NonRegression:
+    def test_documentary_question_still_routes_to_rag(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("How does the price change workflow work?")
+
+        assert routed["intent"] == "documentary_knowledge"
+        assert routed["selected_tool"] == "rag_retriever"
+
+    def test_anomaly_question_still_routes_to_anomaly_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Explique-moi les anomalies de prix.")
+
+        assert routed["intent"] == "list_store_country_price_mismatches"
+        assert routed["selected_tool"] == "anomaly_tool"
+
+    def test_reference_data_question_still_routes_to_reference_data_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List countries")
+
+        assert routed["intent"] == "reference_data"
+        assert routed["selected_tool"] == "reference_data_tool"
+
+    def test_direct_action_request_still_blocked(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+        mock_promotion_tool: MagicMock,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        result = orchestrator.answer_question("Approuve cette demande de changement de prix")
+
+        assert result["status"] == "unsupported"
+        mock_price_change_request_tool.list_price_change_requests.assert_not_called()
+        mock_promotion_tool.list_promotions.assert_not_called()
+        mock_price_tool.list_prices.assert_not_called()
+
+    def test_price_change_requests_do_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.return_value = []
+
+        orchestrator.answer_question("List pending price change requests")
+
+        mock_document_retriever.search.assert_not_called()
+
+    def test_promotions_do_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_promotion_tool: MagicMock,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        mock_promotion_tool.list_promotions.return_value = []
+
+        orchestrator.answer_question("List active promotions")
+
+        mock_document_retriever.search.assert_not_called()
+
+    def test_prices_do_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_tool: MagicMock,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        mock_price_tool.list_prices.return_value = []
+
+        orchestrator.answer_question("List prices")
+
+        mock_document_retriever.search.assert_not_called()
