@@ -1,4 +1,46 @@
 services:
+  postgres:
+    image: postgres:16
+    container_name: pct_postgres
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - pct_postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+    container_name: pct_backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      # Overrides backend/.env's DATABASE_URL (meant for running the backend
+      # directly on the host), which is unreachable from inside this container:
+      # "localhost" here would mean the container itself, not the postgres
+      # service.
+      - DATABASE_URL=postgresql+psycopg://pct_user:pct_password@postgres:5432/pct
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: pct_frontend
+    restart: unless-stopped
+    environment:
+      - FASTAPI_BASE_URL=http://backend:8000
+      - AI_SERVICE_BASE_URL=http://ai_service:8001
+    ports:
+      - "8001:8001"
+    depends_on:
+      - backend
+
   ai_service:
     build:
       context: ./ai_service
@@ -9,13 +51,33 @@ services:
     environment:
       # Overrides ai_service/.env's BACKEND_API_URL (meant for running ai_service
       # directly on the host), which is unreachable from inside this container:
-      # "localhost" here would mean the container itself, not the host running
-      # the backend API.
-      - BACKEND_API_URL=http://host.docker.internal:8000
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      # "localhost" here would mean the container itself, not the backend
+      # service.
+      - BACKEND_API_URL=http://backend:8000
     ports:
-      - "8001:8001"
+      - "8002:8001"
+    depends_on:
+      - backend
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: pct_cadvisor
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      # Docker Desktop on macOS exposes /var/run/docker.sock as a symlink to a path
+      # outside /var/run (~/.docker/run/docker.sock); mounting the directory alone
+      # carries the broken symlink in, so the socket is mounted explicitly here too.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    depends_on:
+      - backend
+      - frontend
+      - ai_service
 
   prometheus:
     image: prom/prometheus:latest
@@ -28,7 +90,10 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
     depends_on:
+      - backend
+      - frontend
       - ai_service
+      - cadvisor
 
   grafana:
     image: grafana/grafana:latest
@@ -44,3 +109,6 @@ services:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
     depends_on:
       - prometheus
+
+volumes:
+  pct_postgres_data:

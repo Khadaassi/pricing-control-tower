@@ -1,0 +1,33 @@
+# T186 — Resolution commands and verification output
+# Date: 2026-07-01
+# Incident: BACKEND_API_URL=http://backend-wrong:8000 in ai_service (T184/T185)
+
+# ── Corrective action ─────────────────────────────────────────────────────────
+
+# File: docker-compose.yml — ai_service environment block
+# Before:   - BACKEND_API_URL=http://backend-wrong:8000
+# After:    - BACKEND_API_URL=http://backend:8000
+# Applied:  docker compose up -d ai_service
+
+# ── docker-compose.yml config check (no backend-wrong references) ─────────────
+
+FASTAPI_BASE_URL=http://backend:8000   (frontend)
+BACKEND_API_URL=http://backend:8000    (ai_service)
+
+# ── docker compose ps ─────────────────────────────────────────────────────────
+
+NAME             STATUS
+pct_ai_service   Up 47 minutes
+pct_backend      Up 14 hours
+pct_cadvisor     Up 14 hours (healthy)
+pct_frontend     Up 14 hours
+pct_grafana      Up 14 hours
+pct_postgres     Up 14 hours
+pct_prometheus   Up 14 hours
+
+# ── health checks ─────────────────────────────────────────────────────────────
+
+GET /health        backend    → HTTP 200  {"status":"ok","checks":{"database":{"status":"ok"}}}
+GET /health        frontend   → HTTP 200  {"status":"ok","service":"pricing-control-tower-frontend"}
+GET /chat/health   ai_service → HTTP 200  {"status":"ok","component":"chatbot","llm":{"configured":true}}
+

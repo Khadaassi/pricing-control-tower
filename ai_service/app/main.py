@@ -4,6 +4,7 @@ from .api.routes.chat import router as chat_router
 from .api.routes.health import router as health_router
 from .api.routes.metrics import router as metrics_router
 from .core.config import settings
+from .middleware.metrics_middleware import PrometheusMetricsMiddleware
 
 
 def create_app() -> FastAPI:
@@ -11,6 +12,8 @@ def create_app() -> FastAPI:
         title=settings.app_name,
         version=settings.app_version,
     )
+
+    app.add_middleware(PrometheusMetricsMiddleware)
 
     @app.get("/")
     def root() -> dict[str, str]:

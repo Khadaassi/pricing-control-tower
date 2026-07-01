@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from .api.router import api_router
 from .core.logging_config import configure_logging
 from .middleware.logging_middleware import StructuredLoggingMiddleware
+from .middleware.metrics_middleware import PrometheusMetricsMiddleware
 
 
 def create_app() -> FastAPI:
@@ -14,6 +15,7 @@ def create_app() -> FastAPI:
     )
 
     app.add_middleware(StructuredLoggingMiddleware)
+    app.add_middleware(PrometheusMetricsMiddleware)
 
     @app.get("/")
     def root() -> dict[str, str]:

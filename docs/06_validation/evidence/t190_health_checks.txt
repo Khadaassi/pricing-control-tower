@@ -1,0 +1,17 @@
+Command: curl -s -w "\nHTTP %{http_code}" http://localhost:{8000,8001,8002}/health
+Date: 2026-07-01
+
+=== backend (http://localhost:8000/health) ===
+{"status":"ok","service":"pricing-control-tower-api","version":"0.1.0","timestamp":"2026-07-01T09:17:21.223614+00:00","checks":{"database":{"status":"ok","type":"postgresql"}}}
+HTTP 200
+
+=== frontend (http://localhost:8001/health) ===
+{"status": "ok", "service": "pricing-control-tower-frontend", "timestamp": "2026-07-01T09:17:21.245312+00:00"}
+HTTP 200
+
+=== ai_service (http://localhost:8002/chat/health) ===
+{"status":"ok","service":"ai_service","component":"chatbot","timestamp":"2026-07-01T09:17:21.266854+00:00","llm":{"provider":"groq","model":"llama-3.1-8b-instant","configured":true}}
+HTTP 200
+
+Result: HTTP 200 for all three services.
+Backend also confirms database connectivity (checks.database.status = ok).
