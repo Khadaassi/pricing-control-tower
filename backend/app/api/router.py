@@ -9,6 +9,7 @@ from .routes.metrics import router as metrics_router
 from .routes.price_change_requests import router as price_change_requests_router
 from .routes.price_history import router as price_history_router
 from .routes.prices import router as prices_router
+from .routes.product_families import router as product_families_router
 from .routes.products import router as products_router
 from .routes.promotions import router as promotions_router
 from .routes.sales import router as sales_router
@@ -22,6 +23,7 @@ api_router.include_router(metrics_router)
 api_router.include_router(analytics_sales_router)
 api_router.include_router(countries_router)
 api_router.include_router(stores_router)
+api_router.include_router(product_families_router)
 api_router.include_router(products_router)
 api_router.include_router(prices_router)
 api_router.include_router(me_router)

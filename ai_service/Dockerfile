@@ -8,6 +8,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen
 
 COPY app ./app
+COPY scripts ./scripts
 
 EXPOSE 8001
 

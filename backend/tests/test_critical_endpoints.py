@@ -47,6 +47,26 @@ def test_products_endpoint_returns_paginated_response(
     assert "active" in first_item
 
 
+def test_product_families_endpoint_returns_list_response(
+    client,
+    workflow_test_data,
+):
+    response = client.get("/product-families")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert isinstance(data, list)
+    assert len(data) >= 1
+
+    first_item = data[0]
+
+    assert "id" in first_item
+    assert "code" in first_item
+    assert "name" in first_item
+
+
 def test_prices_endpoint_returns_paginated_response(
     client,
     rbac_headers_factory,

@@ -8,6 +8,7 @@ from app.tools.anomaly_tool import AnomalyTool
 from app.tools.business_rules_tool import BusinessRulesTool
 from app.tools.kpi_tool import KPITool
 from app.tools.rbac_tool import RBACTool
+from app.tools.reference_data_tool import ReferenceDataTool
 
 
 @pytest.fixture(autouse=True)
@@ -40,3 +41,8 @@ def rbac_tool() -> RBACTool:
 @pytest.fixture
 def anomaly_tool(mock_backend_client: MagicMock) -> AnomalyTool:
     return AnomalyTool(backend_client=mock_backend_client)
+
+
+@pytest.fixture
+def reference_data_tool(mock_backend_client: MagicMock) -> ReferenceDataTool:
+    return ReferenceDataTool(backend_client=mock_backend_client)

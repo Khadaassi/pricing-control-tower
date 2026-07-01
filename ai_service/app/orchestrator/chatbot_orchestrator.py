@@ -9,16 +9,28 @@ from app.core.chatbot_messages import (
     CHATBOT_TECHNICAL_ERROR_MESSAGE,
     CHATBOT_UNSUPPORTED_USE_CASE_MESSAGE,
 )
+from app.core.config import settings
 from app.core.logging_config import get_logger, log_event
 from app.core.metrics import increment_chat_tool_usage_total
+from app.llm.base import BaseLLMProvider
+from app.llm.factory import get_llm_provider
+from app.rag.prompt_builder import RAGPromptBuilder
+from app.rag.retriever import DocumentRetriever
+from app.rag.source_formatter import deduplicate_sources, enrich_sources, format_sources_block
 from app.services.business_rules_explanation_service import (
     BusinessRulesExplanationService,
 )
 from app.services.kpi_explanation_service import KPIExplanationService
 from app.services.rbac_explanation_service import RBACExplanationService
 from app.tools.anomaly_tool import AnomalyTool
+from app.tools.reference_data_tool import ReferenceDataTool
 
 logger = get_logger("ai_service.orchestrator")
+
+_RAG_FALLBACK_ANSWER = (
+    "I could not find enough information in the project documentation "
+    "to answer this question reliably."
+)
 
 
 class ChatbotOrchestrator:
@@ -28,6 +40,9 @@ class ChatbotOrchestrator:
         rbac_service: RBACExplanationService | None = None,
         anomaly_tool: AnomalyTool | None = None,
         kpi_service: KPIExplanationService | None = None,
+        reference_data_tool: ReferenceDataTool | None = None,
+        document_retriever: DocumentRetriever | None = None,
+        llm_provider: BaseLLMProvider | None = None,
     ) -> None:
         self.business_rules_service = (
             business_rules_service or BusinessRulesExplanationService()
@@ -35,6 +50,10 @@ class ChatbotOrchestrator:
         self.rbac_service = rbac_service or RBACExplanationService()
         self.anomaly_tool = anomaly_tool or AnomalyTool()
         self.kpi_service = kpi_service or KPIExplanationService()
+        self.reference_data_tool = reference_data_tool or ReferenceDataTool()
+        self.document_retriever = document_retriever or DocumentRetriever()
+        self.llm_provider = llm_provider or get_llm_provider()
+        self._prompt_builder = RAGPromptBuilder()
 
     def route_question(self, question: str) -> dict[str, Any]:
         intent = self._detect_intent(question)
@@ -135,13 +154,35 @@ class ChatbotOrchestrator:
                 }
             except Exception as error:
                 return self._build_error_response(routed, error)
-            
+
         if intent == "explain_kpi":
             try:
                 service_response = self.kpi_service.explain(question)
                 return {
                     **routed,
                     **service_response,
+                }
+            except Exception as error:
+                return self._build_error_response(routed, error)
+
+        if intent == "reference_data":
+            try:
+                answer = self._answer_reference_data_question(question, user_email)
+                return {
+                    **routed,
+                    "status": "answered",
+                    "answer": answer,
+                    "source": "reference_data_tool",
+                }
+            except Exception as error:
+                return self._build_error_response(routed, error)
+
+        if intent == "documentary_knowledge":
+            try:
+                rag_response = self._answer_documentary_question(question)
+                return {
+                    **routed,
+                    **rag_response,
                 }
             except Exception as error:
                 return self._build_error_response(routed, error)
@@ -257,7 +298,70 @@ class ChatbotOrchestrator:
         ):
             return "explain_kpi"
 
-        # 6. Revenue / sales KPI.
+        # 6. Reference data — applicative master data (countries, stores, products,
+        # product families). Placed before RAG so data questions never hit the
+        # document retriever.
+        if self._contains_any_phrase(
+            normalized_question,
+            [
+                # Countries
+                "list countries",
+                "what countries",
+                "available countries",
+                "show countries",
+                "liste des pays",
+                "quels pays",
+                # Stores
+                "list stores",
+                "what stores",
+                "available stores",
+                "show stores",
+                "liste des magasins",
+                "quels magasins",
+                # Product families
+                "product famil",
+                "familles de produits",
+                "familles produit",
+                # Products
+                "list products",
+                "list active products",
+                "show products",
+                "available products",
+                "what products",
+                "liste des produits",
+                "liste les produits",
+                "produits actifs",
+            ],
+        ):
+            return "reference_data"
+
+        # 7. Documentary knowledge — RAG over project documentation.
+        # Deliberately placed after operational intents so Tool Calling stays
+        # prioritaire for data questions.
+        if self._contains_any_phrase(
+            normalized_question,
+            [
+                "monitoring",
+                "observability",
+                "runbook",
+                "incident",
+                "architecture",
+                "exploitation",
+                "chatbot capabilities",
+                "chatbot limitations",
+                "what can the chatbot",
+                "how is the chatbot",
+                "how does the chatbot work",
+                "documentation",
+                "documented",
+                "how is monitoring",
+                "how is the system",
+                "how does the system",
+            ],
+        ):
+            return "documentary_knowledge"
+
+        # 7. Revenue / sales KPI.
         if self._contains_revenue_intent(normalized_question):
             return "get_country_revenue"
 
@@ -271,9 +375,99 @@ class ChatbotOrchestrator:
             "explain_kpi": "kpi_explanation_tool",
             "explain_business_rule": "business_rules_tool",
             "explain_rbac": "rbac_tool",
+            "reference_data": "reference_data_tool",
+            "documentary_knowledge": "rag_retriever",
         }
 
         return tool_by_intent.get(intent)
+
+    def _answer_reference_data_question(
+        self, question: str, user_email: str | None
+    ) -> str:
+        normalized = question.lower()
+
+        if self._contains_any_phrase(normalized, ["countr", "pays"]):
+            items = self.reference_data_tool.list_countries(user_email=user_email)
+            return self._format_countries(items)
+
+        if self._contains_any_phrase(normalized, ["store", "magasin"]):
+            items = self.reference_data_tool.list_stores(user_email=user_email)
+            return self._format_stores(items)
+
+        if self._contains_any_phrase(normalized, ["famil", "famille"]):
+            items = self.reference_data_tool.list_product_families(user_email=user_email)
+            return self._format_product_families(items)
+
+        active: bool | None = None
+        if self._contains_any_phrase(normalized, ["active", "actif", "actifs"]):
+            active = True
+
+        items = self.reference_data_tool.list_products(active=active, user_email=user_email)
+        return self._format_products(items)
+
+    def _format_countries(self, items: list[dict[str, Any]]) -> str:
+        if not items:
+            return "No matching reference data was found."
+        lines = ["Available countries:"] + [f"- {c['name']}" for c in items]
+        return "\n".join(lines)
+
+    def _format_stores(self, items: list[dict[str, Any]]) -> str:
+        if not items:
+            return "No matching reference data was found."
+        lines = ["Available stores:"] + [f"- {s['name']}" for s in items]
+        return "\n".join(lines)
+
+    def _format_product_families(self, items: list[dict[str, Any]]) -> str:
+        if not items:
+            return "No matching reference data was found."
+        lines = ["Available product families:"] + [f"- {f['name']}" for f in items]
+        return "\n".join(lines)
+
+    def _format_products(self, items: list[dict[str, Any]]) -> str:
+        if not items:
+            return "No matching reference data was found."
+        lines = ["Products found:"] + [f"- {p['code']} — {p['name']}" for p in items]
+        return "\n".join(lines)
+
+    def _answer_documentary_question(self, question: str) -> dict[str, Any]:
+        chunks = self.document_retriever.search(question, top_k=settings.rag_top_k)
+
+        relevant_chunks = [
+            c for c in chunks if c.get("score", 0.0) >= settings.rag_min_score
+        ]
+
+        log_event(
+            logger,
+            "rag_search_performed",
+            chunks_retrieved=len(chunks),
+            chunks_relevant=len(relevant_chunks),
+            min_score=settings.rag_min_score,
+        )
+
+        if not relevant_chunks:
+            return {
+                "answer": _RAG_FALLBACK_ANSWER,
+                "source": "rag_retriever",
+                "status": "answered",
+                "llm_used": False,
+                "rag_sources": [],
+            }
+
+        prompt = self._prompt_builder.build(question, relevant_chunks)
+        llm_answer = self.llm_provider.generate_response(prompt)
+
+        enriched = enrich_sources(relevant_chunks)
+        deduplicated = deduplicate_sources(enriched)
+        sources_block = format_sources_block(deduplicated, settings.rag_max_displayed_sources)
+        answer = f"{llm_answer}\n\n{sources_block}" if sources_block else llm_answer
+
+        return {
+            "answer": answer,
+            "source": "rag_retriever",
+            "status": "answered",
+            "llm_used": True,
+            "rag_sources": deduplicated,
+        }
 
     def _contains_any_phrase(self, text: str, keywords: list[str]) -> bool:
         return any(keyword in text for keyword in keywords)
