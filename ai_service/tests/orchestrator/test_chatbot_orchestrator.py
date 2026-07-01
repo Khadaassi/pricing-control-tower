@@ -5,9 +5,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.core.chatbot_messages import (
+    CHATBOT_AMBIGUOUS_QUESTION_MESSAGE,
+    CHATBOT_GUARDRAIL_ACTION_MESSAGE,
     CHATBOT_MISSING_STORE_ID_MESSAGE,
     CHATBOT_MISSING_USER_EMAIL_MESSAGE,
     CHATBOT_NOT_IMPLEMENTED_MESSAGE,
+    CHATBOT_OUT_OF_SCOPE_MESSAGE,
     CHATBOT_SUPPORTED_SCOPE_MESSAGE,
 )
 from app.core.metrics import get_metric_value
@@ -226,7 +229,7 @@ class TestAnswerQuestionDispatch:
         result = orchestrator.answer_question("Raconte-moi une blague.")
 
         assert result["status"] == "unsupported"
-        assert result["answer"] == CHATBOT_SUPPORTED_SCOPE_MESSAGE
+        assert result["answer"] == CHATBOT_OUT_OF_SCOPE_MESSAGE
         assert_no_business_tool_was_called(
             mock_kpi_service, mock_rbac_service, mock_business_rules_service, mock_anomaly_tool
         )
@@ -269,14 +272,10 @@ class TestGuardrails:
         mock_business_rules_service: MagicMock,
         mock_anomaly_tool: MagicMock,
     ) -> None:
-        # No keyword maps this phrasing to a known intent, so it falls back to
-        # "unknown" and the orchestrator answers with the generic scope message
-        # instead of attempting any write action (the chatbot has no write
-        # capability in the first place, but no read tool is touched either).
         result = orchestrator.answer_question("Approuve cette demande de changement de prix")
 
-        assert result["status"] == "unsupported"
-        assert result["answer"] == CHATBOT_SUPPORTED_SCOPE_MESSAGE
+        assert result["status"] == "guardrail"
+        assert result["answer"] == CHATBOT_GUARDRAIL_ACTION_MESSAGE
         assert_no_business_tool_was_called(
             mock_kpi_service, mock_rbac_service, mock_business_rules_service, mock_anomaly_tool
         )
@@ -723,7 +722,7 @@ class TestRAGNonRegression:
         result = orchestrator.answer_question("Approuve cette demande de changement de prix")
 
         mock_document_retriever.search.assert_not_called()
-        assert result["status"] == "unsupported"
+        assert result["status"] == "guardrail"
 
     def test_rag_tool_usage_metric_is_incremented_for_documentary_question(
         self,
@@ -1400,7 +1399,7 @@ class TestT200NonRegression:
     ) -> None:
         result = orchestrator.answer_question("Approuve cette demande de changement de prix")
 
-        assert result["status"] == "unsupported"
+        assert result["status"] == "guardrail"
         mock_price_change_request_tool.list_price_change_requests.assert_not_called()
         mock_promotion_tool.list_promotions.assert_not_called()
         mock_price_tool.list_prices.assert_not_called()
@@ -1440,3 +1439,434 @@ class TestT200NonRegression:
         orchestrator.answer_question("List prices")
 
         mock_document_retriever.search.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# T201 — Intent routing and fallback improvements
+# ---------------------------------------------------------------------------
+
+
+class TestGuardrailRouting:
+    def test_french_imperative_approve_routes_to_guardrail(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Approuve cette demande de changement de prix")
+
+        assert routed["intent"] == "guardrail_action_request"
+        assert routed["selected_tool"] is None
+
+    def test_english_approve_request_routes_to_guardrail(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Approve request 12")
+
+        assert routed["intent"] == "guardrail_action_request"
+        assert routed["selected_tool"] is None
+
+    def test_can_you_approve_routes_to_guardrail(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Can you approve request 12?")
+
+        assert routed["intent"] == "guardrail_action_request"
+        assert routed["selected_tool"] is None
+
+    def test_reject_request_routes_to_guardrail(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Reject request 5")
+
+        assert routed["intent"] == "guardrail_action_request"
+        assert routed["selected_tool"] is None
+
+    def test_french_reject_routes_to_guardrail(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Rejette la demande numéro 3")
+
+        assert routed["intent"] == "guardrail_action_request"
+        assert routed["selected_tool"] is None
+
+    def test_meta_chatbot_question_does_not_route_to_guardrail(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "Can the chatbot approve a price change request?"
+        )
+
+        assert routed["intent"] == "explain_business_rule"
+
+    def test_french_meta_chatbot_question_does_not_route_to_guardrail(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "Le chatbot peut-il approuver une demande de changement de prix ?"
+        )
+
+        assert routed["intent"] == "explain_business_rule"
+
+
+class TestGuardrailAnswering:
+    def test_guardrail_returns_guardrail_status(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Approve request 12")
+
+        assert result["status"] == "guardrail"
+        assert result["intent"] == "guardrail_action_request"
+
+    def test_guardrail_returns_dedicated_message(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Approve request 12")
+
+        assert result["answer"] == CHATBOT_GUARDRAIL_ACTION_MESSAGE
+
+    def test_guardrail_does_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Approve request 12")
+
+        mock_document_retriever.search.assert_not_called()
+
+    def test_guardrail_does_not_call_price_change_request_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Can you reject request 7?")
+
+        mock_price_change_request_tool.list_price_change_requests.assert_not_called()
+
+
+class TestAmbiguousQuestionRouting:
+    def test_tell_me_about_store_routes_to_ambiguous(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Tell me about store 1")
+
+        assert routed["intent"] == "ambiguous_question"
+        assert routed["selected_tool"] is None
+
+    def test_explain_price_routes_to_ambiguous(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Explain price")
+
+        assert routed["intent"] == "ambiguous_question"
+
+    def test_tell_me_about_product_routes_to_ambiguous(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Tell me about product 42")
+
+        assert routed["intent"] == "ambiguous_question"
+
+    def test_specific_price_question_does_not_route_to_ambiguous(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List prices")
+
+        assert routed["intent"] == "prices"
+
+    def test_specific_store_list_does_not_route_to_ambiguous(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List stores")
+
+        assert routed["intent"] == "reference_data"
+
+
+class TestAmbiguousQuestionAnswering:
+    def test_ambiguous_question_returns_clarification_status(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Tell me about store 1")
+
+        assert result["status"] == "clarification"
+        assert result["intent"] == "ambiguous_question"
+
+    def test_ambiguous_question_returns_clarification_message(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Tell me about store 1")
+
+        assert result["answer"] == CHATBOT_AMBIGUOUS_QUESTION_MESSAGE
+
+    def test_ambiguous_question_does_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Explain price")
+
+        mock_document_retriever.search.assert_not_called()
+
+    def test_ambiguous_question_does_not_call_reference_data_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Tell me about store 1")
+
+        mock_reference_data_tool.list_stores.assert_not_called()
+
+
+class TestImprovedFallback:
+    def test_out_of_scope_question_returns_improved_message(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Raconte-moi une blague.")
+
+        assert result["status"] == "unsupported"
+        assert result["answer"] == CHATBOT_OUT_OF_SCOPE_MESSAGE
+
+    def test_out_of_scope_message_mentions_supported_topics(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Tell me something about suppliers.")
+
+        assert result["status"] == "unsupported"
+        assert "prices" in result["answer"] or "promotions" in result["answer"]
+
+
+class TestT201ToolVsRAGNonRegression:
+    def test_active_promotions_routes_to_tool_not_rag(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("What are active promotions?")
+
+        assert routed["intent"] == "promotions"
+        assert routed["selected_tool"] == "promotion_tool"
+
+    def test_documentary_promotions_routes_to_rag(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("How are promotions documented?")
+
+        assert routed["intent"] == "documentary_knowledge"
+        assert routed["selected_tool"] == "rag_retriever"
+
+    def test_list_stores_routes_to_tool_not_rag(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List stores")
+
+        assert routed["intent"] == "reference_data"
+        assert routed["selected_tool"] == "reference_data_tool"
+
+    def test_price_change_workflow_documentation_routes_to_rag_not_price_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("How does the price change workflow work?")
+
+        assert routed["intent"] == "documentary_knowledge"
+        assert routed["selected_tool"] == "rag_retriever"
+
+    def test_guardrail_blocks_before_price_change_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        result = orchestrator.answer_question("Valide cette demande")
+
+        assert result["status"] == "guardrail"
+        mock_price_change_request_tool.list_price_change_requests.assert_not_called()
+        mock_document_retriever.search.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# T202 — Structured response generation
+# ---------------------------------------------------------------------------
+
+
+class TestT202ToolResponseStructure:
+    def test_price_change_request_response_has_summary(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.return_value = [
+            {"id": 12, "product_id": 4, "status": "PENDING", "requested_price_amount": "19.99"}
+        ]
+
+        result = orchestrator.answer_question("List pending price change requests")
+
+        assert "Summary:" in result["answer"]
+        assert "Details:" in result["answer"]
+
+    def test_price_change_request_includes_suggested_next_step_for_pending(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.return_value = [
+            {"id": 5, "product_id": 2, "status": "PENDING", "requested_price_amount": "9.99"}
+        ]
+
+        result = orchestrator.answer_question("List pending price change requests")
+
+        assert "Suggested next step:" in result["answer"]
+
+    def test_approved_price_change_has_no_suggested_next_step(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.return_value = [
+            {"id": 7, "product_id": 3, "status": "APPROVED", "requested_price_amount": "5.00"}
+        ]
+
+        result = orchestrator.answer_question("Show approved price requests")
+
+        assert "Suggested next step:" not in result["answer"]
+
+    def test_promotions_response_has_summary_and_details(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        mock_promotion_tool.list_promotions.return_value = [
+            {
+                "product_id": 5,
+                "discount_type": "PERCENTAGE",
+                "discount_value": "20.00",
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-15",
+            }
+        ]
+
+        result = orchestrator.answer_question("List active promotions")
+
+        assert "Summary:" in result["answer"]
+        assert "Details:" in result["answer"]
+        assert "Suggested next step:" in result["answer"]
+
+    def test_prices_response_has_summary_and_suggested_next_step(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        mock_price_tool.list_prices.return_value = [
+            {
+                "product_id": 3,
+                "product_code": "RUN-001",
+                "product_name": "Running Shoes",
+                "amount": "29.99",
+                "currency_code": "EUR",
+            }
+        ]
+
+        result = orchestrator.answer_question("List prices")
+
+        assert "Summary:" in result["answer"]
+        assert "Details:" in result["answer"]
+        assert "Suggested next step:" in result["answer"]
+
+    def test_countries_response_has_summary(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.list_countries.return_value = [
+            {"id": 1, "code": "FR", "name": "France"},
+            {"id": 2, "code": "DE", "name": "Germany"},
+        ]
+
+        result = orchestrator.answer_question("List countries")
+
+        assert "Summary:" in result["answer"]
+        assert "Details:" in result["answer"]
+
+    def test_stores_response_has_summary(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.list_stores.return_value = [
+            {"id": 1, "code": "LIL", "name": "Lille Centre"}
+        ]
+
+        result = orchestrator.answer_question("What stores are available?")
+
+        assert "Summary:" in result["answer"]
+        assert "Lille Centre" in result["answer"]
+
+    def test_products_response_has_summary(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.list_products.return_value = [
+            {"id": 1, "code": "RUN-001", "name": "Running Shoes", "active": True}
+        ]
+
+        result = orchestrator.answer_question("List active products")
+
+        assert "Summary:" in result["answer"]
+        assert "RUN-001" in result["answer"]
+
+
+class TestT202StaticResponseStructure:
+    def test_guardrail_response_is_structured(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Approve request 12")
+
+        assert "cannot" in result["answer"].lower()
+        assert "workflow" in result["answer"].lower() or "explain" in result["answer"].lower()
+
+    def test_guardrail_response_offers_alternatives(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Approve request 12")
+
+        answer = result["answer"]
+        assert "explain" in answer.lower() or "identify" in answer.lower()
+
+    def test_clarification_response_is_structured(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Tell me about store 1")
+
+        assert "detail" in result["answer"].lower() or "asking about" in result["answer"].lower()
+
+    def test_clarification_mentions_multiple_options(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Tell me about store 1")
+
+        answer = result["answer"]
+        assert "operational" in answer.lower() or "reference" in answer.lower()
+
+    def test_fallback_response_lists_supported_topics(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Raconte-moi une blague.")
+
+        assert "prices" in result["answer"].lower()
+        assert "promotions" in result["answer"].lower()
+
+    def test_no_response_contains_forbidden_write_action(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        mock_promotion_tool.list_promotions.return_value = [
+            {
+                "product_id": 5,
+                "discount_type": "PERCENTAGE",
+                "discount_value": "20.00",
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-15",
+            }
+        ]
+
+        result = orchestrator.answer_question("List active promotions")
+
+        forbidden = ["apply now", "approve now", "reject now", "delete now"]
+        for phrase in forbidden:
+            assert phrase not in result["answer"].lower()

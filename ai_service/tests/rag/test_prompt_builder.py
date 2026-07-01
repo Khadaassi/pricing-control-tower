@@ -275,3 +275,67 @@ class TestOperationalDataGuard:
         prompt = builder.build("What promotions are active?", [CHUNK_MONITORING])
 
         assert "prices" in prompt or "promotions" in prompt  # listed as forbidden topics
+
+
+# ---------------------------------------------------------------------------
+# T202 — Style guidelines in prompt
+# ---------------------------------------------------------------------------
+
+
+class TestStyleGuidelines:
+    def test_prompt_requests_concise_business_tone(
+        self, builder: RAGPromptBuilder
+    ) -> None:
+        prompt = builder.build("Any question?", [CHUNK_RBAC])
+
+        assert "business tone" in prompt
+
+    def test_prompt_requests_direct_answer_first(
+        self, builder: RAGPromptBuilder
+    ) -> None:
+        prompt = builder.build("Any question?", [CHUNK_RBAC])
+
+        assert "direct answer" in prompt.lower()
+
+    def test_prompt_restricts_bullet_points(
+        self, builder: RAGPromptBuilder
+    ) -> None:
+        prompt = builder.build("Any question?", [CHUNK_RBAC])
+
+        assert "bullet point" in prompt.lower()
+
+    def test_prompt_includes_suggested_next_step_guideline(
+        self, builder: RAGPromptBuilder
+    ) -> None:
+        prompt = builder.build("Any question?", [CHUNK_RBAC])
+
+        assert "Suggested next step" in prompt
+
+    def test_suggested_next_step_conditioned_on_context(
+        self, builder: RAGPromptBuilder
+    ) -> None:
+        prompt = builder.build("Any question?", [CHUNK_RBAC])
+
+        assert "supported by the" in prompt or "supported by" in prompt
+
+    def test_prompt_limits_response_length(
+        self, builder: RAGPromptBuilder
+    ) -> None:
+        prompt = builder.build("Any question?", [CHUNK_RBAC])
+
+        assert "3" in prompt and "8" in prompt
+
+    def test_answer_format_includes_max_bullet_count(
+        self, builder: RAGPromptBuilder
+    ) -> None:
+        prompt = builder.build("Any question?", [CHUNK_RBAC])
+
+        assert "max 3" in prompt
+
+    def test_style_guidelines_coexist_with_anti_hallucination_rules(
+        self, builder: RAGPromptBuilder
+    ) -> None:
+        prompt = builder.build("Any question?", [CHUNK_RBAC])
+
+        assert "Do not invent" in prompt
+        assert "business tone" in prompt

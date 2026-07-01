@@ -1,0 +1,203 @@
+import pytest
+
+from app.services.response_generation_service import ResponseGenerationService
+
+
+@pytest.fixture
+def service() -> ResponseGenerationService:
+    return ResponseGenerationService()
+
+
+# ---------------------------------------------------------------------------
+# format_tool_response
+# ---------------------------------------------------------------------------
+
+
+class TestFormatToolResponse:
+    def test_output_contains_summary_label(self, service: ResponseGenerationService) -> None:
+        result = service.format_tool_response(summary="3 items found.", details=["Item A"])
+
+        assert "Summary:" in result
+
+    def test_output_contains_summary_text(self, service: ResponseGenerationService) -> None:
+        result = service.format_tool_response(summary="3 items found.", details=["Item A"])
+
+        assert "3 items found." in result
+
+    def test_output_contains_details_label(self, service: ResponseGenerationService) -> None:
+        result = service.format_tool_response(summary="1 item.", details=["Item A"])
+
+        assert "Details:" in result
+
+    def test_each_detail_line_has_bullet_prefix(self, service: ResponseGenerationService) -> None:
+        result = service.format_tool_response(
+            summary="2 items.", details=["Item A", "Item B"]
+        )
+
+        assert "- Item A" in result
+        assert "- Item B" in result
+
+    def test_multiple_details_all_present(self, service: ResponseGenerationService) -> None:
+        result = service.format_tool_response(
+            summary="3 items.", details=["Alpha", "Beta", "Gamma"]
+        )
+
+        assert "Alpha" in result
+        assert "Beta" in result
+        assert "Gamma" in result
+
+    def test_suggested_next_step_included_when_provided(
+        self, service: ResponseGenerationService
+    ) -> None:
+        result = service.format_tool_response(
+            summary="1 item.",
+            details=["Item A"],
+            suggested_next_step="Review before approving.",
+        )
+
+        assert "Suggested next step:" in result
+        assert "Review before approving." in result
+
+    def test_suggested_next_step_absent_when_none(
+        self, service: ResponseGenerationService
+    ) -> None:
+        result = service.format_tool_response(
+            summary="1 item.", details=["Item A"], suggested_next_step=None
+        )
+
+        assert "Suggested next step:" not in result
+
+    def test_suggested_next_step_absent_by_default(
+        self, service: ResponseGenerationService
+    ) -> None:
+        result = service.format_tool_response(summary="1 item.", details=["Item A"])
+
+        assert "Suggested next step:" not in result
+
+    def test_summary_appears_before_details(self, service: ResponseGenerationService) -> None:
+        result = service.format_tool_response(
+            summary="The summary.", details=["The detail."]
+        )
+
+        assert result.index("Summary:") < result.index("Details:")
+
+    def test_details_appear_before_suggested_next_step(
+        self, service: ResponseGenerationService
+    ) -> None:
+        result = service.format_tool_response(
+            summary="S.",
+            details=["D."],
+            suggested_next_step="Next step.",
+        )
+
+        assert result.index("Details:") < result.index("Suggested next step:")
+
+    def test_no_forbidden_action_verbs_in_next_step(
+        self, service: ResponseGenerationService
+    ) -> None:
+        result = service.format_tool_response(
+            summary="1 item.",
+            details=["Item A"],
+            suggested_next_step="Review the related request before deciding.",
+        )
+
+        forbidden = ["apply now", "approve now", "reject now", "delete now"]
+        for phrase in forbidden:
+            assert phrase not in result.lower()
+
+
+# ---------------------------------------------------------------------------
+# format_guardrail_response
+# ---------------------------------------------------------------------------
+
+
+class TestFormatGuardrailResponse:
+    def test_refuses_direct_action(self, service: ResponseGenerationService) -> None:
+        result = service.format_guardrail_response()
+
+        assert "cannot" in result.lower() or "can not" in result.lower()
+
+    def test_offers_safe_alternatives(self, service: ResponseGenerationService) -> None:
+        result = service.format_guardrail_response()
+
+        assert "explain" in result.lower() or "workflow" in result.lower()
+
+    def test_does_not_propose_write_action(self, service: ResponseGenerationService) -> None:
+        result = service.format_guardrail_response()
+
+        assert "approve" not in result.lower()
+        assert "reject" not in result.lower()
+        assert "apply" not in result.lower()
+
+    def test_is_non_empty(self, service: ResponseGenerationService) -> None:
+        assert service.format_guardrail_response()
+
+
+# ---------------------------------------------------------------------------
+# format_clarification_response
+# ---------------------------------------------------------------------------
+
+
+class TestFormatClarificationResponse:
+    def test_asks_for_missing_detail(self, service: ResponseGenerationService) -> None:
+        result = service.format_clarification_response()
+
+        assert "detail" in result.lower() or "asking about" in result.lower()
+
+    def test_mentions_operational_data(self, service: ResponseGenerationService) -> None:
+        result = service.format_clarification_response()
+
+        assert "operational" in result.lower() or "prices" in result.lower()
+
+    def test_mentions_reference_data(self, service: ResponseGenerationService) -> None:
+        result = service.format_clarification_response()
+
+        assert "reference" in result.lower() or "stores" in result.lower()
+
+    def test_mentions_documentation(self, service: ResponseGenerationService) -> None:
+        result = service.format_clarification_response()
+
+        assert "documentation" in result.lower() or "rules" in result.lower()
+
+    def test_is_non_empty(self, service: ResponseGenerationService) -> None:
+        assert service.format_clarification_response()
+
+
+# ---------------------------------------------------------------------------
+# format_fallback_response
+# ---------------------------------------------------------------------------
+
+
+class TestFormatFallbackResponse:
+    def test_does_not_claim_to_answer(self, service: ResponseGenerationService) -> None:
+        result = service.format_fallback_response()
+
+        assert "cannot" in result.lower() or "can not" in result.lower()
+
+    def test_lists_supported_topics(self, service: ResponseGenerationService) -> None:
+        result = service.format_fallback_response()
+
+        assert "prices" in result.lower()
+        assert "promotions" in result.lower()
+        assert "anomalies" in result.lower()
+
+    def test_mentions_price_change_requests(self, service: ResponseGenerationService) -> None:
+        result = service.format_fallback_response()
+
+        assert "price change" in result.lower()
+
+    def test_mentions_documentation(self, service: ResponseGenerationService) -> None:
+        result = service.format_fallback_response()
+
+        assert "documentation" in result.lower()
+
+    def test_is_non_empty(self, service: ResponseGenerationService) -> None:
+        assert service.format_fallback_response()
+
+    def test_does_not_hallucinate_unsupported_topics(
+        self, service: ResponseGenerationService
+    ) -> None:
+        result = service.format_fallback_response()
+
+        assert "supplier" not in result.lower()
+        assert "invoice" not in result.lower()

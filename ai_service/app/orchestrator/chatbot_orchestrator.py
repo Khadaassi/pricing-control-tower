@@ -5,10 +5,10 @@ from app.core.chatbot_messages import (
     CHATBOT_MISSING_STORE_ID_MESSAGE,
     CHATBOT_MISSING_USER_EMAIL_MESSAGE,
     CHATBOT_NOT_IMPLEMENTED_MESSAGE,
-    CHATBOT_SUPPORTED_SCOPE_MESSAGE,
     CHATBOT_TECHNICAL_ERROR_MESSAGE,
     CHATBOT_UNSUPPORTED_USE_CASE_MESSAGE,
 )
+from app.services.response_generation_service import ResponseGenerationService
 from app.core.config import settings
 from app.core.logging_config import get_logger, log_event
 from app.core.metrics import increment_chat_tool_usage_total
@@ -35,6 +35,44 @@ _RAG_FALLBACK_ANSWER = (
     "to answer this question reliably."
 )
 
+# T201 — centralized keyword groups for guardrail and ambiguity detection.
+_GUARDRAIL_PHRASES = [
+    # English direct commands
+    "can you approve",
+    "can you reject",
+    "can you apply",
+    "can you update the price",
+    "can you modify",
+    "can you create",
+    "can you delete",
+    "please approve",
+    "please reject",
+    "please apply",
+    "approve request",
+    "reject request",
+    "approve this",
+    "reject this",
+    "apply this",
+    "apply the change",
+    "apply the price",
+    # French direct commands
+    "approuve cette",
+    "approuve la demande",
+    "rejette cette",
+    "rejette la demande",
+    "applique cette",
+    "applique le changement",
+    "valide cette demande",
+    "valide la demande",
+]
+
+_AMBIGUOUS_PHRASES = [
+    "tell me about store",
+    "tell me about product",
+    "tell me about promotion",
+    "explain price",
+]
+
 
 class ChatbotOrchestrator:
     def __init__(
@@ -49,6 +87,7 @@ class ChatbotOrchestrator:
         reference_data_tool: ReferenceDataTool | None = None,
         document_retriever: DocumentRetriever | None = None,
         llm_provider: BaseLLMProvider | None = None,
+        response_service: ResponseGenerationService | None = None,
     ) -> None:
         self.business_rules_service = (
             business_rules_service or BusinessRulesExplanationService()
@@ -65,6 +104,7 @@ class ChatbotOrchestrator:
         self.document_retriever = document_retriever or DocumentRetriever()
         self.llm_provider = llm_provider or get_llm_provider()
         self._prompt_builder = RAGPromptBuilder()
+        self._response_service = response_service or ResponseGenerationService()
 
     def route_question(self, question: str) -> dict[str, Any]:
         intent = self._detect_intent(question)
@@ -108,11 +148,27 @@ class ChatbotOrchestrator:
         if routed["status"] == "unsupported":
             return {
                 **routed,
-                "answer": CHATBOT_SUPPORTED_SCOPE_MESSAGE,
+                "answer": self._response_service.format_fallback_response(),
                 "source": "orchestrator",
             }
 
         intent = routed["intent"]
+
+        if intent == "guardrail_action_request":
+            return {
+                **routed,
+                "status": "guardrail",
+                "answer": self._response_service.format_guardrail_response(),
+                "source": "orchestrator",
+            }
+
+        if intent == "ambiguous_question":
+            return {
+                **routed,
+                "status": "clarification",
+                "answer": self._response_service.format_clarification_response(),
+                "source": "orchestrator",
+            }
 
         if intent == "explain_business_rule":
             try:
@@ -244,6 +300,13 @@ class ChatbotOrchestrator:
     def _detect_intent(self, question: str) -> str:
         normalized_question = question.lower()
 
+        # 0. Guardrail: direct action requests — the chatbot is read-only.
+        # Placed first so imperative commands are blocked before any tool routing.
+        # Meta-questions ("can the chatbot approve") fall through to business_rule
+        # because they do not match the specific direct-command phrases below.
+        if self._contains_any_phrase(normalized_question, _GUARDRAIL_PHRASES):
+            return "guardrail_action_request"
+
         # 1. RBAC questions must be detected before KPI/revenue.
         if self._contains_any_phrase(
             normalized_question,
@@ -267,12 +330,18 @@ class ChatbotOrchestrator:
             return "explain_rbac"
 
         # 2. Business rules and chatbot limitations.
+        # Note: bare "workflow" and bare "rule" removed — too broad and caused
+        # documentary questions like "how does the price change workflow work?" to
+        # incorrectly match here. More specific phrases are used instead.
         if self._contains_any_phrase(
             normalized_question,
             [
                 "business rule",
-                "rule",
-                "workflow",
+                "validation workflow",
+                "workflow for",
+                "workflow de",
+                "le workflow pour",
+                "workflow de validation",
                 "audit",
                 "traceability",
                 "approve a price change",
@@ -287,7 +356,6 @@ class ChatbotOrchestrator:
                 "chatbot peut-il valider",
                 "chatbot peut-il modifier",
                 "règle métier",
-                "règle",
                 "traçabilité",
             ],
         ):
@@ -446,6 +514,12 @@ class ChatbotOrchestrator:
                 "how is monitoring",
                 "how is the system",
                 "how does the system",
+                "how does the price change workflow",
+                "price change workflow",
+                "explain price scope",
+                "price scope rule",
+                "how are promotions documented",
+                "promotion documented",
             ],
         ):
             return "documentary_knowledge"
@@ -453,6 +527,11 @@ class ChatbotOrchestrator:
         # 7. Revenue / sales KPI.
         if self._contains_revenue_intent(normalized_question):
             return "get_country_revenue"
+
+        # 10. Ambiguous question: recognized topic but missing context for routing.
+        # Offers clarification instead of a generic unsupported fallback.
+        if self._contains_any_phrase(normalized_question, _AMBIGUOUS_PHRASES):
+            return "ambiguous_question"
 
         return "unknown"
 
@@ -468,6 +547,8 @@ class ChatbotOrchestrator:
             "prices": "price_tool",
             "reference_data": "reference_data_tool",
             "documentary_knowledge": "rag_retriever",
+            "guardrail_action_request": None,
+            "ambiguous_question": None,
         }
 
         return tool_by_intent.get(intent)
@@ -512,19 +593,27 @@ class ChatbotOrchestrator:
     def _format_price_change_requests(self, items: list[dict[str, Any]]) -> str:
         if not items:
             return "No matching data was found."
-        lines = ["Price change requests found:"]
-        for item in items:
-            lines.append(
-                f"- Request #{item['id']} — Product {item['product_id']}"
-                f" — {item['status'].lower()}"
-                f" — requested price: {item['requested_price_amount']}"
-            )
-        return "\n".join(lines)
+        details = [
+            f"Request #{item['id']} — Product {item['product_id']}"
+            f" — {item['status'].lower()}"
+            f" — requested price: {item['requested_price_amount']}"
+            for item in items
+        ]
+        has_pending = any(item["status"] == "PENDING" for item in items)
+        return self._response_service.format_tool_response(
+            summary=f"{len(items)} price change request(s) found.",
+            details=details,
+            suggested_next_step=(
+                "Review the validation workflow for pending requests."
+                if has_pending
+                else None
+            ),
+        )
 
     def _format_promotions(self, items: list[dict[str, Any]]) -> str:
         if not items:
             return "No matching data was found."
-        lines = ["Promotions found:"]
+        details = []
         for item in items:
             discount_type = item.get("discount_type", "")
             discount_value = item.get("discount_value", "")
@@ -532,23 +621,33 @@ class ChatbotOrchestrator:
                 discount_label = f"{discount_value}% discount"
             else:
                 discount_label = f"fixed price {discount_value}"
-            lines.append(
-                f"- Product {item['product_id']} — {discount_label}"
+            details.append(
+                f"Product {item['product_id']} — {discount_label}"
                 f" — from {item['start_date']} to {item['end_date']}"
             )
-        return "\n".join(lines)
+        return self._response_service.format_tool_response(
+            summary=f"{len(items)} promotion(s) found.",
+            details=details,
+            suggested_next_step="Review promotions before extending them.",
+        )
 
     def _format_prices(self, items: list[dict[str, Any]]) -> str:
         if not items:
             return "No matching data was found."
-        lines = ["Prices found:"]
+        details = []
         for item in items:
             code = item.get("product_code", f"Product {item.get('product_id', '?')}")
             name = item.get("product_name", "")
             amount = item.get("amount", "?")
             currency = item.get("currency_code", "")
-            lines.append(f"- {code} — {name} — {amount} {currency}".strip(" —"))
-        return "\n".join(lines)
+            details.append(f"{code} — {name} — {amount} {currency}".strip(" —"))
+        return self._response_service.format_tool_response(
+            summary=f"{len(items)} price(s) found.",
+            details=details,
+            suggested_next_step=(
+                "Compare with country reference prices to identify potential mismatches."
+            ),
+        )
 
     def _answer_reference_data_question(
         self, question: str, user_email: str | None
@@ -577,26 +676,34 @@ class ChatbotOrchestrator:
     def _format_countries(self, items: list[dict[str, Any]]) -> str:
         if not items:
             return "No matching reference data was found."
-        lines = ["Available countries:"] + [f"- {c['name']}" for c in items]
-        return "\n".join(lines)
+        return self._response_service.format_tool_response(
+            summary=f"{len(items)} country/countries available.",
+            details=[c["name"] for c in items],
+        )
 
     def _format_stores(self, items: list[dict[str, Any]]) -> str:
         if not items:
             return "No matching reference data was found."
-        lines = ["Available stores:"] + [f"- {s['name']}" for s in items]
-        return "\n".join(lines)
+        return self._response_service.format_tool_response(
+            summary=f"{len(items)} store(s) available.",
+            details=[s["name"] for s in items],
+        )
 
     def _format_product_families(self, items: list[dict[str, Any]]) -> str:
         if not items:
             return "No matching reference data was found."
-        lines = ["Available product families:"] + [f"- {f['name']}" for f in items]
-        return "\n".join(lines)
+        return self._response_service.format_tool_response(
+            summary=f"{len(items)} product family/families available.",
+            details=[f["name"] for f in items],
+        )
 
     def _format_products(self, items: list[dict[str, Any]]) -> str:
         if not items:
             return "No matching reference data was found."
-        lines = ["Products found:"] + [f"- {p['code']} — {p['name']}" for p in items]
-        return "\n".join(lines)
+        return self._response_service.format_tool_response(
+            summary=f"{len(items)} product(s) found.",
+            details=[f"{p['code']} — {p['name']}" for p in items],
+        )
 
     def _answer_documentary_question(self, question: str) -> dict[str, Any]:
         chunks = self.document_retriever.search(question, top_k=settings.rag_top_k)

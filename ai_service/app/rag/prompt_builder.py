@@ -11,13 +11,23 @@ records, explain that operational data must be retrieved through business tools,
 documentation.
 - Keep the answer concise and clear.
 - Prefer business-readable wording.
-- Mention the source documents used at the end of your answer."""
+- Mention the source documents used at the end of your answer.
+
+Writing style:
+- Use a concise business tone.
+- Start with the direct answer.
+- Use bullet points only when they improve readability.
+- Do not over-explain technical implementation details unless the user explicitly asks.
+- Add a short "Suggested next step" only if it is directly supported by the documentary context.
+- Keep responses between 3 and 8 lines for simple answers.
+- Limit bullet points in details to 3 where possible."""
 
 _ANSWER_FORMAT = """\
 Expected answer format:
 1. Direct answer
-2. Important details, if useful
-3. Sources used"""
+2. Important details, if useful (max 3 bullet points)
+3. Suggested next step (only if supported by the documentary context)
+4. Sources used"""
 
 
 class RAGPromptBuilder:
