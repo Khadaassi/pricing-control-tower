@@ -1,0 +1,34 @@
+# T186 — Prometheus queries after fix
+# Date: 2026-07-01T08:38:05Z (post-restoration)
+
+# ── Service availability ──────────────────────────────────────────────────────
+
+Query: up
+Result:
+  backend    = 1  (UP)
+  frontend   = 1  (UP)
+  ai_service = 1  (UP)
+  cadvisor   = 1  (UP)
+
+# ── Chatbot error metric — confirmed at zero ──────────────────────────────────
+
+Query: sum(increase(ai_chat_responses_total{status="error"}[5m]))
+Result: 0.0
+
+Interpretation:
+  The error counter is no longer increasing.
+  New chatbot requests no longer produce error responses.
+  The incident is functionally resolved.
+
+# ── Functional chatbot call (real curl output) ────────────────────────────────
+
+POST /chat
+  question : "Explique les anomalies du magasin 1."
+  user_email: store.manager@pct.local
+  store_id  : 1
+
+Response:
+  status     : answered          ← functional success
+  tool       : anomaly_tool      ← backend was reached
+  error_type : null              ← no connectivity error
+

@@ -9,6 +9,7 @@ dependencies = [
     "dbt-core>=1.11.8",
     "dbt-postgres>=1.10.0",
     "fastapi>=0.135.3",
+    "prometheus-client>=0.25.0",
     "psycopg[binary]>=3.3.3",
     "python-dotenv>=1.2.2",
     "sqlalchemy>=2.0.49",

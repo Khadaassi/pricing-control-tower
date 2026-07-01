@@ -7,6 +7,12 @@ from typing import Any
 
 from django.http import HttpRequest, HttpResponse
 
+from core.metrics import (
+    increment_django_http_requests_total,
+    increment_django_http_responses_total,
+    observe_django_http_request_duration_seconds,
+)
+
 logger = logging.getLogger("pricing_control_tower.frontend")
 
 
@@ -87,3 +93,24 @@ class StructuredRequestLoggingMiddleware:
             return None
 
         return getattr(user, "email", None) or getattr(user, "username", None)
+
+
+class PrometheusMetricsMiddleware:
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        method = request.method
+        start_time = time.perf_counter()
+
+        response = self.get_response(request)
+
+        duration_seconds = time.perf_counter() - start_time
+        resolver_match = getattr(request, "resolver_match", None)
+        path = f"/{resolver_match.route}" if resolver_match is not None else request.path
+
+        increment_django_http_requests_total(method, path)
+        increment_django_http_responses_total(method, path, str(response.status_code))
+        observe_django_http_request_duration_seconds(method, path, duration_seconds)
+
+        return response

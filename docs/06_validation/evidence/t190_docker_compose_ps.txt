@@ -1,0 +1,13 @@
+Command: docker compose ps
+Date: 2026-07-01
+
+NAME             IMAGE                               COMMAND                  SERVICE      CREATED             STATUS                  PORTS
+pct_ai_service   princing-control-tower-ai_service   "uv run uvicorn app…"   ai_service   About an hour ago   Up 6 minutes            0.0.0.0:8002->8001/tcp
+pct_backend      princing-control-tower-backend      "uv run uvicorn app…"   backend      15 hours ago        Up 15 hours             0.0.0.0:8000->8000/tcp
+pct_cadvisor     gcr.io/cadvisor/cadvisor:latest     "/usr/bin/cadvisor …"   cadvisor     15 hours ago        Up 15 hours (healthy)   0.0.0.0:8080->8080/tcp
+pct_frontend     princing-control-tower-frontend     "sh -c 'uv run pyth…"   frontend     15 hours ago        Up 15 hours             0.0.0.0:8001->8001/tcp
+pct_grafana      grafana/grafana:latest              "/run.sh"                grafana      15 hours ago        Up 15 hours             0.0.0.0:3000->3000/tcp
+pct_postgres     postgres:16                         "docker-entrypoint.…"   postgres     15 hours ago        Up 15 hours             0.0.0.0:5432->5432/tcp
+pct_prometheus   prom/prometheus:latest              "/bin/prometheus --…"   prometheus   15 hours ago        Up 15 hours             0.0.0.0:9090->9090/tcp
+
+Result: 7/7 services running.

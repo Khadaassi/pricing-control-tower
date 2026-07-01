@@ -1,0 +1,29 @@
+Command: docker compose logs {backend,frontend,ai_service} --tail=20
+Date: 2026-07-01
+
+=== backend logs (structured JSON) ===
+{"timestamp":"2026-07-01T09:17:21.219873+00:00","level":"INFO","logger":"pricing_control_tower.api","message":"HTTP request started","event":"http_request_started","method":"GET","path":"/health","query_params":"","user_email":null,"client_host":"172.64.149.20"}
+{"timestamp":"2026-07-01T09:17:21.224667+00:00","level":"INFO","logger":"pricing_control_tower.api","message":"HTTP request completed","event":"http_request_completed","method":"GET","path":"/health","status_code":200,"duration_ms":4.65,"user_email":null,"client_host":"172.64.149.20"}
+{"timestamp":"2026-07-01T09:17:39.508135+00:00","level":"INFO","logger":"pricing_control_tower.api","message":"HTTP request started","event":"http_request_started","method":"GET","path":"/metrics","query_params":"","user_email":null,"client_host":"172.18.0.7"}
+{"timestamp":"2026-07-01T09:17:39.527532+00:00","level":"INFO","logger":"pricing_control_tower.api","message":"HTTP request completed","event":"http_request_completed","method":"GET","path":"/metrics","status_code":200,"duration_ms":19.46,"user_email":null,"client_host":"172.18.0.7"}
+
+=== frontend logs (structured JSON + Django access log) ===
+{"timestamp":"2026-07-01T09:17:21.245080+00:00","level":"INFO","logger":"pricing_control_tower.frontend","message":"Frontend request started","event":"frontend_request_started","method":"GET","path":"/health","query_string":"","user_email":null}
+{"timestamp":"2026-07-01T09:17:21.245532+00:00","level":"INFO","logger":"pricing_control_tower.frontend","message":"Frontend request completed","event":"frontend_request_completed","method":"GET","path":"/health","status_code":200,"duration_ms":0.42,"user_email":null}
+[01/Jul/2026 09:17:21] "GET /health HTTP/1.1" 200 110
+{"timestamp":"2026-07-01T09:17:38.741877+00:00","level":"INFO","logger":"pricing_control_tower.frontend","message":"Frontend request completed","event":"frontend_request_completed","method":"GET","path":"/metrics","status_code":200,"duration_ms":6.14,"user_email":null}
+
+=== ai_service logs (uvicorn access log) ===
+INFO:     172.18.0.7:51502 - "GET /metrics HTTP/1.1" 200 OK
+INFO:     172.64.149.20:58974 - "GET /chat/health HTTP/1.1" 200 OK
+INFO:     172.64.149.20:58648 - "GET /metrics HTTP/1.1" 200 OK
+INFO:     172.18.0.7:39480 - "GET /metrics HTTP/1.1" 200 OK
+
+Log inspection findings:
+- No ERROR or WARNING level entries observed in the extract.
+- No Traceback visible.
+- No user question content appears in log lines.
+- Backend and frontend use structured JSON logging with timestamp, level, path, status_code, duration_ms.
+- user_email field is null for unauthenticated requests (correctly not exposed for Prometheus scrapes).
+- ai_service uses standard uvicorn access log format (no structured logging currently).
+- Logs are accessible via docker compose logs and usable for troubleshooting.

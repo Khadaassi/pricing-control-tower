@@ -20,10 +20,15 @@ cd princing-control-tower
 
 ## 2. Start PostgreSQL
 
+PostgreSQL is defined in the root `docker-compose.yml` (alongside `backend`, `frontend`, `ai_service`,
+`prometheus` and `grafana`). To run just the database for host-based backend development:
+
 ```bash
-cd backend
-docker compose up -d
+docker compose up -d postgres
 ```
+
+To run the full containerized stack instead (no need for steps 3, 5, and the `uvicorn`/`runserver`
+commands further down), use `docker compose up -d --build` from the repo root.
 
 Verification:
 
@@ -165,7 +170,7 @@ docker compose exec postgres psql -U pct_user -d pct \
 
 | Step | Command |
 |---|---|
-| PostgreSQL | `cd backend && docker compose up -d` |
+| PostgreSQL | `docker compose up -d postgres` |
 | Migrations | `cd backend && alembic upgrade head` |
 | Reference seed | `python data/generation/seed_reference_data.py` |
 | Sales generation | `python data/generation/generate_sales_dataset.py` |
