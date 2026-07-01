@@ -1,0 +1,61 @@
+# T185 — Prometheus diagnostic queries captured during incident
+# Incident: BACKEND_API_URL=http://backend-wrong:8000 (ai_service only)
+# Timestamp: 2026-07-01T07:40:25Z
+# Stack: docker compose, all services running
+
+# ── Step 1: Service availability ─────────────────────────────────────────────
+
+Query: up
+Result:
+  backend      = 1  (UP)
+  frontend     = 1  (UP)
+  ai_service   = 1  (UP)
+  cadvisor     = 1  (UP)
+
+Interpretation:
+  All processes reachable. This rules out "process crashed / container down".
+  Does NOT mean the application is functionally healthy.
+
+# ── Step 2: Generic HTTP error metrics ───────────────────────────────────────
+
+Query: sum(rate(ai_errors_total[1m]))
+Result: EMPTY (no series)
+
+Query: sum(rate(django_http_responses_total{status_code=~"4..|5.."}[1m]))
+Result: 0 or EMPTY
+
+Interpretation:
+  Both services catch connection failures internally and return HTTP 200.
+  Generic HTTP-error metrics DO NOT detect this incident class.
+  A responder who stops here would conclude "no errors, everything nominal" — wrong.
+
+# ── Step 3: Chatbot business-level error metric ───────────────────────────────
+
+Query: ai_chat_responses_total{status="error"}
+Result: 4
+
+Query: sum(increase(ai_chat_responses_total{status="error"}[5m]))
+Result: 3.16
+
+Interpretation:
+  The chatbot returned 4 functional "error" responses in this session.
+  The incident IS detectable — but only via this chatbot-specific counter,
+  not via the generic HTTP-status metrics.
+  This counter exists because T181 preserved the pre-existing ai_chat_* metrics
+  that track chat-level status independently of HTTP status.
+
+# ── Full ai_chat_responses_total breakdown ────────────────────────────────────
+
+  {status="not_implemented"}   = 1
+  {status="routed"}            = 5
+  {status="unsupported"}       = 3
+  {status="error"}             = 4   ← incident
+  {status="missing_context"}   = 1
+
+# ── Key conclusion ────────────────────────────────────────────────────────────
+
+  All targets: UP
+  Generic error rate: 0
+  Chatbot error counter: 4 (non-zero, incident confirmed)
+  Root cause direction: connectivity failure to backend (ai_service side)
+
