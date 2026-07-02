@@ -72,7 +72,7 @@ class TestRouting:
     ) -> None:
         routed = orchestrator.route_question("Explique-moi les anomalies de prix.")
 
-        assert routed["intent"] == "list_store_country_price_mismatches"
+        assert routed["intent"] == "list_anomalies"
         assert routed["selected_tool"] == "anomaly_tool"
 
     def test_business_rule_question_is_routed_to_business_rules_tool(
@@ -210,9 +210,9 @@ class TestAnswerQuestionDispatch:
         orchestrator: ChatbotOrchestrator,
         mock_anomaly_tool: MagicMock,
     ) -> None:
-        mock_anomaly_tool.list_store_country_price_mismatches.return_value = [
-            {"anomaly": {"anomaly_type": "PRICE_ABOVE_REFERENCE"}, "explanation": {}},
-        ]
+        raw = [{"anomaly": {"anomaly_type": "PRICE_ABOVE_REFERENCE", "product_id": 1}, "explanation": {}}]
+        mock_anomaly_tool.list_anomalies.return_value = raw
+        mock_anomaly_tool.explain_anomalies.return_value = raw
 
         result = orchestrator.answer_question(
             "Explique-moi les anomalies de prix.",
@@ -220,16 +220,13 @@ class TestAnswerQuestionDispatch:
             store_id=42,
         )
 
-        mock_anomaly_tool.list_store_country_price_mismatches.assert_called_once_with(
+        mock_anomaly_tool.list_anomalies.assert_called_once_with(
             user_email="user@example.com",
-            store_id=42,
+            product_id=None,
+            store_id=None,
         )
         assert result["status"] == "answered"
         assert result["selected_tool"] == "anomaly_tool"
-        assert (
-            result["answer"]
-            == mock_anomaly_tool.list_store_country_price_mismatches.return_value
-        )
 
     def test_anomaly_question_without_user_email_does_not_call_anomaly_tool(
         self,
@@ -245,19 +242,26 @@ class TestAnswerQuestionDispatch:
         assert result["status"] == "missing_context"
         assert result["answer"] == CHATBOT_MISSING_USER_EMAIL_MESSAGE
 
-    def test_anomaly_question_without_store_id_does_not_call_anomaly_tool(
+    def test_anomaly_question_without_store_id_calls_anomaly_tool_without_filter(
         self,
         orchestrator: ChatbotOrchestrator,
         mock_anomaly_tool: MagicMock,
     ) -> None:
+        mock_anomaly_tool.list_anomalies.return_value = []
+        mock_anomaly_tool.explain_anomalies.return_value = []
+
         result = orchestrator.answer_question(
             "Explique-moi les anomalies de prix.",
             user_email="user@example.com",
         )
 
-        mock_anomaly_tool.list_store_country_price_mismatches.assert_not_called()
-        assert result["status"] == "missing_context"
-        assert result["answer"] == CHATBOT_MISSING_STORE_ID_MESSAGE
+        # list_anomalies does not require store_id; store_id is an optional filter
+        mock_anomaly_tool.list_anomalies.assert_called_once_with(
+            user_email="user@example.com",
+            product_id=None,
+            store_id=None,
+        )
+        assert result["status"] == "answered"
 
     def test_unrecognized_question_calls_no_business_tool(
         self,
@@ -322,23 +326,20 @@ class TestGuardrails:
         )
 
 
-class TestRevenueIntentNotYetWired:
-    """`get_country_revenue` is detected and routed to `kpi_tool`, but
-    `answer_question` has no handler for it yet: it falls through to the
-    generic "not implemented" response without calling `kpi_service.explain`.
-    """
+class TestRevenueIntentRouting:
+    """Revenue questions route to `get_kpi_data` and are handled by the KPI data tool."""
 
-    def test_revenue_question_is_routed_but_answered_as_not_implemented(
+    def test_revenue_question_is_routed_to_kpi_data_tool(
         self,
         orchestrator: ChatbotOrchestrator,
         mock_kpi_service: MagicMock,
     ) -> None:
         result = orchestrator.answer_question("What is our total revenue?")
 
-        assert result["intent"] == "get_country_revenue"
-        assert result["selected_tool"] == "kpi_tool"
-        assert result["status"] == "not_implemented"
-        assert result["answer"] == CHATBOT_NOT_IMPLEMENTED_MESSAGE
+        assert result["intent"] == "get_kpi_data"
+        assert result["selected_tool"] == "kpi_data_tool"
+        # Without user_email, returns a missing-context message but still "answered"
+        assert result["status"] == "answered"
         mock_kpi_service.explain.assert_not_called()
 
 
@@ -680,7 +681,7 @@ class TestRAGNonRegression:
         result = orchestrator.answer_question("What is our total revenue?")
 
         mock_document_retriever.search.assert_not_called()
-        assert result["intent"] == "get_country_revenue"
+        assert result["intent"] == "get_kpi_data"
 
     def test_operational_anomaly_question_does_not_call_document_retriever(
         self,
@@ -694,7 +695,7 @@ class TestRAGNonRegression:
         )
 
         mock_document_retriever.search.assert_not_called()
-        assert result["intent"] == "list_store_country_price_mismatches"
+        assert result["intent"] == "list_anomalies"
 
     def test_rbac_question_routes_to_rbac_tool_not_rag(
         self,
@@ -1282,7 +1283,7 @@ class TestPromotionsAnswering:
         result = orchestrator.answer_question("List active promotions")
 
         mock_promotion_tool.list_promotions.assert_called_once_with(
-            active=True, user_email=None
+            active=True, product_id=None, store_id=None, user_email=None
         )
         assert result["status"] == "answered"
         assert result["source"] == "promotion_tool"
@@ -1376,7 +1377,7 @@ class TestPricesAnswering:
 
         result = orchestrator.answer_question("List prices for product 3")
 
-        mock_price_tool.list_prices.assert_called_once_with(user_email=None)
+        mock_price_tool.list_prices.assert_called_once_with(product_id=3, store_id=None, user_email=None)
         assert result["status"] == "answered"
         assert result["source"] == "price_tool"
         assert "RUN-001" in result["answer"]
@@ -1420,7 +1421,7 @@ class TestT200NonRegression:
     ) -> None:
         routed = orchestrator.route_question("Explique-moi les anomalies de prix.")
 
-        assert routed["intent"] == "list_store_country_price_mismatches"
+        assert routed["intent"] == "list_anomalies"
         assert routed["selected_tool"] == "anomaly_tool"
 
     def test_reference_data_question_still_routes_to_reference_data_tool(

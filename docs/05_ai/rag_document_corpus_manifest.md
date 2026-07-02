@@ -32,13 +32,18 @@ it is always served by Tool Calling via the backend.
 | `docs/01_functional/chatbot_use_cases.md` | user_guide | markdown | business + technical | validated | explanation, routing context | high |
 | `docs/01_functional/rbac_roles_permissions.md` | rbac | markdown | business + technical | validated | glossary, workflow explanation | high |
 | `docs/01_functional/anomaly_business_rules.md` | business_rules | markdown | business + technical | validated | explanation, glossary | high |
+| `docs/05_ai/chatbot_capabilities.md` | user_guide | markdown | end_user | validated | chatbot capabilities, limitations, usage guidance | high |
+| `docs/05_ai/chatbot_kpi_knowledge.md` | business_knowledge | markdown | end_user | validated | KPI definitions, formulas, decision support | high |
+| `docs/05_ai/chatbot_promotion_knowledge.md` | business_knowledge | markdown | end_user | validated | promotion concepts, analysis, anomalies | high |
+| `docs/05_ai/chatbot_pricing_decision_support.md` | business_knowledge | markdown | end_user | validated | pricing decision guidance, anomaly prioritisation | high |
+| `docs/05_ai/chatbot_rbac_knowledge.md` | rbac | markdown | end_user | validated | RBAC roles, permissions, access questions | high |
 | `docs/05_runbook/ai_chatbot_monitoring.md` | monitoring | runbook | technical | validated | troubleshooting, explanation | medium |
 | `docs/05_runbook/operations_runbook.md` | operations | runbook | technical | validated | troubleshooting | medium |
 | `docs/06_validation/ai_chatbot_manual_validation.md` | user_guide | validation_report | technical | validated | routing context, explanation | medium |
 | `docs/07_operations/operations_documentation_index.md` | operations | markdown | technical | validated | troubleshooting | low |
 | `COMMANDES.md` | operations | command_reference | technical | validated | troubleshooting | low |
 
-**Total: 18 documents retained.**
+**Total: 23 documents retained.**
 
 ---
 
@@ -90,8 +95,9 @@ it is always served by Tool Calling via the backend.
 |---|---|---|
 | `architecture` | 7 | 4 high, 2 medium, 1 low |
 | `business_rules` | 2 | 2 high |
-| `rbac` | 2 | 2 high |
-| `user_guide` | 2 | 1 high, 1 medium |
+| `business_knowledge` | 3 | 3 high |
+| `rbac` | 3 | 3 high |
+| `user_guide` | 3 | 2 high, 1 medium |
 | `monitoring` | 2 | 1 medium, 1 medium |
 | `api` | 1 | 1 medium |
 | `operations` | 2 | 1 medium, 1 low |

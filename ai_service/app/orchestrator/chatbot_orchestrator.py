@@ -35,6 +35,7 @@ from app.services.business_rules_explanation_service import (
 from app.services.kpi_explanation_service import KPIExplanationService
 from app.services.rbac_explanation_service import RBACExplanationService
 from app.tools.anomaly_tool import AnomalyTool
+from app.tools.kpi_data_tool import KPIDataTool
 from app.tools.price_change_request_tool import PriceChangeRequestTool
 from app.tools.price_tool import PriceTool
 from app.tools.promotion_tool import PromotionTool
@@ -57,6 +58,7 @@ _GUARDRAIL_PHRASES = [
     "can you modify",
     "can you create",
     "can you delete",
+    "can you stop",
     "please approve",
     "please reject",
     "please apply",
@@ -76,6 +78,16 @@ _GUARDRAIL_PHRASES = [
     "applique le changement",
     "valide cette demande",
     "valide la demande",
+    # French "peux-tu" action requests
+    "peux-tu modifier",
+    "peux-tu appliquer",
+    "peux-tu approuver",
+    "peux-tu rejeter",
+    "peux-tu arrêter cette",
+    "peux-tu créer",
+    "peux-tu changer",
+    "peux-tu supprimer",
+    "peux-tu mettre à jour",
 ]
 
 # T203 — granular clarification intents replace the single ambiguous_question.
@@ -138,6 +150,7 @@ class ChatbotOrchestrator:
         rbac_service: RBACExplanationService | None = None,
         anomaly_tool: AnomalyTool | None = None,
         kpi_service: KPIExplanationService | None = None,
+        kpi_data_tool: KPIDataTool | None = None,
         price_change_request_tool: PriceChangeRequestTool | None = None,
         promotion_tool: PromotionTool | None = None,
         price_tool: PriceTool | None = None,
@@ -152,6 +165,7 @@ class ChatbotOrchestrator:
         self.rbac_service = rbac_service or RBACExplanationService()
         self.anomaly_tool = anomaly_tool or AnomalyTool()
         self.kpi_service = kpi_service or KPIExplanationService()
+        self.kpi_data_tool = kpi_data_tool or KPIDataTool()
         self.price_change_request_tool = (
             price_change_request_tool or PriceChangeRequestTool()
         )
@@ -283,6 +297,37 @@ class ChatbotOrchestrator:
             except Exception as error:
                 return self._build_error_response(routed, error)
 
+        if intent == "list_anomalies":
+            if not user_email:
+                return {
+                    **routed,
+                    "status": "missing_context",
+                    "answer": CHATBOT_MISSING_USER_EMAIL_MESSAGE,
+                    "source": "orchestrator",
+                }
+            try:
+                answer = self._answer_general_anomalies_question(question, user_email, lang)
+                return {
+                    **routed,
+                    "status": "answered",
+                    "answer": answer,
+                    "source": "anomaly_tool",
+                }
+            except Exception as error:
+                return self._build_error_response(routed, error)
+
+        if intent == "get_kpi_data":
+            try:
+                answer = self._answer_kpi_data_question(question, user_email, lang)
+                return {
+                    **routed,
+                    "status": "answered",
+                    "answer": answer,
+                    "source": "kpi_data_tool",
+                }
+            except Exception as error:
+                return self._build_error_response(routed, error)
+
         if intent == "explain_kpi":
             try:
                 service_response = self.kpi_service.explain(question)
@@ -295,7 +340,7 @@ class ChatbotOrchestrator:
 
         if intent == "list_store_price_changes":
             try:
-                answer = self._answer_price_change_requests_question(question, user_email)
+                answer = self._answer_price_change_requests_question(question, user_email, lang)
                 return {
                     **routed,
                     "status": "answered",
@@ -307,7 +352,7 @@ class ChatbotOrchestrator:
 
         if intent == "promotions":
             try:
-                answer = self._answer_promotions_question(question, user_email)
+                answer = self._answer_promotions_question(question, user_email, lang)
                 return {
                     **routed,
                     "status": "answered",
@@ -319,7 +364,7 @@ class ChatbotOrchestrator:
 
         if intent == "prices":
             try:
-                answer = self._answer_prices_question(question, user_email)
+                answer = self._answer_prices_question(question, user_email, lang)
                 return {
                     **routed,
                     "status": "answered",
@@ -331,7 +376,7 @@ class ChatbotOrchestrator:
 
         if intent == "reference_data":
             try:
-                answer = self._answer_reference_data_question(question, user_email)
+                answer = self._answer_reference_data_question(question, user_email, lang)
                 return {
                     **routed,
                     "status": "answered",
@@ -409,8 +454,14 @@ class ChatbotOrchestrator:
                 "droit de valider",
                 "qui peut changer",
                 "qui peut modifier",
+                "qui peut approuver",
+                "qui peut rejeter",
+                "qui peut créer",
                 "autorisé à",
                 "autorise a changer",
+                # French RBAC phrases — scope visibility
+                "pourquoi je ne peux pas voir",
+                "pourquoi je ne vois pas",
             ],
         ):
             return "explain_rbac"
@@ -449,11 +500,20 @@ class ChatbotOrchestrator:
                 "promotion inefficace",
                 "promotion ne marche",
                 "promotion échoue",
+                # Explanatory price rule questions — must be checked before price mismatch (3a)
+                # so "prix magasin" and "prix pays" in that section don't intercept them.
+                "pourquoi un prix magasin peut",
+                "pourquoi un prix magasin est different",
+                "pourquoi un prix est different du prix pays",
+                "pourquoi le prix magasin differe",
+                "regle prix magasin",
+                "pourquoi un prix magasin",
             ],
         ):
             return "explain_business_rule"
 
-        # 3. Price mismatch / anomaly use case.
+        # 3a. Price mismatch — specific store-vs-country price queries.
+        # Kept separate from general anomalies because this route requires store_id.
         if self._contains_any_phrase(
             normalized_question,
             [
@@ -467,11 +527,37 @@ class ChatbotOrchestrator:
                 "prix magasin",
                 "écart de prix",
                 "prix non aligné",
-                "anomaly",
-                "anomalies",
+                "price_above_reference",
             ],
         ):
             return "list_store_country_price_mismatches"
+
+        # 3b. General anomaly listing — all anomaly types without requiring store_id.
+        if self._contains_any_phrase(
+            normalized_question,
+            [
+                "anomaly",
+                "anomalies",
+                "anomalie",
+                "liste les anomalies",
+                "quelles anomalies",
+                "anomalies critiques",
+                "underperforming",
+                "ineffective discount",
+                "est inefficace",
+                "promotion sous-performante",
+                "inter_store_price_gap",
+                "quelle promotion est inefficace",
+                "quelle promo est inefficace",
+                # Prioritisation requests — best answered with anomaly data
+                "quel prix devrais je revoir",
+                "quel prix devrais-je revoir",
+                "prix a revoir en priorite",
+                "quel prix revoir en priorite",
+                "prix devrais je revoir",
+            ],
+        ):
+            return "list_anomalies"
 
         # 4. Price change data use case.
         if self._contains_any_phrase(
@@ -491,11 +577,21 @@ class ChatbotOrchestrator:
                 "liste des changements de prix",
                 "demandes de changement de prix",
                 "demandes de prix",
+                "demandes pending",
+                "demandes en attente",
+                "demandes approuvées",
+                "demandes rejetées",
             ],
         ):
             return "list_store_price_changes"
 
-        # 5. KPI explanation.
+        # 4.5. KPI data — live figures from the backend.
+        # Placed before explain_kpi so interrogative data questions route to the tool,
+        # not to the static explanation service.
+        if self._contains_kpi_data_intent(normalized_question):
+            return "get_kpi_data"
+
+        # 5. KPI explanation — definitions, formulas, and business interpretation.
         if self._contains_any_phrase(
             normalized_question,
             [
@@ -503,9 +599,33 @@ class ChatbotOrchestrator:
                 "indicator",
                 "metric",
                 "margin",
+                "marge",
                 "volume",
                 "performance",
                 "explain kpi",
+                "explique le kpi",
+                "uplift",
+                "panier moyen",
+                "average order value",
+                "average basket",
+                "discount rate",
+                "taux de remise",
+                "chiffre d'affaires",
+                "chiffre d affaires",
+                "part des ventes",
+                "part des ventes promo",
+                "promo share",
+                "promotion sales share",
+                "comment est calculé",
+                "comment interpréter",
+                "qu'est-ce que le",
+                "qu est ce que le",
+                "explique le ca",
+                "definition chiffre",
+                "price gap",
+                "what does revenue",
+                "what does margin",
+                "what does volume",
             ],
         ):
             return "explain_kpi"
@@ -523,8 +643,18 @@ class ChatbotOrchestrator:
                 "promotions for store",
                 "promotions for product",
                 "liste des promotions",
+                "liste les promotions",
                 "promotions actives",
                 "quelles promotions",
+                "quelles promotions concernent",
+                "promotions du magasin",
+                "promotions pour le magasin",
+                "promotions du produit",
+                "promotions pour le produit",
+                "quelle promotion a",
+                "quelle promotion génère",
+                "quelle promotion a le plus",
+                "promotion a un mauvais",
             ],
         ):
             return "promotions"
@@ -540,11 +670,16 @@ class ChatbotOrchestrator:
                 "quels prix",
                 "prix du produit",
                 "prix du magasin",
+                "prix actifs",
+                "prix actif",
+                "quel est le prix du",
+                "quel est le prix actuel",
+                "quels produits ont un prix",
             ],
         ):
             return "prices"
 
-        # 9. Reference data — applicative master data (countries, stores, products,
+        # 8. Reference data — applicative master data (countries, stores, products,
         # product families). Placed before RAG so data questions never hit the
         # document retriever.
         if self._contains_any_phrase(
@@ -577,45 +712,111 @@ class ChatbotOrchestrator:
                 "liste des produits",
                 "liste les produits",
                 "produits actifs",
+                "quels produits existent",
+                "quels magasins existent",
             ],
         ):
             return "reference_data"
 
-        # 7. Documentary knowledge — RAG over project documentation.
+        # 9. Documentary knowledge — RAG over project documentation.
         # Deliberately placed after operational intents so Tool Calling stays
         # prioritaire for data questions.
         if self._contains_any_phrase(
             normalized_question,
             [
+                # Architecture and monitoring
                 "monitoring",
                 "observability",
                 "runbook",
                 "incident",
                 "architecture",
                 "exploitation",
-                "chatbot capabilities",
-                "chatbot limitations",
-                "what can the chatbot",
-                "how is the chatbot",
-                "how does the chatbot work",
                 "documentation",
                 "documented",
                 "how is monitoring",
                 "how is the system",
                 "how does the system",
+                # Chatbot capabilities — English
+                "chatbot capabilities",
+                "chatbot limitations",
+                "what can the chatbot",
+                "how is the chatbot",
+                "how does the chatbot work",
+                "what can you do",
+                "what can you explain",
+                "what are your limits",
+                # Chatbot capabilities — French (accented and unaccented variants)
+                "que peut faire ce chatbot",
+                "que peux-tu faire",
+                "que peux tu faire",
+                "que peux-tu expliquer",
+                "que peux tu expliquer",
+                "que peut expliquer ce chatbot",
+                "quelles sont tes limites",
+                "quelles sont les limites",
+                "limites du chatbot",
+                "que ne peux tu pas faire",
+                "que ne peux-tu pas faire",
+                "que peux faire ce chatbot",
+                "que peut faire le chatbot",
+                "qu'est-ce que le chatbot peut faire",
+                "a quoi sert ce chatbot",
+                "fonctionnalites du chatbot",
+                "capacites du chatbot",
+                "capacités du chatbot",
+                # Pricing workflow explanation
                 "how does the price change workflow",
                 "price change workflow",
                 "explain price scope",
                 "price scope rule",
                 "how are promotions documented",
                 "promotion documented",
+                "comment fonctionne le workflow",
+                "explique le workflow",
+                "workflow de changement de prix",
+                "comment créer une demande",
+                "comment soumettre une demande",
+                "pourquoi une demande reste",
+                # Decision support and analysis guidance
+                "que vérifier avant",
+                "que dois-je vérifier",
+                "comment décider",
+                "aide à la décision",
+                "comment analyser une promotion",
+                "comment savoir si une promotion",
+                "comment prioriser",
+                "quel indicateur regarder",
+                "quel kpi regarder",
+                "comment améliorer",
+                "que faire avec une anomalie",
+                "pourquoi cette promo ne marche pas",
+                "comment interpréter un",
+                # KPI explanation guide
+                "expliquer le chiffre",
+                "explique le chiffre",
+                "explique la marge",
+                "explique le volume",
+                "explique le panier",
+                "explique l'uplift",
+                "explique la part",
+                # Promotion explanation and decision support
+                "promotion active",
+                "explique ce qu est une promotion",
+                "qu est ce qu une promotion",
+                "comment savoir si une promotion fonctionne",
+                "comment savoir si une promotion",
+                "ameliorer une promotion",
+                "dois-je arrêter cette promotion",
+                "dois je arreter cette promotion",
+                # Pricing decision support
+                "comment decider si un prix doit etre change",
+                "prix doit etre change",
+                "que verifier avant de changer un prix",
+                "dois je creer une demande de changement",
+                "quelle action recommandes tu",
             ],
         ):
             return "documentary_knowledge"
-
-        # 7. Revenue / sales KPI.
-        if self._contains_revenue_intent(normalized_question):
-            return "get_country_revenue"
 
         # 10. Granular clarification intents (T203): recognized topic but missing scope.
         # Placed after all tool-calling intents so clear questions are never intercepted.
@@ -631,7 +832,8 @@ class ChatbotOrchestrator:
 
     def _select_tool(self, intent: str) -> str | None:
         tool_by_intent = {
-            "get_country_revenue": "kpi_tool",
+            "get_kpi_data": "kpi_data_tool",
+            "list_anomalies": "anomaly_tool",
             "list_store_price_changes": "price_change_request_tool",
             "list_store_country_price_mismatches": "anomaly_tool",
             "explain_kpi": "kpi_explanation_tool",
@@ -652,8 +854,82 @@ class ChatbotOrchestrator:
 
         return tool_by_intent.get(intent)
 
+    def _answer_kpi_data_question(
+        self, question: str, user_email: str | None, lang: str = "fr"
+    ) -> str:
+        if not user_email:
+            return CHATBOT_MISSING_USER_EMAIL_MESSAGE
+
+        product_id = self.kpi_data_tool.extract_product_id(question)
+        store_id = self.kpi_data_tool.extract_store_id(question)
+        is_promo = self.kpi_data_tool.extract_is_promo(question)
+        date_from, date_to = self.kpi_data_tool.extract_dates(question)
+        target_kpi = self.kpi_data_tool.extract_target_kpi(question)
+
+        context = {
+            k: v
+            for k, v in {
+                "product_id": product_id,
+                "store_id": store_id,
+                "date_from": date_from,
+                "date_to": date_to,
+            }.items()
+            if v is not None
+        }
+
+        data = self.kpi_data_tool.get_kpi_summary(
+            user_email=user_email,
+            product_id=product_id,
+            store_id=store_id,
+            is_promo=is_promo,
+            date_from=date_from,
+            date_to=date_to,
+        )
+        return self.kpi_data_tool.format_response(data, context, target_kpi=target_kpi, lang=lang)
+
+    def _answer_general_anomalies_question(
+        self, question: str, user_email: str | None, lang: str = "fr"
+    ) -> str:
+        if not user_email:
+            return CHATBOT_MISSING_USER_EMAIL_MESSAGE
+
+        normalized = question.lower()
+        product_match = re.search(r"(?:produit|product)\s+(\d+)", normalized)
+        store_match = re.search(r"(?:magasin|store)\s+(\d+)", normalized)
+        product_id = int(product_match.group(1)) if product_match else None
+        store_id = int(store_match.group(1)) if store_match else None
+
+        anomalies = self.anomaly_tool.list_anomalies(
+            user_email=user_email,
+            product_id=product_id,
+            store_id=store_id,
+        )
+        explained = self.anomaly_tool.explain_anomalies(anomalies)
+        return self._format_anomalies_list(explained, lang=lang)
+
+    def _format_anomalies_list(self, items: list[dict[str, Any]], lang: str = "fr") -> str:
+        if not items:
+            return "Aucune anomalie trouvée pour votre périmètre."
+        details = []
+        for item in items:
+            anomaly = item.get("anomaly", item)
+            expl = item.get("explanation", {})
+            label = expl.get("label", anomaly.get("anomaly_type", "Anomalie"))
+            product = anomaly.get("product_id", "?")
+            store = anomaly.get("store_id")
+            store_str = f" — Magasin {store}" if store else ""
+            details.append(f"{label} — Produit {product}{store_str}")
+        return self._response_service.format_tool_response(
+            summary=f"{len(items)} anomalie(s) détectée(s).",
+            details=details,
+            suggested_next_step=(
+                "Consultez les détails de chaque anomalie pour prioriser votre plan d'action."
+            ),
+            lang=lang,
+        )
+
     def _answer_price_change_requests_question(
-        self, question: str, user_email: str | None
+        self, question: str, user_email: str | None, lang: str = "fr"
     ) -> str:
         normalized = question.lower()
         status: str | None = None
@@ -668,10 +944,10 @@ class ChatbotOrchestrator:
             status=status,
             user_email=user_email,
         )
-        return self._format_price_change_requests(items)
+        return self._format_price_change_requests(items, lang=lang)
 
     def _answer_promotions_question(
-        self, question: str, user_email: str | None
+        self, question: str, user_email: str | None, lang: str = "fr"
     ) -> str:
         normalized = question.lower()
         active: bool | None = None
@@ -680,18 +956,42 @@ class ChatbotOrchestrator:
         elif "inactive" in normalized:
             active = False
 
-        items = self.promotion_tool.list_promotions(active=active, user_email=user_email)
-        return self._format_promotions(items)
+        product_match = re.search(r"(?:produit|product)\s+(\d+)", normalized)
+        store_match = re.search(r"(?:magasin|store)\s+(\d+)", normalized)
+        product_id = int(product_match.group(1)) if product_match else None
+        store_id = int(store_match.group(1)) if store_match else None
+
+        items = self.promotion_tool.list_promotions(
+            active=active,
+            product_id=product_id,
+            store_id=store_id,
+            user_email=user_email,
+        )
+        return self._format_promotions(items, product_id=product_id, store_id=store_id, lang=lang)
 
     def _answer_prices_question(
-        self, question: str, user_email: str | None
+        self, question: str, user_email: str | None, lang: str = "fr"
     ) -> str:
-        items = self.price_tool.list_prices(user_email=user_email)
-        return self._format_prices(items)
+        normalized = question.lower()
+        product_match = re.search(r"(?:produit|product)\s+(\d+)", normalized)
+        store_match = re.search(r"(?:magasin|store)\s+(\d+)", normalized)
+        product_id = int(product_match.group(1)) if product_match else None
+        store_id = int(store_match.group(1)) if store_match else None
 
-    def _format_price_change_requests(self, items: list[dict[str, Any]]) -> str:
+        items = self.price_tool.list_prices(
+            product_id=product_id,
+            store_id=store_id,
+            user_email=user_email,
+        )
+        return self._format_prices(items, product_id=product_id, store_id=store_id, lang=lang)
+
+    _MAX_DISPLAYED_RESULTS = 5
+
+    def _format_price_change_requests(
+        self, items: list[dict[str, Any]], lang: str = "fr"
+    ) -> str:
         if not items:
-            return "No matching data was found."
+            return "Aucune donnée trouvée." if lang == "fr" else "No matching data was found."
         details = [
             f"Request #{item['id']} — Product {item['product_id']}"
             f" — {item['status'].lower()}"
@@ -707,101 +1007,159 @@ class ChatbotOrchestrator:
                 if has_pending
                 else None
             ),
+            lang=lang,
         )
 
-    def _format_promotions(self, items: list[dict[str, Any]]) -> str:
+    def _format_promotions(
+        self,
+        items: list[dict[str, Any]],
+        product_id: int | None = None,
+        store_id: int | None = None,
+        lang: str = "fr",
+    ) -> str:
         if not items:
-            return "No matching data was found."
+            return "Aucune promotion trouvée." if lang == "fr" else "No matching data was found."
+
+        total = len(items)
+        displayed = items[: self._MAX_DISPLAYED_RESULTS]
+        suffix = (
+            f" Affichage des {len(displayed)} premières."
+            if total > self._MAX_DISPLAYED_RESULTS
+            else ""
+        )
+
+        scope_parts = []
+        if product_id is not None:
+            scope_parts.append(f"produit {product_id}")
+        if store_id is not None:
+            scope_parts.append(f"magasin {store_id}")
+        filters_label = f" (filtre : {', '.join(scope_parts)})" if scope_parts else ""
+
         details = []
-        for item in items:
+        for item in displayed:
             discount_type = item.get("discount_type", "")
             discount_value = item.get("discount_value", "")
+            promo_id = item.get("id", "")
+            id_label = f"#{promo_id} — " if promo_id else ""
             if discount_type == "PERCENTAGE":
-                discount_label = f"{discount_value}% discount"
+                discount_label = f"{discount_value}%" if lang == "fr" else f"{discount_value}% discount"
             else:
-                discount_label = f"fixed price {discount_value}"
+                discount_label = f"prix fixe {discount_value}" if lang == "fr" else f"fixed price {discount_value}"
+            store_label = f" — Magasin {item['store_id']}" if item.get("store_id") else ""
             details.append(
-                f"Product {item['product_id']} — {discount_label}"
-                f" — from {item['start_date']} to {item['end_date']}"
+                f"{id_label}Produit {item['product_id']} — {discount_label}"
+                f" — {item['start_date']} → {item['end_date']}{store_label}"
             )
+
         return self._response_service.format_tool_response(
-            summary=f"{len(items)} promotion(s) trouvée(s).",
+            summary=f"{total} promotion(s) trouvée(s){filters_label}.{suffix}",
             details=details,
-            suggested_next_step="Vérifiez les promotions avant de les prolonger.",
+            suggested_next_step="Vérifiez les KPI de chaque promotion avant de les prolonger.",
+            lang=lang,
         )
 
-    def _format_prices(self, items: list[dict[str, Any]]) -> str:
+    def _format_prices(
+        self,
+        items: list[dict[str, Any]],
+        product_id: int | None = None,
+        store_id: int | None = None,
+        lang: str = "fr",
+    ) -> str:
         if not items:
-            return "No matching data was found."
+            return "Aucun prix trouvé." if lang == "fr" else "No matching data was found."
+
+        total = len(items)
+        displayed = items[: self._MAX_DISPLAYED_RESULTS]
+        suffix = (
+            f" Affichage des {len(displayed)} premiers."
+            if total > self._MAX_DISPLAYED_RESULTS
+            else ""
+        )
+
+        scope_parts = []
+        if product_id is not None:
+            scope_parts.append(f"produit {product_id}")
+        if store_id is not None:
+            scope_parts.append(f"magasin {store_id}")
+        filters_label = f" (filtre : {', '.join(scope_parts)})" if scope_parts else ""
+
         details = []
-        for item in items:
-            code = item.get("product_code", f"Product {item.get('product_id', '?')}")
+        for item in displayed:
+            code = item.get("product_code", f"Produit {item.get('product_id', '?')}")
             name = item.get("product_name", "")
             amount = item.get("amount", "?")
             currency = item.get("currency_code", "")
-            details.append(f"{code} — {name} — {amount} {currency}".strip(" —"))
+            store = item.get("store_id")
+            store_str = f" — Magasin {store}" if store else ""
+            details.append(f"{code} — {name} — {amount} {currency}{store_str}".strip(" —"))
+
         return self._response_service.format_tool_response(
-            summary=f"{len(items)} prix trouvé(s).",
+            summary=f"{total} prix trouvé(s){filters_label}.{suffix}",
             details=details,
             suggested_next_step=(
                 "Comparez avec les prix de référence pays pour identifier d'éventuels écarts."
             ),
+            lang=lang,
         )
 
     def _answer_reference_data_question(
-        self, question: str, user_email: str | None
+        self, question: str, user_email: str | None, lang: str = "fr"
     ) -> str:
         normalized = question.lower()
 
         if self._contains_any_phrase(normalized, ["countr", "pays"]):
             items = self.reference_data_tool.list_countries(user_email=user_email)
-            return self._format_countries(items)
+            return self._format_countries(items, lang=lang)
 
         if self._contains_any_phrase(normalized, ["store", "magasin"]):
             items = self.reference_data_tool.list_stores(user_email=user_email)
-            return self._format_stores(items)
+            return self._format_stores(items, lang=lang)
 
         if self._contains_any_phrase(normalized, ["famil", "famille"]):
             items = self.reference_data_tool.list_product_families(user_email=user_email)
-            return self._format_product_families(items)
+            return self._format_product_families(items, lang=lang)
 
         active: bool | None = None
         if self._contains_any_phrase(normalized, ["active", "actif", "actifs"]):
             active = True
 
         items = self.reference_data_tool.list_products(active=active, user_email=user_email)
-        return self._format_products(items)
+        return self._format_products(items, lang=lang)
 
-    def _format_countries(self, items: list[dict[str, Any]]) -> str:
+    def _format_countries(self, items: list[dict[str, Any]], lang: str = "fr") -> str:
         if not items:
-            return "No matching reference data was found."
+            return "Aucune donnée de référence trouvée." if lang == "fr" else "No matching reference data was found."
         return self._response_service.format_tool_response(
             summary=f"{len(items)} pays disponible(s).",
             details=[c["name"] for c in items],
+            lang=lang,
         )
 
-    def _format_stores(self, items: list[dict[str, Any]]) -> str:
+    def _format_stores(self, items: list[dict[str, Any]], lang: str = "fr") -> str:
         if not items:
-            return "No matching reference data was found."
+            return "Aucune donnée de référence trouvée." if lang == "fr" else "No matching reference data was found."
         return self._response_service.format_tool_response(
             summary=f"{len(items)} magasin(s) disponible(s).",
             details=[s["name"] for s in items],
+            lang=lang,
         )
 
-    def _format_product_families(self, items: list[dict[str, Any]]) -> str:
+    def _format_product_families(self, items: list[dict[str, Any]], lang: str = "fr") -> str:
         if not items:
-            return "No matching reference data was found."
+            return "Aucune donnée de référence trouvée." if lang == "fr" else "No matching reference data was found."
         return self._response_service.format_tool_response(
             summary=f"{len(items)} famille(s) de produits disponible(s).",
             details=[f["name"] for f in items],
+            lang=lang,
         )
 
-    def _format_products(self, items: list[dict[str, Any]]) -> str:
+    def _format_products(self, items: list[dict[str, Any]], lang: str = "fr") -> str:
         if not items:
-            return "No matching reference data was found."
+            return "Aucune donnée de référence trouvée." if lang == "fr" else "No matching reference data was found."
         return self._response_service.format_tool_response(
             summary=f"{len(items)} produit(s) trouvé(s).",
             details=[f"{p['code']} — {p['name']}" for p in items],
+            lang=lang,
         )
 
     def _answer_documentary_question(self, question: str) -> dict[str, Any]:
@@ -869,19 +1227,42 @@ class ChatbotOrchestrator:
     def _contains_any_phrase(self, text: str, keywords: list[str]) -> bool:
         return any(keyword in text for keyword in keywords)
 
-    def _contains_revenue_intent(self, text: str) -> bool:
-        revenue_phrases = [
-            "revenue",
+    def _contains_kpi_data_intent(self, text: str) -> bool:
+        data_phrases = [
+            # French — interrogative forms that request a current value
+            "quel est le chiffre",
+            "quel est le ca",
+            "quelle est la marge",
+            "quel est le volume vendu",
+            "quel est le volume",
+            "quel est le panier moyen",
+            "quel est le panier",
+            "quelle est la part des ventes",
+            "quelle est la part du ca",
+            "quelle est la part promo",
+            "quel est le revenu",
+            # English — interrogative forms that request a current value
+            "what is the revenue",
+            "what is the total revenue",
+            "what is the margin",
+            "what is the volume",
+            "how much revenue",
+            "how much margin",
+            # Aggregate / scoped phrases
+            "total revenue",
+            "revenue for store",
+            "revenue for product",
+            "margin for store",
+            "margin for product",
+            "country revenue",
+            "chiffre d'affaires total",
+            # Revenue synonyms (from former get_country_revenue intent)
             "sales amount",
             "turnover",
-            "country revenue",
-            "chiffre d'affaires",
         ]
-
-        if self._contains_any_phrase(text, revenue_phrases):
+        if self._contains_any_phrase(text, data_phrases):
             return True
-
-        # Avoid matching "ca" inside "can".
+        # "\bca\b" — French acronym for chiffre d'affaires; boundary avoids matching "can".
         return bool(re.search(r"\bca\b", text))
 
     def _build_error_response(

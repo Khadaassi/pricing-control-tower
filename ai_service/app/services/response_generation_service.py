@@ -9,23 +9,25 @@ from app.core.chatbot_messages import (
 
 
 class ResponseGenerationService:
-    """Centralises response formatting for all chatbot answer types.
-
-    Tool-calling responses follow a Summary / Details / Suggested next step
-    structure.  Static responses (guardrail, clarification, fallback) delegate
-    to the constants in chatbot_messages so there is a single source of truth.
-    """
+    """Centralises response formatting for all chatbot answer types."""
 
     def format_tool_response(
         self,
         summary: str,
         details: list[str],
         suggested_next_step: str | None = None,
+        lang: str = "fr",
     ) -> str:
-        lines = ["Summary:", summary, "", "Details:"]
-        lines += [f"- {d}" for d in details]
-        if suggested_next_step:
-            lines += ["", "Suggested next step:", suggested_next_step]
+        if lang == "fr":
+            lines = ["Résumé :", summary, "", "Détails :"]
+            lines += [f"- {d}" for d in details]
+            if suggested_next_step:
+                lines += ["", "Prochaine étape suggérée :", suggested_next_step]
+        else:
+            lines = ["Summary:", summary, "", "Details:"]
+            lines += [f"- {d}" for d in details]
+            if suggested_next_step:
+                lines += ["", "Suggested next step:", suggested_next_step]
         return "\n".join(lines)
 
     def format_guardrail_response(self, lang: str = "en") -> str:

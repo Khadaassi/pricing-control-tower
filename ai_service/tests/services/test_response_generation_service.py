@@ -20,7 +20,7 @@ def service() -> ResponseGenerationService:
 
 class TestFormatToolResponse:
     def test_output_contains_summary_label(self, service: ResponseGenerationService) -> None:
-        result = service.format_tool_response(summary="3 items found.", details=["Item A"])
+        result = service.format_tool_response(summary="3 items found.", details=["Item A"], lang="en")
 
         assert "Summary:" in result
 
@@ -30,7 +30,7 @@ class TestFormatToolResponse:
         assert "3 items found." in result
 
     def test_output_contains_details_label(self, service: ResponseGenerationService) -> None:
-        result = service.format_tool_response(summary="1 item.", details=["Item A"])
+        result = service.format_tool_response(summary="1 item.", details=["Item A"], lang="en")
 
         assert "Details:" in result
 
@@ -58,6 +58,7 @@ class TestFormatToolResponse:
             summary="1 item.",
             details=["Item A"],
             suggested_next_step="Review before approving.",
+            lang="en",
         )
 
         assert "Suggested next step:" in result
@@ -81,7 +82,7 @@ class TestFormatToolResponse:
 
     def test_summary_appears_before_details(self, service: ResponseGenerationService) -> None:
         result = service.format_tool_response(
-            summary="The summary.", details=["The detail."]
+            summary="The summary.", details=["The detail."], lang="en"
         )
 
         assert result.index("Summary:") < result.index("Details:")
@@ -93,6 +94,7 @@ class TestFormatToolResponse:
             summary="S.",
             details=["D."],
             suggested_next_step="Next step.",
+            lang="en",
         )
 
         assert result.index("Details:") < result.index("Suggested next step:")
