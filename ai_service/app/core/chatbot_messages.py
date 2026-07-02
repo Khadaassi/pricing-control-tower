@@ -27,35 +27,33 @@ CHATBOT_NOT_IMPLEMENTED_MESSAGE = (
     "Cette intention est reconnue, mais l’outil correspondant n’est pas encore connecté."
 )
 
-# T201/T202 — improved fallbacks and new intent responses
-
 CHATBOT_GUARDRAIL_ACTION_MESSAGE = (
-    "I cannot perform this action directly.\n\n"
-    "What I can do:\n"
-    "- explain the workflow\n"
-    "- help identify the relevant request\n"
-    "- show the current status if the data is available"
+    "Je ne peux pas effectuer cette action directement.\n\n"
+    "Ce que je peux faire :\n"
+    "- expliquer le workflow de validation\n"
+    "- aider à identifier la demande concernée\n"
+    "- afficher le statut actuel si les données sont disponibles"
 )
 
 CHATBOT_AMBIGUOUS_QUESTION_MESSAGE = (
-    "I need one detail to answer correctly.\n\n"
-    "Are you asking about:\n"
-    "- current operational data (prices, promotions, price change requests)\n"
-    "- reference data (stores, products, countries)\n"
-    "- business rules or documentation?"
+    "Il me manque un détail pour répondre correctement.\n\n"
+    "Votre question porte-t-elle sur :\n"
+    "- des données opérationnelles (prix, promotions, demandes de changement de prix)\n"
+    "- des données de référence (magasins, produits, pays)\n"
+    "- des règles métier ou de la documentation ?"
 )
 
 CHATBOT_OUT_OF_SCOPE_MESSAGE = (
-    "I cannot answer this reliably with the available tools or documentation.\n\n"
-    "You can ask me about:\n"
-    "- prices\n"
-    "- promotions\n"
-    "- anomalies\n"
-    "- price change requests\n"
-    "- products and stores\n"
-    "- roles and permissions\n"
-    "- KPI definitions\n"
-    "- chatbot documentation"
+    "Je ne peux pas répondre à cette question de manière fiable avec les outils ou la documentation disponibles.\n\n"
+    "Vous pouvez me poser des questions sur :\n"
+    "- les prix\n"
+    "- les promotions\n"
+    "- les anomalies\n"
+    "- les demandes de changement de prix\n"
+    "- les produits et les magasins\n"
+    "- les rôles et les permissions\n"
+    "- les définitions de KPI\n"
+    "- la documentation du chatbot"
 )
 
 CHATBOT_NO_TOOL_AVAILABLE_MESSAGE = (
@@ -66,47 +64,47 @@ CHATBOT_NO_TOOL_AVAILABLE_MESSAGE = (
 # T203 — targeted clarification messages per ambiguous intent
 
 CHATBOT_PRICE_CLARIFICATION_MESSAGE = (
-    "I need one detail to answer correctly.\n\n"
-    "Are you asking about:\n"
-    "- current prices for a product, store, or country\n"
-    "- price change requests\n"
-    "- pricing rules or price scope documentation?"
+    "Il me manque un détail pour répondre correctement.\n\n"
+    "Votre question porte-t-elle sur :\n"
+    "- les prix actuels d'un produit, d'un magasin ou d'un pays\n"
+    "- les demandes de changement de prix\n"
+    "- les règles tarifaires ou la documentation sur le périmètre des prix ?"
 )
 
 CHATBOT_PROMOTION_CLARIFICATION_MESSAGE = (
-    "I need one detail to answer correctly.\n\n"
-    "Are you asking about:\n"
-    "- active promotions\n"
-    "- promotions for a specific store\n"
-    "- promotions for a specific product\n"
-    "- documentation about promotion rules?"
+    "Il me manque un détail pour répondre correctement.\n\n"
+    "Votre question porte-t-elle sur :\n"
+    "- les promotions actives\n"
+    "- les promotions d'un magasin spécifique\n"
+    "- les promotions d'un produit spécifique\n"
+    "- la documentation sur les règles promotionnelles ?"
 )
 
 CHATBOT_STORE_CLARIFICATION_MESSAGE = (
-    "I need one detail to answer correctly.\n\n"
-    "For this store, do you want to see:\n"
-    "- store reference information\n"
-    "- prices\n"
-    "- promotions\n"
-    "- anomalies\n"
-    "- price change requests?"
+    "Il me manque un détail pour répondre correctement.\n\n"
+    "Pour ce magasin, souhaitez-vous voir :\n"
+    "- les informations de référence du magasin\n"
+    "- les prix\n"
+    "- les promotions\n"
+    "- les anomalies\n"
+    "- les demandes de changement de prix ?"
 )
 
 CHATBOT_PRODUCT_CLARIFICATION_MESSAGE = (
-    "I need one detail to answer correctly.\n\n"
-    "For this product, do you want to see:\n"
-    "- product reference information\n"
-    "- current prices\n"
-    "- promotions\n"
-    "- anomalies\n"
-    "- price change requests?"
+    "Il me manque un détail pour répondre correctement.\n\n"
+    "Pour ce produit, souhaitez-vous voir :\n"
+    "- les informations de référence du produit\n"
+    "- les prix actuels\n"
+    "- les promotions\n"
+    "- les anomalies\n"
+    "- les demandes de changement de prix ?"
 )
 
 CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE = (
-    "I need one detail to answer correctly.\n\n"
-    "Are you asking about:\n"
-    "- pending price change requests\n"
-    "- approved price change requests\n"
-    "- rejected price change requests\n"
-    "- all price change requests regardless of status?"
+    "Il me manque un détail pour répondre correctement.\n\n"
+    "Votre question porte-t-elle sur :\n"
+    "- les demandes de changement de prix en attente\n"
+    "- les demandes approuvées\n"
+    "- les demandes rejetées\n"
+    "- toutes les demandes quel que soit leur statut ?"
 )

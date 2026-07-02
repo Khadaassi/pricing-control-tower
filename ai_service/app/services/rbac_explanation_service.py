@@ -21,8 +21,8 @@ class RBACExplanationService:
         if not rbac_context["found"]:
             return {
                 "answer": (
-                    "I could not find a documented RBAC rule matching this question. "
-                    "I can explain MVP roles, permissions, user scopes, and access restrictions."
+                    "Je n'ai pas trouvé de règle RBAC documentée correspondant à cette question. "
+                    "Je peux expliquer les rôles, permissions, périmètres utilisateurs et restrictions d'accès."
                 ),
                 "source": "rbac_tool",
                 "roles_used": [],

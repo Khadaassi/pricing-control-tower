@@ -36,8 +36,8 @@ from app.tools.reference_data_tool import ReferenceDataTool
 logger = get_logger("ai_service.orchestrator")
 
 _RAG_FALLBACK_ANSWER = (
-    "I could not find enough information in the project documentation "
-    "to answer this question reliably."
+    "Je n'ai pas trouvé suffisamment d'informations dans la documentation "
+    "du projet pour répondre à cette question de manière fiable."
 )
 
 # T201 — centralized keyword groups for guardrail and ambiguity detection.
@@ -641,19 +641,19 @@ class ChatbotOrchestrator:
 
     def _format_price_change_requests(self, items: list[dict[str, Any]]) -> str:
         if not items:
-            return "No matching data was found."
+            return "Aucune donnée correspondante trouvée."
         details = [
-            f"Request #{item['id']} — Product {item['product_id']}"
+            f"Demande #{item['id']} — Produit {item['product_id']}"
             f" — {item['status'].lower()}"
-            f" — requested price: {item['requested_price_amount']}"
+            f" — prix demandé : {item['requested_price_amount']}"
             for item in items
         ]
         has_pending = any(item["status"] == "PENDING" for item in items)
         return self._response_service.format_tool_response(
-            summary=f"{len(items)} price change request(s) found.",
+            summary=f"{len(items)} demande(s) de changement de prix trouvée(s).",
             details=details,
             suggested_next_step=(
-                "Review the validation workflow for pending requests."
+                "Consultez le workflow de validation pour les demandes en attente."
                 if has_pending
                 else None
             ),
@@ -661,7 +661,7 @@ class ChatbotOrchestrator:
 
     def _format_promotions(self, items: list[dict[str, Any]]) -> str:
         if not items:
-            return "No matching data was found."
+            return "Aucune donnée correspondante trouvée."
         details = []
         for item in items:
             discount_type = item.get("discount_type", "")
@@ -675,14 +675,14 @@ class ChatbotOrchestrator:
                 f" — from {item['start_date']} to {item['end_date']}"
             )
         return self._response_service.format_tool_response(
-            summary=f"{len(items)} promotion(s) found.",
+            summary=f"{len(items)} promotion(s) trouvée(s).",
             details=details,
-            suggested_next_step="Review promotions before extending them.",
+            suggested_next_step="Vérifiez les promotions avant de les prolonger.",
         )
 
     def _format_prices(self, items: list[dict[str, Any]]) -> str:
         if not items:
-            return "No matching data was found."
+            return "Aucune donnée correspondante trouvée."
         details = []
         for item in items:
             code = item.get("product_code", f"Product {item.get('product_id', '?')}")
@@ -691,10 +691,10 @@ class ChatbotOrchestrator:
             currency = item.get("currency_code", "")
             details.append(f"{code} — {name} — {amount} {currency}".strip(" —"))
         return self._response_service.format_tool_response(
-            summary=f"{len(items)} price(s) found.",
+            summary=f"{len(items)} prix trouvé(s).",
             details=details,
             suggested_next_step=(
-                "Compare with country reference prices to identify potential mismatches."
+                "Comparez avec les prix de référence pays pour identifier d'éventuels écarts."
             ),
         )
 
@@ -724,33 +724,33 @@ class ChatbotOrchestrator:
 
     def _format_countries(self, items: list[dict[str, Any]]) -> str:
         if not items:
-            return "No matching reference data was found."
+            return "Aucune donnée de référence trouvée."
         return self._response_service.format_tool_response(
-            summary=f"{len(items)} country/countries available.",
+            summary=f"{len(items)} pays disponible(s).",
             details=[c["name"] for c in items],
         )
 
     def _format_stores(self, items: list[dict[str, Any]]) -> str:
         if not items:
-            return "No matching reference data was found."
+            return "Aucune donnée de référence trouvée."
         return self._response_service.format_tool_response(
-            summary=f"{len(items)} store(s) available.",
+            summary=f"{len(items)} magasin(s) disponible(s).",
             details=[s["name"] for s in items],
         )
 
     def _format_product_families(self, items: list[dict[str, Any]]) -> str:
         if not items:
-            return "No matching reference data was found."
+            return "Aucune donnée de référence trouvée."
         return self._response_service.format_tool_response(
-            summary=f"{len(items)} product family/families available.",
+            summary=f"{len(items)} famille(s) de produits disponible(s).",
             details=[f["name"] for f in items],
         )
 
     def _format_products(self, items: list[dict[str, Any]]) -> str:
         if not items:
-            return "No matching reference data was found."
+            return "Aucune donnée de référence trouvée."
         return self._response_service.format_tool_response(
-            summary=f"{len(items)} product(s) found.",
+            summary=f"{len(items)} produit(s) trouvé(s).",
             details=[f"{p['code']} — {p['name']}" for p in items],
         )
 

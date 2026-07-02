@@ -21,9 +21,9 @@ class KPIExplanationService:
         if not kpi_context["found"]:
             return {
                 "answer": (
-                    "I could not find a documented KPI matching this question. "
-                    "I can explain revenue, margin, volume, average order value, "
-                    "promotion performance, and uplift."
+                    "Je n'ai pas trouvé de KPI documenté correspondant à cette question. "
+                    "Je peux expliquer le chiffre d'affaires, la marge, le volume, le panier moyen, "
+                    "la performance promotionnelle et l'uplift."
                 ),
                 "source": "kpi_explanation_tool",
                 "kpis_used": [],

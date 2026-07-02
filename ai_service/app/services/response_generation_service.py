@@ -19,10 +19,10 @@ class ResponseGenerationService:
         details: list[str],
         suggested_next_step: str | None = None,
     ) -> str:
-        lines = ["Summary:", summary, "", "Details:"]
+        lines = ["Résumé :", summary, "", "Détails :"]
         lines += [f"- {d}" for d in details]
         if suggested_next_step:
-            lines += ["", "Suggested next step:", suggested_next_step]
+            lines += ["", "Prochaine étape suggérée :", suggested_next_step]
         return "\n".join(lines)
 
     def format_guardrail_response(self) -> str:

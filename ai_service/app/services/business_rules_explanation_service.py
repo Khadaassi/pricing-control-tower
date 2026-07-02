@@ -21,9 +21,9 @@ class BusinessRulesExplanationService:
         if not rules_context["found"]:
             return {
                 "answer": (
-                    "I could not find a documented business rule matching this question. "
-                    "I can answer questions about pricing rules, promotions, price change "
-                    "workflow, audit trail, RBAC, or chatbot limitations."
+                    "Je n'ai pas trouvé de règle métier documentée correspondant à cette question. "
+                    "Je peux répondre aux questions sur les règles tarifaires, les promotions, "
+                    "le workflow de changement de prix, la traçabilité, le RBAC ou les limitations du chatbot."
                 ),
                 "source": "business_rules_tool",
                 "rules_used": [],
