@@ -339,3 +339,47 @@ class TestStyleGuidelines:
 
         assert "Do not invent" in prompt
         assert "business tone" in prompt
+
+
+# ---------------------------------------------------------------------------
+# No-sources instruction (prevents double sources block on the frontend)
+# ---------------------------------------------------------------------------
+
+
+class TestNoSourcesInstruction:
+    def test_prompt_forbids_source_section_in_answer(
+        self, builder: RAGPromptBuilder
+    ) -> None:
+        prompt = builder.build("Any question?", [CHUNK_RBAC])
+
+        assert "Do not include any source section" in prompt
+
+    def test_prompt_explains_sources_are_appended_automatically(
+        self, builder: RAGPromptBuilder
+    ) -> None:
+        prompt = builder.build("Any question?", [CHUNK_RBAC])
+
+        assert "The application will append documentary sources automatically" in prompt
+
+    def test_prompt_instructs_answer_to_stop_after_suggested_next_step(
+        self, builder: RAGPromptBuilder
+    ) -> None:
+        prompt = builder.build("Any question?", [CHUNK_RBAC])
+
+        assert "Your answer must stop after the suggested next step" in prompt
+
+    def test_prompt_forbids_documentary_sources_label(
+        self, builder: RAGPromptBuilder
+    ) -> None:
+        prompt = builder.build("Any question?", [CHUNK_RBAC])
+
+        assert "Documentary sources" in prompt or "Do not write" in prompt
+
+    def test_answer_format_does_not_contain_sources_step(
+        self, builder: RAGPromptBuilder
+    ) -> None:
+        prompt = builder.build("Any question?", [CHUNK_RBAC])
+
+        sources_keywords = ["4. Sources", "4. References", "4. Bibliography"]
+        for keyword in sources_keywords:
+            assert keyword not in prompt

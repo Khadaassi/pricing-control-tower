@@ -1,7 +1,10 @@
 from app.core.chatbot_messages import (
     CHATBOT_AMBIGUOUS_QUESTION_MESSAGE,
+    CHATBOT_AMBIGUOUS_QUESTION_MESSAGE_FR,
     CHATBOT_GUARDRAIL_ACTION_MESSAGE,
+    CHATBOT_GUARDRAIL_ACTION_MESSAGE_FR,
     CHATBOT_OUT_OF_SCOPE_MESSAGE,
+    CHATBOT_OUT_OF_SCOPE_MESSAGE_FR,
 )
 
 
@@ -19,17 +22,19 @@ class ResponseGenerationService:
         details: list[str],
         suggested_next_step: str | None = None,
     ) -> str:
-        lines = ["Résumé :", summary, "", "Détails :"]
+        lines = ["Summary:", summary, "", "Details:"]
         lines += [f"- {d}" for d in details]
         if suggested_next_step:
-            lines += ["", "Prochaine étape suggérée :", suggested_next_step]
+            lines += ["", "Suggested next step:", suggested_next_step]
         return "\n".join(lines)
 
-    def format_guardrail_response(self) -> str:
-        return CHATBOT_GUARDRAIL_ACTION_MESSAGE
+    def format_guardrail_response(self, lang: str = "en") -> str:
+        return CHATBOT_GUARDRAIL_ACTION_MESSAGE_FR if lang == "fr" else CHATBOT_GUARDRAIL_ACTION_MESSAGE
 
-    def format_clarification_response(self, message: str | None = None) -> str:
-        return message if message is not None else CHATBOT_AMBIGUOUS_QUESTION_MESSAGE
+    def format_clarification_response(self, message: str | None = None, lang: str = "en") -> str:
+        if message is not None:
+            return message
+        return CHATBOT_AMBIGUOUS_QUESTION_MESSAGE_FR if lang == "fr" else CHATBOT_AMBIGUOUS_QUESTION_MESSAGE
 
-    def format_fallback_response(self) -> str:
-        return CHATBOT_OUT_OF_SCOPE_MESSAGE
+    def format_fallback_response(self, lang: str = "en") -> str:
+        return CHATBOT_OUT_OF_SCOPE_MESSAGE_FR if lang == "fr" else CHATBOT_OUT_OF_SCOPE_MESSAGE

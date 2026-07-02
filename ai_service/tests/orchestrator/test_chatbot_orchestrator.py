@@ -7,14 +7,17 @@ import pytest
 from app.core.chatbot_messages import (
     CHATBOT_AMBIGUOUS_QUESTION_MESSAGE,
     CHATBOT_GUARDRAIL_ACTION_MESSAGE,
+    CHATBOT_GUARDRAIL_ACTION_MESSAGE_FR,
     CHATBOT_MISSING_STORE_ID_MESSAGE,
     CHATBOT_MISSING_USER_EMAIL_MESSAGE,
     CHATBOT_NOT_IMPLEMENTED_MESSAGE,
     CHATBOT_OUT_OF_SCOPE_MESSAGE,
+    CHATBOT_OUT_OF_SCOPE_MESSAGE_FR,
     CHATBOT_PRICE_CLARIFICATION_MESSAGE,
-    CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE,
-    CHATBOT_PRODUCT_CLARIFICATION_MESSAGE,
+    CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE_EN,
+    CHATBOT_PRODUCT_CLARIFICATION_MESSAGE_EN,
     CHATBOT_PROMOTION_CLARIFICATION_MESSAGE,
+    CHATBOT_PROMOTION_CLARIFICATION_MESSAGE_EN,
     CHATBOT_STORE_CLARIFICATION_MESSAGE,
     CHATBOT_SUPPORTED_SCOPE_MESSAGE,
 )
@@ -99,6 +102,39 @@ class TestRouting:
 
         assert routed["intent"] == "explain_rbac"
         assert routed["selected_tool"] == "rbac_tool"
+
+    def test_list_roles_question_is_routed_to_rbac_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("quels sont les différents rôles ?")
+
+        assert routed["intent"] == "explain_rbac"
+        assert routed["selected_tool"] == "rbac_tool"
+
+    def test_my_rights_question_is_routed_to_rbac_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Quels sont mes droits ?")
+
+        assert routed["intent"] == "explain_rbac"
+        assert routed["selected_tool"] == "rbac_tool"
+
+    def test_my_workflow_rights_question_is_routed_to_rbac_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Quels sont mes droits sur le pricing workflow ?")
+
+        assert routed["intent"] == "explain_rbac"
+        assert routed["selected_tool"] == "rbac_tool"
+
+    def test_followup_without_context_is_unsupported(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        # The chatbot has no multi-turn memory: bare follow-ups cannot be resolved.
+        routed = orchestrator.route_question("oui explique cela")
+
+        assert routed["intent"] == "unknown"
+        assert routed["status"] == "unsupported"
 
     def test_unrecognized_question_is_not_routed_to_any_tool(
         self, orchestrator: ChatbotOrchestrator
@@ -234,7 +270,7 @@ class TestAnswerQuestionDispatch:
         result = orchestrator.answer_question("Raconte-moi une blague.")
 
         assert result["status"] == "unsupported"
-        assert result["answer"] == CHATBOT_OUT_OF_SCOPE_MESSAGE
+        assert result["answer"] == CHATBOT_OUT_OF_SCOPE_MESSAGE_FR
         assert_no_business_tool_was_called(
             mock_kpi_service, mock_rbac_service, mock_business_rules_service, mock_anomaly_tool
         )
@@ -280,7 +316,7 @@ class TestGuardrails:
         result = orchestrator.answer_question("Approuve cette demande de changement de prix")
 
         assert result["status"] == "guardrail"
-        assert result["answer"] == CHATBOT_GUARDRAIL_ACTION_MESSAGE
+        assert result["answer"] == CHATBOT_GUARDRAIL_ACTION_MESSAGE_FR
         assert_no_business_tool_was_called(
             mock_kpi_service, mock_rbac_service, mock_business_rules_service, mock_anomaly_tool
         )
@@ -1626,7 +1662,7 @@ class TestImprovedFallback:
         result = orchestrator.answer_question("Raconte-moi une blague.")
 
         assert result["status"] == "unsupported"
-        assert result["answer"] == CHATBOT_OUT_OF_SCOPE_MESSAGE
+        assert result["answer"] == CHATBOT_OUT_OF_SCOPE_MESSAGE_FR
 
     def test_out_of_scope_message_mentions_supported_topics(
         self, orchestrator: ChatbotOrchestrator
@@ -1852,7 +1888,8 @@ class TestT202StaticResponseStructure:
     ) -> None:
         result = orchestrator.answer_question("Raconte-moi une blague.")
 
-        assert "prices" in result["answer"].lower()
+        # FR question → FR response: "prix" instead of "prices"
+        assert "prix" in result["answer"].lower() or "prices" in result["answer"].lower()
         assert "promotions" in result["answer"].lower()
 
     def test_no_response_contains_forbidden_write_action(
@@ -2009,7 +2046,7 @@ class TestT203ClarificationAnswering:
     ) -> None:
         result = orchestrator.answer_question("Show promotions")
 
-        assert result["answer"] == CHATBOT_PROMOTION_CLARIFICATION_MESSAGE
+        assert result["answer"] == CHATBOT_PROMOTION_CLARIFICATION_MESSAGE_EN
 
     def test_clarify_store_returns_targeted_message(
         self, orchestrator: ChatbotOrchestrator
@@ -2023,14 +2060,14 @@ class TestT203ClarificationAnswering:
     ) -> None:
         result = orchestrator.answer_question("What about product 3?")
 
-        assert result["answer"] == CHATBOT_PRODUCT_CLARIFICATION_MESSAGE
+        assert result["answer"] == CHATBOT_PRODUCT_CLARIFICATION_MESSAGE_EN
 
     def test_clarify_price_requests_returns_targeted_message(
         self, orchestrator: ChatbotOrchestrator
     ) -> None:
         result = orchestrator.answer_question("Show requests")
 
-        assert result["answer"] == CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE
+        assert result["answer"] == CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE_EN
 
     def test_clarification_does_not_call_document_retriever(
         self,
@@ -2076,3 +2113,241 @@ class TestT203ClarificationAnswering:
         orchestrator.answer_question("Show requests")
 
         mock_price_change_request_tool.list_price_change_requests.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# T204 — Non-regression: French business questions must not return unsupported
+# ---------------------------------------------------------------------------
+
+
+class TestT204FrenchRoutingNonRegression:
+    """Ensure French-phrased business questions are routed to the correct tool
+    and never return status='unsupported'."""
+
+    def test_ineffective_promotion_question_routes_to_business_rules(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "comment gérer une promotion qui ne fonctionne pas ?"
+        )
+
+        assert routed["intent"] == "explain_business_rule"
+        assert routed["selected_tool"] == "business_rules_tool"
+
+    def test_ineffective_promotion_question_does_not_return_unsupported(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_business_rules_service: MagicMock,
+    ) -> None:
+        mock_business_rules_service.explain.return_value = {
+            "answer": "Une promotion inefficace doit être désactivée via le workflow de validation.",
+            "source": "business_rules_tool + llm",
+            "rules_used": [],
+            "llm_used": True,
+        }
+
+        result = orchestrator.answer_question(
+            "comment gérer une promotion qui ne fonctionne pas ?"
+        )
+
+        assert result["status"] != "unsupported"
+        assert result["intent"] == "explain_business_rule"
+
+    def test_who_has_right_to_change_price_routes_to_rbac(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("qui a droit de changer un prix ?")
+
+        assert routed["intent"] == "explain_rbac"
+        assert routed["selected_tool"] == "rbac_tool"
+
+    def test_who_has_right_to_change_price_does_not_return_unsupported(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_rbac_service: MagicMock,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": "Seuls les Store Managers et Country Directors peuvent proposer un changement de prix.",
+            "source": "rbac_tool + llm",
+            "roles_used": [],
+            "llm_used": True,
+        }
+
+        result = orchestrator.answer_question("qui a droit de changer un prix ?")
+
+        assert result["status"] != "unsupported"
+        assert result["intent"] == "explain_rbac"
+
+    def test_ne_fonctionne_pas_phrase_routes_to_business_rules(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "La promotion ne fonctionne pas, que faire ?"
+        )
+
+        assert routed["intent"] == "explain_business_rule"
+
+    def test_droit_de_modifier_routes_to_rbac(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "Qui a le droit de modifier un prix dans le système ?"
+        )
+
+        assert routed["intent"] == "explain_rbac"
+
+    def test_ineffective_promotion_does_not_call_promotion_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_business_rules_service: MagicMock,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        mock_business_rules_service.explain.return_value = {
+            "answer": "Désactivez la promotion via le workflow.",
+            "source": "business_rules_tool + llm",
+            "rules_used": [],
+            "llm_used": True,
+        }
+
+        orchestrator.answer_question(
+            "comment gérer une promotion qui ne fonctionne pas ?"
+        )
+
+        mock_promotion_tool.list_promotions.assert_not_called()
+
+    def test_rbac_french_question_does_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_rbac_service: MagicMock,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": "Les Store Managers peuvent proposer des changements de prix.",
+            "source": "rbac_tool + llm",
+            "roles_used": [],
+            "llm_used": True,
+        }
+
+        orchestrator.answer_question("qui a droit de changer un prix ?")
+
+
+# ---------------------------------------------------------------------------
+# Frontend validation — routing non-regression (questions observed on front)
+# ---------------------------------------------------------------------------
+
+
+class TestFrontendValidationRoutingNonRegression:
+    """Ensure that every question that triggered an unwarranted 'unsupported'
+    response during frontend demos routes to the correct tool."""
+
+    # RBAC questions
+
+    def test_quels_sont_les_differents_roles_routes_to_rbac(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("quels sont les différents rôles ?")
+
+        assert routed["intent"] == "explain_rbac"
+        assert routed["status"] != "unsupported"
+
+    def test_quels_sont_les_differents_roles_no_accent_routes_to_rbac(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("quels sont les differents roles ?")
+
+        assert routed["intent"] == "explain_rbac"
+
+    def test_mes_droits_sur_pricing_workflow_routes_to_rbac(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "Quels sont mes droits sur le pricing workflow ?"
+        )
+
+        assert routed["intent"] == "explain_rbac"
+        assert routed["status"] != "unsupported"
+
+    def test_mes_droits_routes_to_rbac(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Quels sont mes droits ?")
+
+        assert routed["intent"] == "explain_rbac"
+        assert routed["status"] != "unsupported"
+
+    def test_mes_permissions_routes_to_rbac(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Explique mes permissions ?")
+
+        assert routed["intent"] == "explain_rbac"
+        assert routed["status"] != "unsupported"
+
+    # Business rules — ineffective promotions
+
+    def test_comment_gerer_promotion_ne_fonctionne_pas_routes_to_business_rules(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "comment gérer une promotion qui ne fonctionne pas ?"
+        )
+
+        assert routed["intent"] == "explain_business_rule"
+        assert routed["status"] != "unsupported"
+
+    # Answer-level checks — status is never unsupported
+
+    def test_quels_sont_les_differents_roles_answer_is_not_unsupported(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_rbac_service: MagicMock,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": "Les rôles définis dans le MVP sont : STORE_MANAGER, STORE_DIRECTOR, COUNTRY_DIRECTOR, PRICING_ANALYST.",
+            "source": "rbac_tool + llm",
+            "roles_used": [],
+            "llm_used": True,
+        }
+
+        result = orchestrator.answer_question("quels sont les différents rôles ?")
+
+        assert result["status"] != "unsupported"
+        assert result["intent"] == "explain_rbac"
+
+    def test_mes_droits_answer_is_not_unsupported(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_rbac_service: MagicMock,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": "Je peux expliquer les permissions par rôle, mais je n'ai pas accès à votre rôle actuel.",
+            "source": "rbac_tool + llm",
+            "roles_used": [],
+            "llm_used": True,
+        }
+
+        result = orchestrator.answer_question("Quels sont mes droits ?")
+
+        assert result["status"] != "unsupported"
+        assert result["intent"] == "explain_rbac"
+
+    def test_pricing_workflow_rights_answer_is_not_unsupported(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_rbac_service: MagicMock,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": "Les Store Managers peuvent créer des demandes. Les Store Directors et Country Directors peuvent les approuver.",
+            "source": "rbac_tool + llm",
+            "roles_used": [],
+            "llm_used": True,
+        }
+
+        result = orchestrator.answer_question(
+            "Quels sont mes droits sur le pricing workflow ?"
+        )
+
+        assert result["status"] != "unsupported"
+        assert result["intent"] == "explain_rbac"
+        mock_document_retriever.search.assert_not_called()

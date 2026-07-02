@@ -353,7 +353,116 @@ These features may be considered in a future version if the business case requir
 
 ---
 
-## 10. Definition of Done
+## 10. Role summaries for the chatbot
+
+These summaries are provided so that the AI chatbot can answer questions about roles
+and permissions without requiring backend access.
+
+### Store Manager (STORE_MANAGER)
+
+A Store Manager is limited to one assigned store.
+
+Main permissions:
+- View dashboard data for their store.
+- View products and prices within their scope.
+- View promotions linked to their store.
+- Create and stop store-level promotions.
+- Create price change requests when authorized.
+- View price change requests and price history within their store scope.
+- View anomalies within their store scope.
+
+Limitations:
+- Cannot access another store.
+- Cannot approve or reject price change requests.
+- Cannot make country-level pricing decisions.
+- Cannot bypass approval workflows.
+
+### Store Director (STORE_DIRECTOR)
+
+A Store Director supervises one store and validates pricing decisions for it.
+
+Main permissions:
+- All Store Manager permissions.
+- Approve and reject price change requests within their store scope.
+
+Limitations:
+- Cannot access another store.
+- Cannot make country-level pricing decisions.
+- Cannot apply a price change request directly (this action is not assigned in the MVP).
+
+### Country Director (COUNTRY_DIRECTOR)
+
+A Country Director manages pricing decisions at the country level.
+
+Main permissions:
+- View dashboard, analytics, prices, promotions across their country scope.
+- Create and stop country-level promotions.
+- Approve and reject price change requests across their country scope.
+- View all anomalies and price history within their country scope.
+
+Limitations:
+- Cannot create store-level promotions directly.
+- Cannot apply a price change request directly (this action is not assigned in the MVP).
+
+### Pricing Analyst (PRICING_ANALYST)
+
+A Pricing Analyst monitors performance across the full scope.
+
+Main permissions:
+- View dashboard, analytics, prices, promotions, price change requests.
+- View all anomalies (global scope).
+- View price history.
+
+Limitations:
+- Cannot create price change requests.
+- Cannot approve or reject price change requests.
+- Cannot create or stop promotions.
+- Read-only access to pricing workflow.
+
+---
+
+## 11. Who can change a price?
+
+Direct price modification is not allowed in the Pricing Control Tower MVP.
+
+All price changes must follow the price change request workflow:
+
+1. A user with the CREATE_PRICE_REQUEST permission submits a price change request.
+2. A user with the APPROVE_PRICE_REQUEST permission reviews and approves or rejects it.
+3. The application applies the change if approved.
+
+Roles that can submit a price change request: STORE_MANAGER, STORE_DIRECTOR, COUNTRY_DIRECTOR.
+
+Roles that can approve or reject a price change request: STORE_DIRECTOR, COUNTRY_DIRECTOR.
+
+The APPLY_PRICE_REQUEST permission is intentionally not assigned to any MVP role.
+
+---
+
+## 12. What can the chatbot do about RBAC?
+
+The chatbot can explain:
+- the list of RBAC roles defined in the MVP;
+- the permissions attached to each role;
+- the country and store scope rules;
+- who can create, approve, reject or view price change requests;
+- why a user cannot perform an action based on their role;
+- what "STORE_MANAGER", "STORE_DIRECTOR", "COUNTRY_DIRECTOR" and "PRICING_ANALYST" mean.
+
+The chatbot cannot:
+- grant or revoke permissions;
+- change or assign user roles;
+- approve price change requests;
+- bypass backend access control;
+- tell a user their exact current role (the chatbot does not know the authenticated user's role).
+
+If a user asks "what are my permissions?", the chatbot should explain that it can describe
+role-based permissions but needs to know the user's assigned role to answer precisely.
+The user should check their profile or contact an administrator for their exact role.
+
+---
+
+## 13. Definition of Done
 
 This documentation is complete when:
 

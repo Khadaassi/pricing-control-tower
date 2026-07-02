@@ -1,6 +1,8 @@
 import json
 from typing import Any
 
+from app.core.language_detector import detect_language
+from app.core.llm_response_cleaner import strip_leading_greeting
 from app.llm.base import BaseLLMProvider
 from app.llm.factory import get_llm_provider
 from app.tools.kpi_tool import KPITool
@@ -19,12 +21,18 @@ class KPIExplanationService:
         kpi_context = self.kpi_tool.search_kpis(question)
 
         if not kpi_context["found"]:
+            lang = detect_language(question)
+            not_found = (
+                "Je n'ai pas trouvé de KPI documenté correspondant à cette question. "
+                "Je peux expliquer le chiffre d'affaires, la marge, le volume, le panier moyen, "
+                "la performance promotionnelle et l'uplift."
+            ) if lang == "fr" else (
+                "No documented KPI was found matching this question. "
+                "I can explain revenue, margin, volume, average basket, "
+                "promotional performance and uplift."
+            )
             return {
-                "answer": (
-                    "Je n'ai pas trouvé de KPI documenté correspondant à cette question. "
-                    "Je peux expliquer le chiffre d'affaires, la marge, le volume, le panier moyen, "
-                    "la performance promotionnelle et l'uplift."
-                ),
+                "answer": not_found,
                 "source": "kpi_explanation_tool",
                 "kpis_used": [],
                 "llm_used": False,
@@ -35,7 +43,7 @@ class KPIExplanationService:
             kpi_context=kpi_context,
         )
 
-        answer = self.llm_provider.generate_response(prompt)
+        answer = strip_leading_greeting(self.llm_provider.generate_response(prompt))
 
         return {
             "answer": answer,
@@ -75,9 +83,9 @@ Documented KPI context:
 {json.dumps(kpi_context, indent=2, ensure_ascii=False)}
 
 Answer requirements:
-- Always answer in French.
-- Answer in clear business language.
-- Be concise.
+- Answer in the same language as the user's question.
+- Do not start with a greeting. Answer directly.
+- Use a concise professional business tone.
 - Explain what the KPI means.
 - Explain how it is useful for pricing decisions.
 - Mention the formula if it helps the user.

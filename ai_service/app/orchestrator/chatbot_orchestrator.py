@@ -1,18 +1,25 @@
 import re
 from typing import Any
 
+from app.core.llm_response_cleaner import strip_leading_greeting, strip_llm_sources_section
 from app.core.chatbot_messages import (
     CHATBOT_MISSING_STORE_ID_MESSAGE,
     CHATBOT_MISSING_USER_EMAIL_MESSAGE,
     CHATBOT_NOT_IMPLEMENTED_MESSAGE,
     CHATBOT_PRICE_CLARIFICATION_MESSAGE,
+    CHATBOT_PRICE_CLARIFICATION_MESSAGE_FR,
     CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE,
+    CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE_EN,
     CHATBOT_PRODUCT_CLARIFICATION_MESSAGE,
+    CHATBOT_PRODUCT_CLARIFICATION_MESSAGE_EN,
     CHATBOT_PROMOTION_CLARIFICATION_MESSAGE,
+    CHATBOT_PROMOTION_CLARIFICATION_MESSAGE_EN,
     CHATBOT_STORE_CLARIFICATION_MESSAGE,
+    CHATBOT_STORE_CLARIFICATION_MESSAGE_FR,
     CHATBOT_TECHNICAL_ERROR_MESSAGE,
     CHATBOT_UNSUPPORTED_USE_CASE_MESSAGE,
 )
+from app.core.language_detector import detect_language
 from app.services.response_generation_service import ResponseGenerationService
 from app.core.config import settings
 from app.core.logging_config import get_logger, log_event
@@ -100,14 +107,24 @@ _CLARIFY_PROMOTION_PHRASES = [
     "tell me about promotion",
 ]
 
-# Mapping from clarification intent to the targeted message to return.
-_CLARIFICATION_MESSAGES: dict[str, str | None] = {
+# Per-language clarification message maps.  Language is detected from the
+# question at answer time; the right dict is selected before dispatch.
+_CLARIFICATION_MESSAGES_EN: dict[str, str | None] = {
     "clarify_prices": CHATBOT_PRICE_CLARIFICATION_MESSAGE,
-    "clarify_promotions": CHATBOT_PROMOTION_CLARIFICATION_MESSAGE,
+    "clarify_promotions": CHATBOT_PROMOTION_CLARIFICATION_MESSAGE_EN,
     "clarify_store": CHATBOT_STORE_CLARIFICATION_MESSAGE,
+    "clarify_product": CHATBOT_PRODUCT_CLARIFICATION_MESSAGE_EN,
+    "clarify_price_requests": CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE_EN,
+    "ambiguous_question": None,
+}
+
+_CLARIFICATION_MESSAGES_FR: dict[str, str | None] = {
+    "clarify_prices": CHATBOT_PRICE_CLARIFICATION_MESSAGE_FR,
+    "clarify_promotions": CHATBOT_PROMOTION_CLARIFICATION_MESSAGE,
+    "clarify_store": CHATBOT_STORE_CLARIFICATION_MESSAGE_FR,
     "clarify_product": CHATBOT_PRODUCT_CLARIFICATION_MESSAGE,
     "clarify_price_requests": CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE,
-    "ambiguous_question": None,  # falls back to CHATBOT_AMBIGUOUS_QUESTION_MESSAGE
+    "ambiguous_question": None,
 }
 
 # Kept as empty fallback list; add phrases here for any future generic ambiguity.
@@ -172,6 +189,7 @@ class ChatbotOrchestrator:
         user_email: str | None = None,
         store_id: int | None = None,
     ) -> dict[str, Any]:
+        lang = detect_language(question)
         routed = self.route_question(question)
         tool_name = routed["selected_tool"] or "none"
 
@@ -188,7 +206,7 @@ class ChatbotOrchestrator:
         if routed["status"] == "unsupported":
             return {
                 **routed,
-                "answer": self._response_service.format_fallback_response(),
+                "answer": self._response_service.format_fallback_response(lang=lang),
                 "source": "orchestrator",
             }
 
@@ -198,16 +216,17 @@ class ChatbotOrchestrator:
             return {
                 **routed,
                 "status": "guardrail",
-                "answer": self._response_service.format_guardrail_response(),
+                "answer": self._response_service.format_guardrail_response(lang=lang),
                 "source": "orchestrator",
             }
 
-        if intent in _CLARIFICATION_MESSAGES:
+        clarification_messages = _CLARIFICATION_MESSAGES_FR if lang == "fr" else _CLARIFICATION_MESSAGES_EN
+        if intent in clarification_messages:
             return {
                 **routed,
                 "status": "clarification",
                 "answer": self._response_service.format_clarification_response(
-                    _CLARIFICATION_MESSAGES[intent]
+                    clarification_messages[intent], lang=lang
                 ),
                 "source": "orchestrator",
             }
@@ -367,6 +386,31 @@ class ChatbotOrchestrator:
                 "pricing analyst",
                 "another store",
                 "another country",
+                # French RBAC phrases — roles
+                "rôles rbac",
+                "roles rbac",
+                "quels sont les rôles",
+                "quels sont les roles",
+                "différents rôles",
+                "differents roles",
+                "liste des rôles",
+                "liste des roles",
+                # French RBAC phrases — personal rights/permissions
+                "mes droits",
+                "mes permissions",
+                "quels sont mes droits",
+                "quelles sont mes permissions",
+                "droits sur le pricing workflow",
+                "permissions sur le pricing workflow",
+                # French RBAC phrases — who can do what
+                "qui a droit",
+                "droit de changer",
+                "droit de modifier",
+                "droit de valider",
+                "qui peut changer",
+                "qui peut modifier",
+                "autorisé à",
+                "autorise a changer",
             ],
         ):
             return "explain_rbac"
@@ -399,6 +443,12 @@ class ChatbotOrchestrator:
                 "chatbot peut-il modifier",
                 "règle métier",
                 "traçabilité",
+                # French business rule phrases — ineffective promotions
+                "gérer une promotion",
+                "ne fonctionne pas",
+                "promotion inefficace",
+                "promotion ne marche",
+                "promotion échoue",
             ],
         ):
             return "explain_business_rule"
@@ -641,11 +691,11 @@ class ChatbotOrchestrator:
 
     def _format_price_change_requests(self, items: list[dict[str, Any]]) -> str:
         if not items:
-            return "Aucune donnée correspondante trouvée."
+            return "No matching data was found."
         details = [
-            f"Demande #{item['id']} — Produit {item['product_id']}"
+            f"Request #{item['id']} — Product {item['product_id']}"
             f" — {item['status'].lower()}"
-            f" — prix demandé : {item['requested_price_amount']}"
+            f" — requested price: {item['requested_price_amount']}"
             for item in items
         ]
         has_pending = any(item["status"] == "PENDING" for item in items)
@@ -661,7 +711,7 @@ class ChatbotOrchestrator:
 
     def _format_promotions(self, items: list[dict[str, Any]]) -> str:
         if not items:
-            return "Aucune donnée correspondante trouvée."
+            return "No matching data was found."
         details = []
         for item in items:
             discount_type = item.get("discount_type", "")
@@ -682,7 +732,7 @@ class ChatbotOrchestrator:
 
     def _format_prices(self, items: list[dict[str, Any]]) -> str:
         if not items:
-            return "Aucune donnée correspondante trouvée."
+            return "No matching data was found."
         details = []
         for item in items:
             code = item.get("product_code", f"Product {item.get('product_id', '?')}")
@@ -724,7 +774,7 @@ class ChatbotOrchestrator:
 
     def _format_countries(self, items: list[dict[str, Any]]) -> str:
         if not items:
-            return "Aucune donnée de référence trouvée."
+            return "No matching reference data was found."
         return self._response_service.format_tool_response(
             summary=f"{len(items)} pays disponible(s).",
             details=[c["name"] for c in items],
@@ -732,7 +782,7 @@ class ChatbotOrchestrator:
 
     def _format_stores(self, items: list[dict[str, Any]]) -> str:
         if not items:
-            return "Aucune donnée de référence trouvée."
+            return "No matching reference data was found."
         return self._response_service.format_tool_response(
             summary=f"{len(items)} magasin(s) disponible(s).",
             details=[s["name"] for s in items],
@@ -740,7 +790,7 @@ class ChatbotOrchestrator:
 
     def _format_product_families(self, items: list[dict[str, Any]]) -> str:
         if not items:
-            return "Aucune donnée de référence trouvée."
+            return "No matching reference data was found."
         return self._response_service.format_tool_response(
             summary=f"{len(items)} famille(s) de produits disponible(s).",
             details=[f["name"] for f in items],
@@ -748,7 +798,7 @@ class ChatbotOrchestrator:
 
     def _format_products(self, items: list[dict[str, Any]]) -> str:
         if not items:
-            return "Aucune donnée de référence trouvée."
+            return "No matching reference data was found."
         return self._response_service.format_tool_response(
             summary=f"{len(items)} produit(s) trouvé(s).",
             details=[f"{p['code']} — {p['name']}" for p in items],
@@ -779,7 +829,8 @@ class ChatbotOrchestrator:
             }
 
         prompt = self._prompt_builder.build(question, relevant_chunks)
-        llm_answer = self.llm_provider.generate_response(prompt)
+        raw_answer = self.llm_provider.generate_response(prompt)
+        llm_answer = strip_llm_sources_section(strip_leading_greeting(raw_answer))
 
         enriched = enrich_sources(relevant_chunks)
         deduplicated = deduplicate_sources(enriched)
