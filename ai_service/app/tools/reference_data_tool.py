@@ -57,6 +57,27 @@ class ReferenceDataTool:
         )
         return self._normalize(result)
 
+    def find_product_by_text(self, query: str, user_email: str | None = None) -> dict[str, Any] | None:
+        normalized = query.lower().strip()
+        for product in self.list_products(user_email=user_email):
+            if (
+                normalized in (product.get("name") or "").lower()
+                or normalized in (product.get("sku") or "").lower()
+                or normalized in (product.get("code") or "").lower()
+            ):
+                return product
+        return None
+
+    def find_store_by_text(self, query: str, user_email: str | None = None) -> dict[str, Any] | None:
+        normalized = query.lower().strip()
+        for store in self.list_stores(user_email=user_email):
+            if (
+                normalized in (store.get("name") or "").lower()
+                or normalized in (store.get("city") or "").lower()
+            ):
+                return store
+        return None
+
     def _normalize(self, result: Any) -> list[dict[str, Any]]:
         if isinstance(result, list):
             return result

@@ -653,9 +653,16 @@ class ChatbotOrchestrator:
 
         # 6. Promotions — active or scoped promotions from the backend.
         # Bare "show/list promotions" are handled later as clarify_promotions.
+        # "produits en promo" is checked here explicitly so it cannot fall through
+        # to the reference_data intent at step 8 (which matches "liste les produits").
         if self._contains_any_phrase(
             normalized_question,
             [
+                "produits en promo",
+                "produits en promotion",
+                "produits promo",
+                "products on promotion",
+                "promoted products",
                 "active promotions",
                 "list active promotions",
                 "what promotions",
@@ -682,9 +689,13 @@ class ChatbotOrchestrator:
 
         # 7. Prices — price data from the backend.
         # Bare "show/list/what prices" are handled later as clarify_prices.
+        # "quel est le prix de" covers both product names and SKUs.
         if self._contains_any_phrase(
             normalized_question,
             [
+                "quel est le prix de",
+                "price of",
+                "what is the price of",
                 "prices for product",
                 "prices for store",
                 "liste des prix",
@@ -1030,22 +1041,74 @@ class ChatbotOrchestrator:
         product_id = int(product_match.group(1)) if product_match else None
         store_id = int(store_match.group(1)) if store_match else None
 
+        if store_id is None:
+            location = self._extract_location_text(normalized)
+            if location:
+                store = self.reference_data_tool.find_store_by_text(
+                    location, user_email=user_email
+                )
+                if store:
+                    store_id = store.get("id")
+
         items = self.promotion_tool.list_promotions(
             active=active,
             product_id=product_id,
             store_id=store_id,
             user_email=user_email,
         )
-        return self._format_promotions(items, product_id=product_id, store_id=store_id, lang=lang)
+
+        products_by_id: dict[int, dict[str, Any]] = {}
+        if items:
+            all_products = self.reference_data_tool.list_products(user_email=user_email)
+            products_by_id = {p["id"]: p for p in all_products if "id" in p}
+
+        return self._format_promotions(
+            items,
+            product_id=product_id,
+            store_id=store_id,
+            lang=lang,
+            products_by_id=products_by_id,
+        )
 
     def _answer_prices_question(
         self, question: str, user_email: str | None, lang: str = "fr"
     ) -> str:
         normalized = question.lower()
+
+        # Step 1: numeric IDs from structured syntax ("produit 3", "magasin 2")
         product_match = re.search(r"(?:produit|product)\s+(\d+)", normalized)
         store_match = re.search(r"(?:magasin|store)\s+(\d+)", normalized)
         product_id = int(product_match.group(1)) if product_match else None
         store_id = int(store_match.group(1)) if store_match else None
+
+        # Step 2: SKU lookup — higher priority than name search
+        if product_id is None:
+            sku = self._extract_sku(question)
+            if sku:
+                product = self.reference_data_tool.find_product_by_text(sku, user_email=user_email)
+                if product:
+                    product_id = product.get("id")
+
+        # Step 3: free-text product name search
+        if product_id is None:
+            product_query = self._extract_product_text_query(question)
+            if product_query:
+                product = self.reference_data_tool.find_product_by_text(
+                    product_query, user_email=user_email
+                )
+                if product:
+                    product_id = product.get("id")
+
+        # Step 4: city / location lookup — uses rfind so "à boucle à Lille"
+        # yields "lille" rather than "boucle"
+        if store_id is None:
+            location = self._extract_location_text(normalized)
+            if location:
+                store = self.reference_data_tool.find_store_by_text(
+                    location, user_email=user_email
+                )
+                if store:
+                    store_id = store.get("id")
 
         items = self.price_tool.list_prices(
             product_id=product_id,
@@ -1085,6 +1148,7 @@ class ChatbotOrchestrator:
         product_id: int | None = None,
         store_id: int | None = None,
         lang: str = "fr",
+        products_by_id: dict[int, dict[str, Any]] | None = None,
     ) -> str:
         if not items:
             return "Aucune promotion trouvée."
@@ -1115,8 +1179,14 @@ class ChatbotOrchestrator:
             else:
                 discount_label = f"prix fixe {discount_value}" if lang == "fr" else f"fixed price {discount_value}"
             store_label = f" — Magasin {item['store_id']}" if item.get("store_id") else ""
+            pid = item.get("product_id")
+            product = (products_by_id or {}).get(pid) if pid is not None else None
+            if product:
+                product_label = f"{product.get('code', pid)} — {product.get('name', '')}".strip(" —")
+            else:
+                product_label = f"Produit {pid}"
             details.append(
-                f"{id_label}Produit {item['product_id']} — {discount_label}"
+                f"{id_label}{product_label} — {discount_label}"
                 f" — {item['start_date']} → {item['end_date']}{store_label}"
             )
 
@@ -1230,6 +1300,34 @@ class ChatbotOrchestrator:
             details=[f"{p['code']} — {p['name']}" for p in items],
             lang=lang,
         )
+
+    def _extract_sku(self, question: str) -> str | None:
+        match = re.search(r"\b[A-Z]{2}_[0-9]{8,}\b", question, re.IGNORECASE)
+        return match.group(0) if match else None
+
+    def _extract_product_text_query(self, question: str) -> str | None:
+        normalized = question.lower()
+        for prefix in ["quel est le prix de ", "prix de ", "what is the price of ", "price of "]:
+            idx = normalized.find(prefix)
+            if idx != -1:
+                rest = question[idx + len(prefix):]
+                return rest.strip() if rest.strip() else None
+        return None
+
+    def _extract_location_text(self, normalized: str) -> str | None:
+        # rfind picks the LAST preposition so "Ceinture cuir à boucle à Lille"
+        # yields "lille" not "boucle"
+        last_idx = -1
+        last_prefix_len = 0
+        for prefix in [" à ", " in ", " at "]:
+            idx = normalized.rfind(prefix)
+            if idx > last_idx:
+                last_idx = idx
+                last_prefix_len = len(prefix)
+        if last_idx != -1:
+            location = normalized[last_idx + last_prefix_len:].strip()
+            return location if location else None
+        return None
 
     def _answer_documentary_question(self, question: str) -> dict[str, Any]:
         chunks = self.document_retriever.search(question, top_k=settings.rag_top_k)

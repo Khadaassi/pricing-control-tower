@@ -265,6 +265,29 @@
         #sidebar-toggle.is-collapsed svg {
             transform: rotate(180deg);
         }
+
+        /* ── Chatbot floating widget ──────────────────────────── */
+        #chatbot-panel {
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            transform: scale(0.96) translateY(12px);
+            pointer-events: none;
+            transition: opacity 180ms ease, transform 180ms ease;
+        }
+
+        #chatbot-panel.is-open {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+            pointer-events: auto;
+        }
+
+        #chatbot-messages::-webkit-scrollbar { width: 4px; }
+        #chatbot-messages::-webkit-scrollbar-track { background: transparent; }
+        #chatbot-messages::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 999px;
+        }
     </style>
 
     {% block extra_head %}{% endblock %}
@@ -411,10 +434,9 @@
                 <span class="sidebar-label">Historique des prix</span>
             </a>
 
-            <a href="{% url 'core:chatbot' %}"
-               data-label="Chatbot IA"
-               class="sidebar-ai-card mt-auto flex items-center gap-3 rounded-3xl border p-4 transition-colors
-               {% if request.resolver_match.url_name == 'chatbot' %}border-violet-400/40 bg-violet-500/10{% else %}border-white/10 bg-white/[0.04] hover:border-white/20 hover:bg-white/[0.07]{% endif %}">
+            <button type="button"
+                    data-label="Chatbot IA"
+                    class="open-chatbot-widget sidebar-ai-card mt-auto flex w-full items-center gap-3 rounded-3xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-white/20 hover:bg-white/[0.07]">
                 <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-lg shadow-violet-950/30">
                     <svg class="h-5 w-5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846A4.5 4.5 0 005.096 12.813L2.25 12l2.846-.813A4.5 4.5 0 008.187 8.096L9 5.25l.813 2.846a4.5 4.5 0 003.091 3.091L15.75 12l-2.846.813a4.5 4.5 0 00-3.091 3.091z"/>
@@ -424,7 +446,7 @@
                     <p class="text-sm font-semibold text-white">Chatbot IA</p>
                     <p class="mt-0.5 text-xs text-slate-400">Support à la décision uniquement</p>
                 </div>
-            </a>
+            </button>
         </nav>
     </aside>
 
@@ -527,13 +549,13 @@
                 Historique des prix
             </a>
 
-            <a href="{% url 'core:chatbot' %}"
-               class="pct-nav-link flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold {% if request.resolver_match.url_name == 'chatbot' %}pct-nav-active{% else %}text-slate-300{% endif %}">
+            <button type="button"
+                    class="open-chatbot-widget pct-nav-link flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold text-slate-300">
                 <svg class="h-5 w-5 shrink-0" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846A4.5 4.5 0 005.096 12.813L2.25 12l2.846-.813A4.5 4.5 0 008.187 8.096L9 5.25l.813 2.846a4.5 4.5 0 003.091 3.091L15.75 12l-2.846.813a4.5 4.5 0 00-3.091 3.091z"/>
                 </svg>
                 Chatbot IA
-            </a>
+            </button>
         </nav>
     </aside>
 
@@ -739,6 +761,267 @@
             });
         }
     });
+</script>
+
+<!-- ── Chatbot Widget Panel ─────────────────────────────────────────────── -->
+<div id="chatbot-panel"
+     role="dialog"
+     aria-label="Assistant IA"
+     aria-live="polite"
+     class="fixed bottom-6 right-4 z-[110] w-[calc(100vw-2rem)] max-w-[390px] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:right-6"
+     style="position:fixed;bottom:1.5rem;right:1.5rem;z-index:110;width:min(calc(100vw - 2rem), 390px);border-radius:1rem;background:#fff;border:1px solid #e5e7eb;box-shadow:0 25px 50px rgba(0,0,0,0.15);overflow:hidden;">
+
+    <!-- Header -->
+    <div class="relative flex items-center gap-3 border-b border-gray-100 bg-white px-5 py-4">
+        <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-violet-500 via-violet-400 to-purple-300"></div>
+        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846A4.5 4.5 0 005.096 12.813L2.25 12l2.846-.813A4.5 4.5 0 008.187 8.096L9 5.25l.813 2.846a4.5 4.5 0 003.091 3.091L15.75 12l-2.846.813a4.5 4.5 0 00-3.091 3.091z"/>
+            </svg>
+        </div>
+        <div class="min-w-0 flex-1">
+            <p class="text-sm font-semibold text-gray-900">Assistant IA</p>
+            <p class="truncate text-xs text-gray-400">Support à la décision</p>
+        </div>
+        <button id="chatbot-clear-btn"
+                title="Effacer la conversation"
+                class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+            </svg>
+        </button>
+        <button id="chatbot-close-btn"
+                title="Fermer"
+                class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Messages -->
+    <div id="chatbot-messages" class="space-y-3 overflow-y-auto px-5 py-4" style="max-height: 380px; min-height: 200px;">
+        <div id="chatbot-widget-empty" class="flex min-h-[160px] items-center justify-center py-6 text-center">
+            <div>
+                <div class="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-violet-50 text-violet-400">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/>
+                    </svg>
+                </div>
+                <p class="text-xs font-semibold text-gray-600">Posez votre question</p>
+                <p class="mt-1 text-[11px] text-gray-400">KPI, rôles, anomalies, règles métier…</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Input -->
+    <form id="chatbot-widget-form" class="flex items-center gap-2 border-t border-gray-100 bg-white px-4 py-3">
+        {% csrf_token %}
+        <input type="text"
+               id="chatbot-widget-input"
+               name="message"
+               autocomplete="off"
+               placeholder="Votre question…"
+               class="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100">
+        <button type="submit"
+                id="chatbot-widget-send"
+                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/>
+            </svg>
+        </button>
+    </form>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    var CHATBOT_URL  = "{% url 'core:chatbot' %}";
+    var STORAGE_KEY  = "pct-chatbot-messages";
+
+    var panel      = document.getElementById("chatbot-panel");
+    var messagesEl = document.getElementById("chatbot-messages");
+    var emptyEl    = document.getElementById("chatbot-widget-empty");
+    var form       = document.getElementById("chatbot-widget-form");
+    var input      = document.getElementById("chatbot-widget-input");
+    var sendBtn    = document.getElementById("chatbot-widget-send");
+    var clearBtn   = document.getElementById("chatbot-clear-btn");
+    var closeBtn   = document.getElementById("chatbot-close-btn");
+
+    var isOpen   = false;
+    var messages = [];
+
+    // ── Storage ───────────────────────────────────────────────────────────
+    function saveMessages() {
+        try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages)); } catch (_) {}
+    }
+
+    function loadMessages() {
+        try { return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "[]"); } catch (_) { return []; }
+    }
+
+    // ── DOM helpers ───────────────────────────────────────────────────────
+    function escHtml(text) {
+        var d = document.createElement("div");
+        d.textContent = String(text || "");
+        return d.innerHTML.replace(/\n/g, "<br>");
+    }
+
+    function hideEmpty() { if (emptyEl) emptyEl.style.display = "none"; }
+    function showEmpty() { if (emptyEl) emptyEl.style.display = ""; }
+
+    function scrollToBottom() { if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight; }
+
+    function appendUserBubble(text) {
+        hideEmpty();
+        var el = document.createElement("div");
+        el.className = "flex justify-end";
+        el.innerHTML = '<div class="max-w-[85%] rounded-2xl bg-violet-600 px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">' +
+            '<p class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-violet-200">Vous</p>' +
+            escHtml(text) + '</div>';
+        messagesEl.appendChild(el);
+        scrollToBottom();
+    }
+
+    function appendAssistantBubble(entry) {
+        var typing = document.getElementById("chatbot-typing-indicator");
+        if (typing) typing.remove();
+        var isError = entry.status === "error";
+        var el = document.createElement("div");
+        el.className = "flex justify-start";
+        el.innerHTML = '<div class="max-w-[85%] rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm ' +
+            (isError ? "border-red-200 bg-red-50 text-red-700" : "border-gray-100 bg-gray-50 text-gray-700") + '">' +
+            '<p class="mb-1.5 text-[10px] font-semibold uppercase tracking-wide ' + (isError ? "text-red-400" : "text-gray-400") + '">Assistant</p>' +
+            '<div>' + escHtml(entry.content) + '</div></div>';
+        messagesEl.appendChild(el);
+        scrollToBottom();
+    }
+
+    function appendTypingIndicator() {
+        var el = document.createElement("div");
+        el.id = "chatbot-typing-indicator";
+        el.className = "flex justify-start";
+        el.innerHTML = '<div class="flex items-center gap-2 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 shadow-sm">' +
+            '<span class="flex items-center gap-1.5">' +
+            '<span class="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style="animation-delay:0ms"></span>' +
+            '<span class="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style="animation-delay:150ms"></span>' +
+            '<span class="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style="animation-delay:300ms"></span>' +
+            '</span><span class="text-xs text-gray-400">Analyse en cours…</span></div>';
+        messagesEl.appendChild(el);
+        scrollToBottom();
+    }
+
+    // ── Restore from sessionStorage ───────────────────────────────────────
+    function restoreMessages() {
+        messages = loadMessages();
+        if (messages.length === 0) return;
+        hideEmpty();
+        messages.forEach(function (msg) {
+            if (msg.role === "user") appendUserBubble(msg.content);
+            else appendAssistantBubble(msg);
+        });
+    }
+
+    // ── Panel toggle ──────────────────────────────────────────────────────
+    function openPanel() {
+        isOpen = true;
+        panel.classList.add("is-open");
+        setTimeout(function () { if (input) input.focus(); }, 200);
+        scrollToBottom();
+    }
+
+    function closePanel() {
+        isOpen = false;
+        panel.classList.remove("is-open");
+    }
+
+    // ── Submit ────────────────────────────────────────────────────────────
+    function getCsrf() {
+        var el = form ? form.querySelector("[name=csrfmiddlewaretoken]") : null;
+        return el ? el.value : "";
+    }
+
+    if (form) {
+        form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            var question = input.value.trim();
+            if (!question || sendBtn.disabled) return;
+
+            messages.push({ role: "user", content: question });
+            saveMessages();
+            appendUserBubble(question);
+
+            input.value = "";
+            input.disabled = true;
+            sendBtn.disabled = true;
+            appendTypingIndicator();
+
+            var body = new FormData();
+            body.append("message", question);
+            body.append("csrfmiddlewaretoken", getCsrf());
+
+            fetch(CHATBOT_URL, {
+                method: "POST",
+                headers: { "X-Requested-With": "XMLHttpRequest" },
+                body: body
+            })
+            .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+            .then(function (data) {
+                var msg = Object.assign({ role: "assistant" }, data.assistant);
+                messages.push(msg);
+                saveMessages();
+                appendAssistantBubble(data.assistant);
+            })
+            .catch(function () {
+                var err = { role: "assistant", content: "Le service IA est momentanément indisponible. Veuillez réessayer.", status: "error" };
+                messages.push(err);
+                saveMessages();
+                appendAssistantBubble(err);
+            })
+            .finally(function () {
+                input.disabled = false;
+                sendBtn.disabled = false;
+                if (input) input.focus();
+            });
+        });
+    }
+
+    // ── Clear ─────────────────────────────────────────────────────────────
+    if (clearBtn) {
+        clearBtn.addEventListener("click", function () {
+            messages = [];
+            saveMessages();
+            Array.from(messagesEl.children).forEach(function (child) {
+                if (child.id !== "chatbot-widget-empty") child.remove();
+            });
+            showEmpty();
+        });
+    }
+
+    // ── Close button & sidebar triggers ──────────────────────────────────
+    if (closeBtn) closeBtn.addEventListener("click", closePanel);
+
+    document.querySelectorAll(".open-chatbot-widget").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            if (!isOpen) openPanel();
+            var mobileSidebar = document.getElementById("mobile-sidebar");
+            var overlay = document.getElementById("sidebar-overlay");
+            if (mobileSidebar && mobileSidebar.classList.contains("is-open")) {
+                mobileSidebar.classList.remove("is-open");
+                if (overlay) overlay.classList.remove("is-open");
+                document.body.style.overflow = "";
+            }
+        });
+    });
+
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && isOpen) closePanel();
+    });
+
+    // ── Init ──────────────────────────────────────────────────────────────
+    restoreMessages();
+}());
 </script>
 
 {% block extra_scripts %}{% endblock %}

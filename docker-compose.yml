@@ -38,6 +38,10 @@ services:
       - AI_SERVICE_BASE_URL=http://ai_service:8001
     ports:
       - "8001:8001"
+    volumes:
+      - ./frontend/templates:/app/templates
+      - ./frontend/core/templates:/app/core/templates
+      - ./frontend/core/templatetags:/app/core/templatetags
     depends_on:
       - backend
 

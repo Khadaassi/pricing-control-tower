@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load number_filters %}
 {% block title %}Ventes Analytiques | Tour de Contrôle des Prix{% endblock %}
 {% block page_title %}Ventes Analytiques{% endblock %}
 {% block page_subtitle %}<p class="text-xs text-gray-400">Données enrichies depuis obt_sales — base analytique dbt</p>{% endblock %}
@@ -128,8 +129,8 @@
                             <span class="text-gray-400">—</span>
                         {% endif %}
                     </td>
-                    <td class="px-4 py-3 text-right text-gray-700">{{ row.quantity }}</td>
-                    <td class="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">{{ row.revenue }} {{ row.currency_code }}</td>
+                    <td class="px-4 py-3 text-right text-gray-700" title="{{ row.quantity }}">{{ row.quantity|compact_num }}</td>
+                    <td class="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap" title="{{ row.revenue }} {{ row.currency_code }}">{{ row.revenue|compact_num }} {{ row.currency_code }}</td>
                     <td class="px-4 py-3 text-center">
                         {% if row.is_promo %}
                             <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Promo</span>

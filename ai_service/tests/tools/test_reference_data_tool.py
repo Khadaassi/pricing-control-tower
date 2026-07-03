@@ -200,3 +200,104 @@ class TestListProducts:
         result = reference_data_tool.list_products()
 
         assert result == []
+
+
+class TestFindProductByText:
+    def test_finds_product_by_sku(
+        self, reference_data_tool: ReferenceDataTool, mock_backend_client: MagicMock
+    ) -> None:
+        mock_backend_client.get.return_value = [
+            {"id": 1, "code": "FB_14910562664828", "sku": "FB_14910562664828", "name": "Ceinture cuir à boucle"},
+            {"id": 2, "code": "FB_999", "sku": "FB_999", "name": "Autre produit"},
+        ]
+
+        result = reference_data_tool.find_product_by_text("FB_14910562664828")
+
+        assert result is not None
+        assert result["id"] == 1
+
+    def test_finds_product_by_name(
+        self, reference_data_tool: ReferenceDataTool, mock_backend_client: MagicMock
+    ) -> None:
+        mock_backend_client.get.return_value = [
+            {"id": 1, "code": "FB_14910562664828", "sku": "FB_14910562664828", "name": "Ceinture cuir à boucle"},
+            {"id": 2, "code": "FB_999", "sku": "FB_999", "name": "Veste Lestée Ajustable"},
+        ]
+
+        result = reference_data_tool.find_product_by_text("ceinture cuir à boucle")
+
+        assert result is not None
+        assert result["id"] == 1
+
+    def test_find_product_is_case_insensitive(
+        self, reference_data_tool: ReferenceDataTool, mock_backend_client: MagicMock
+    ) -> None:
+        mock_backend_client.get.return_value = [
+            {"id": 1, "code": "RUN-001", "sku": "RUN-001", "name": "Running Shoes"},
+        ]
+
+        result = reference_data_tool.find_product_by_text("RUNNING SHOES")
+
+        assert result is not None
+        assert result["id"] == 1
+
+    def test_find_product_returns_none_when_no_match(
+        self, reference_data_tool: ReferenceDataTool, mock_backend_client: MagicMock
+    ) -> None:
+        mock_backend_client.get.return_value = [
+            {"id": 1, "code": "RUN-001", "sku": "RUN-001", "name": "Running Shoes"},
+        ]
+
+        result = reference_data_tool.find_product_by_text("chaussette de sport")
+
+        assert result is None
+
+
+class TestFindStoreByText:
+    def test_finds_store_by_city(
+        self, reference_data_tool: ReferenceDataTool, mock_backend_client: MagicMock
+    ) -> None:
+        mock_backend_client.get.return_value = [
+            {"id": 1, "code": "LIL", "name": "Lille Centre", "city": "Lille"},
+            {"id": 2, "code": "PAR", "name": "Paris Opéra", "city": "Paris"},
+        ]
+
+        result = reference_data_tool.find_store_by_text("lille")
+
+        assert result is not None
+        assert result["id"] == 1
+
+    def test_finds_store_by_name(
+        self, reference_data_tool: ReferenceDataTool, mock_backend_client: MagicMock
+    ) -> None:
+        mock_backend_client.get.return_value = [
+            {"id": 1, "code": "LIL", "name": "Lille Centre", "city": "Lille"},
+        ]
+
+        result = reference_data_tool.find_store_by_text("Lille Centre")
+
+        assert result is not None
+        assert result["id"] == 1
+
+    def test_find_store_is_case_insensitive(
+        self, reference_data_tool: ReferenceDataTool, mock_backend_client: MagicMock
+    ) -> None:
+        mock_backend_client.get.return_value = [
+            {"id": 1, "code": "LIL", "name": "Lille Centre", "city": "Lille"},
+        ]
+
+        result = reference_data_tool.find_store_by_text("LILLE")
+
+        assert result is not None
+        assert result["id"] == 1
+
+    def test_find_store_returns_none_when_no_match(
+        self, reference_data_tool: ReferenceDataTool, mock_backend_client: MagicMock
+    ) -> None:
+        mock_backend_client.get.return_value = [
+            {"id": 1, "code": "LIL", "name": "Lille Centre", "city": "Lille"},
+        ]
+
+        result = reference_data_tool.find_store_by_text("bordeaux")
+
+        assert result is None

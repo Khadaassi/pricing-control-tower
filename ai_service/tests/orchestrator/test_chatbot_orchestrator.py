@@ -2432,3 +2432,237 @@ class TestPriceReviewAnomalyFiltering:
         assert "UNDERPERFORMING_PROMO" not in result["answer"]
         assert "Aucune anomalie prix prioritaire" in result["answer"]
         assert "PRICE_ABOVE_REFERENCE" in result["answer"]
+
+
+# ---------------------------------------------------------------------------
+# Text-based product / store resolution and promo routing fixes
+# ---------------------------------------------------------------------------
+
+
+class TestPriceByNameOrSKURouting:
+    """Questions naming a product by text (name or SKU) must route to price_tool."""
+
+    def test_price_of_product_by_name_routes_to_price_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("quel est le prix de Ceinture cuir à boucle")
+
+        assert routed["intent"] == "prices"
+        assert routed["selected_tool"] == "price_tool"
+
+    def test_price_of_product_by_sku_routes_to_price_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("quel est le prix de FB_14910562664828")
+
+        assert routed["intent"] == "prices"
+        assert routed["selected_tool"] == "price_tool"
+
+    def test_price_of_product_by_sku_with_city_routes_to_price_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("quel est le prix de FB_14910562664828 à Lille")
+
+        assert routed["intent"] == "prices"
+        assert routed["selected_tool"] == "price_tool"
+
+    def test_liste_les_produits_en_promo_routes_to_promotion_tool_not_reference_data(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("liste les produits en promo à lille")
+
+        assert routed["intent"] == "promotions"
+        assert routed["selected_tool"] == "promotion_tool"
+
+    def test_produits_en_promotion_routes_to_promotion_tool_not_reference_data(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("produits en promotion")
+
+        assert routed["intent"] == "promotions"
+        assert routed["selected_tool"] == "promotion_tool"
+
+
+class TestPriceByNameOrSKUResolution:
+    """When a price question names a product by text, the orchestrator must
+    resolve the product_id via ReferenceDataTool before calling PriceTool."""
+
+    def test_price_question_with_product_name_resolves_product_id(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.find_product_by_text.return_value = {
+            "id": 7, "code": "FB_14910562664828", "name": "Ceinture cuir à boucle"
+        }
+        mock_reference_data_tool.find_store_by_text.return_value = None
+        mock_price_tool.list_prices.return_value = []
+
+        orchestrator.answer_question(
+            "quel est le prix de Ceinture cuir à boucle",
+            user_email="user@example.com",
+        )
+
+        mock_reference_data_tool.find_product_by_text.assert_called_once()
+        mock_price_tool.list_prices.assert_called_once_with(
+            product_id=7, store_id=None, user_email="user@example.com"
+        )
+
+    def test_price_question_with_sku_resolves_product_id(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.find_product_by_text.return_value = {
+            "id": 7, "code": "FB_14910562664828", "sku": "FB_14910562664828",
+            "name": "Ceinture cuir à boucle"
+        }
+        mock_price_tool.list_prices.return_value = []
+
+        orchestrator.answer_question(
+            "quel est le prix de FB_14910562664828",
+            user_email="user@example.com",
+        )
+
+        mock_reference_data_tool.find_product_by_text.assert_called_once()
+        mock_price_tool.list_prices.assert_called_once_with(
+            product_id=7, store_id=None, user_email="user@example.com"
+        )
+
+    def test_price_question_with_city_resolves_store_id(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.find_product_by_text.return_value = {
+            "id": 7, "code": "FB_14910562664828", "name": "Ceinture cuir à boucle"
+        }
+        mock_reference_data_tool.find_store_by_text.return_value = {
+            "id": 3, "name": "Lille Centre", "city": "Lille"
+        }
+        mock_price_tool.list_prices.return_value = []
+
+        orchestrator.answer_question(
+            "quel est le prix de FB_14910562664828 à Lille",
+            user_email="user@example.com",
+        )
+
+        mock_reference_data_tool.find_store_by_text.assert_called_once()
+        mock_price_tool.list_prices.assert_called_once_with(
+            product_id=7, store_id=3, user_email="user@example.com"
+        )
+
+    def test_price_question_when_product_not_found_calls_price_tool_without_product_id(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.find_product_by_text.return_value = None
+        mock_price_tool.list_prices.return_value = []
+
+        orchestrator.answer_question(
+            "quel est le prix de produit inconnu",
+            user_email="user@example.com",
+        )
+
+        mock_price_tool.list_prices.assert_called_once_with(
+            product_id=None, store_id=None, user_email="user@example.com"
+        )
+
+    def test_price_question_full_format_sku_and_city_resolves_both(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        """Exact case: 'quel est le prix de FB_14910562664828 — Ceinture cuir à boucle à lille'
+        SKU is extracted first (product_id=1); city after the LAST 'à' yields store_id=1."""
+        mock_reference_data_tool.find_product_by_text.return_value = {
+            "id": 1, "code": "FB_14910562664828", "sku": "FB_14910562664828",
+            "name": "Ceinture cuir à boucle",
+        }
+        mock_reference_data_tool.find_store_by_text.return_value = {
+            "id": 1, "name": "Lille Centre", "city": "Lille",
+        }
+        mock_price_tool.list_prices.return_value = [
+            {
+                "product_id": 1,
+                "product_code": "FB_14910562664828",
+                "product_name": "Ceinture cuir à boucle",
+                "amount": "29.99",
+                "currency_code": "EUR",
+                "store_id": 1,
+            }
+        ]
+
+        result = orchestrator.answer_question(
+            "quel est le prix de FB_14910562664828 — Ceinture cuir à boucle à lille",
+            user_email="user@example.com",
+        )
+
+        mock_price_tool.list_prices.assert_called_once_with(
+            product_id=1, store_id=1, user_email="user@example.com"
+        )
+        assert result["status"] == "answered"
+        assert "produit 1" in result["answer"].lower()
+        assert "magasin 1" in result["answer"].lower()
+
+
+class TestPromoWithCityResolution:
+    """When a promotions question names a city, the orchestrator must resolve
+    the store_id via ReferenceDataTool before calling PromotionTool."""
+
+    def test_promo_question_with_city_resolves_store_id(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.find_store_by_text.return_value = {
+            "id": 3, "name": "Lille Centre", "city": "Lille"
+        }
+        mock_promotion_tool.list_promotions.return_value = []
+
+        orchestrator.answer_question(
+            "liste les produits en promo à lille",
+            user_email="user@example.com",
+        )
+
+        mock_reference_data_tool.find_store_by_text.assert_called_once()
+        mock_promotion_tool.list_promotions.assert_called_once_with(
+            active=None, product_id=None, store_id=3, user_email="user@example.com"
+        )
+
+    def test_promo_results_are_enriched_with_product_names(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.find_store_by_text.return_value = None
+        mock_promotion_tool.list_promotions.return_value = [
+            {
+                "id": 1,
+                "product_id": 7,
+                "discount_type": "PERCENTAGE",
+                "discount_value": "15.00",
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-30",
+                "store_id": 3,
+            }
+        ]
+        mock_reference_data_tool.list_products.return_value = [
+            {"id": 7, "code": "FB_14910562664828", "name": "Ceinture cuir à boucle"}
+        ]
+
+        result = orchestrator.answer_question(
+            "liste les promotions actives",
+            user_email="user@example.com",
+        )
+
+        assert "Ceinture cuir à boucle" in result["answer"]
+        assert "FB_14910562664828" in result["answer"]

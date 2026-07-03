@@ -459,14 +459,31 @@
                         document.getElementById('analytics-empty').classList.remove('hidden');
                         return;
                     }
-                    const fmt = v => v == null ? '—' : Number(v).toLocaleString('fr-FR', {maximumFractionDigits: 2});
+                    function compactNum(v) {
+                        if (v == null) return '—';
+                        const n = Number(v);
+                        if (isNaN(n)) return '—';
+                        const abs = Math.abs(n);
+                        function _fmt(val, suffix) {
+                            if (Math.abs(val) >= 10) return Math.floor(val) + suffix;
+                            const s = val.toFixed(1);
+                            return (s.endsWith('.0') ? s.slice(0, -2) : s) + suffix;
+                        }
+                        if (abs >= 1e9) return _fmt(n / 1e9, 'G');
+                        if (abs >= 1e6) return _fmt(n / 1e6, 'M');
+                        if (abs >= 1e3) return _fmt(n / 1e3, 'k');
+                        return n % 1 === 0 ? String(Math.round(n)) : n.toFixed(2);
+                    }
+                    function fmtPrice(v) {
+                        return v == null ? '—' : Number(v).toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    }
                     const kpis = [
-                        { label: 'Transactions', value: fmt(data.transaction_count) },
-                        { label: 'Unités vendues', value: fmt(data.total_quantity) },
-                        { label: 'CA total', value: fmt(data.total_revenue) + ' €' },
-                        { label: 'Prix moy. vente', value: fmt(data.avg_selling_price) + ' €' },
-                        { label: 'Ventes promo', value: fmt(data.promo_transactions) },
-                        { label: 'Part promo', value: (data.promo_share_pct ?? 0) + ' %' },
+                        { label: 'Transactions',    value: compactNum(data.transaction_count) },
+                        { label: 'Unités vendues',  value: compactNum(data.total_quantity) },
+                        { label: 'CA total',        value: compactNum(data.total_revenue) + ' €' },
+                        { label: 'Prix moy. vente', value: fmtPrice(data.avg_selling_price) + ' €' },
+                        { label: 'Ventes promo',    value: compactNum(data.promo_transactions) },
+                        { label: 'Part promo',      value: (data.promo_share_pct ?? 0) + ' %' },
                     ];
                     const grid = document.getElementById('analytics-kpis');
                     kpis.forEach(k => {
