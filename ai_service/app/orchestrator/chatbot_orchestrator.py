@@ -362,6 +362,22 @@ class ChatbotOrchestrator:
                 "source": "orchestrator",
             }
 
+        if intent == "chatbot_capabilities":
+            return {
+                **routed,
+                "status": "answered",
+                "answer": self._build_chatbot_capabilities_response(lang=lang),
+                "source": "orchestrator",
+            }
+
+        if intent == "chatbot_limits":
+            return {
+                **routed,
+                "status": "answered",
+                "answer": self._build_chatbot_limits_response(lang=lang),
+                "source": "orchestrator",
+            }
+
         clarification_messages = _CLARIFICATION_MESSAGES_FR if lang == "fr" else _CLARIFICATION_MESSAGES_EN
         if intent in clarification_messages:
             return {
@@ -806,6 +822,10 @@ class ChatbotOrchestrator:
             return "get_kpi_data"
 
         # 5. KPI explanation — definitions, formulas, and business interpretation.
+        # Note: "explique le chiffre", "explique la marge", etc. are listed here rather than
+        # in documentary_knowledge (step 9) so that apostrophe variants in user input
+        # ("chiffre d'affaires" with typographic apostrophe) are caught by the substring
+        # "explique le chiffre" before reaching the RAG path.
         if self._contains_any_phrase(
             normalized_question,
             [
@@ -834,12 +854,22 @@ class ChatbotOrchestrator:
                 "comment interpréter",
                 "qu'est-ce que le",
                 "qu est ce que le",
-                "explique le ca",
                 "definition chiffre",
                 "price gap",
                 "what does revenue",
                 "what does margin",
                 "what does volume",
+                # French KPI explanation triggers — apostrophe-agnostic substrings
+                "explique le chiffre",
+                "expliquer le chiffre",
+                "explique le ca",
+                "explique la marge",
+                "explique le volume",
+                "explique le panier",
+                "explique l'uplift",
+                "explique l uplift",
+                "explique la part",
+                "qu est-ce que le",
             ],
         ):
             return "explain_kpi"
@@ -943,6 +973,50 @@ class ChatbotOrchestrator:
         ):
             return "reference_data"
 
+        # 8.4. Chatbot capabilities — static response, no RAG needed.
+        # Placed before documentary_knowledge so capability questions never fall through to RAG.
+        if self._contains_any_phrase(
+            normalized_question,
+            [
+                "que peux-tu expliquer",
+                "que peux tu expliquer",
+                "que peux-tu faire",
+                "que peux tu faire",
+                "what can you do",
+                "what can you explain",
+                "what can the chatbot",
+                "que peut expliquer ce chatbot",
+                "que peut faire ce chatbot",
+                "que peut faire le chatbot",
+                "fonctionnalites du chatbot",
+                "capacites du chatbot",
+                "capacités du chatbot",
+                "a quoi sert ce chatbot",
+            ],
+        ):
+            return "chatbot_capabilities"
+
+        # 8.5. Chatbot limits — static response, no RAG needed.
+        # Placed before documentary_knowledge so limit questions never fall through to RAG.
+        if self._contains_any_phrase(
+            normalized_question,
+            [
+                "quelles sont tes limites",
+                "quelles sont les limites du chatbot",
+                "quelles sont les limites",
+                "limites du chatbot",
+                "tes limitations",
+                "limitations du chatbot",
+                "que ne peux tu pas faire",
+                "que ne peux-tu pas faire",
+                "what are your limits",
+                "what can you not do",
+                "what cannot you do",
+                "what are your limitations",
+            ],
+        ):
+            return "chatbot_limits"
+
         # 9. Documentary knowledge — RAG over project documentation.
         # Deliberately placed after operational intents so Tool Calling stays
         # prioritaire for data questions.
@@ -962,33 +1036,18 @@ class ChatbotOrchestrator:
                 "how is the system",
                 "how does the system",
                 # Chatbot capabilities — English
+                # Note: "what can you do/explain", "what are your limits" are intercepted
+                # by steps 8.4/8.5 before reaching here.
                 "chatbot capabilities",
                 "chatbot limitations",
                 "what can the chatbot",
                 "how is the chatbot",
                 "how does the chatbot work",
-                "what can you do",
-                "what can you explain",
-                "what are your limits",
-                # Chatbot capabilities — French (accented and unaccented variants)
-                "que peut faire ce chatbot",
-                "que peux-tu faire",
-                "que peux tu faire",
-                "que peux-tu expliquer",
-                "que peux tu expliquer",
-                "que peut expliquer ce chatbot",
-                "quelles sont tes limites",
-                "quelles sont les limites",
-                "limites du chatbot",
-                "que ne peux tu pas faire",
-                "que ne peux-tu pas faire",
-                "que peux faire ce chatbot",
-                "que peut faire le chatbot",
+                # Chatbot capabilities — French
+                # Note: direct "que peux-tu …" / "quelles sont tes limites" variants are
+                # intercepted by steps 8.4/8.5 before reaching here.
                 "qu'est-ce que le chatbot peut faire",
-                "a quoi sert ce chatbot",
-                "fonctionnalites du chatbot",
-                "capacites du chatbot",
-                "capacités du chatbot",
+                "que peux faire ce chatbot",
                 # Pricing workflow explanation
                 "how does the price change workflow",
                 "price change workflow",
@@ -1016,14 +1075,6 @@ class ChatbotOrchestrator:
                 "que faire avec une anomalie",
                 "pourquoi cette promo ne marche pas",
                 "comment interpréter un",
-                # KPI explanation guide
-                "expliquer le chiffre",
-                "explique le chiffre",
-                "explique la marge",
-                "explique le volume",
-                "explique le panier",
-                "explique l'uplift",
-                "explique la part",
                 # Promotion explanation and decision support
                 "promotion active",
                 "explique ce qu est une promotion",
@@ -1070,6 +1121,8 @@ class ChatbotOrchestrator:
             "reference_data": "reference_data_tool",
             "documentary_knowledge": "rag_retriever",
             "guardrail_action_request": None,
+            "chatbot_limits": None,
+            "chatbot_capabilities": None,
             "ambiguous_question": None,
             "clarify_prices": None,
             "clarify_promotions": None,
@@ -1482,16 +1535,48 @@ class ChatbotOrchestrator:
             name = item.get("product_name", "")
             amount = item.get("amount", "?")
             currency = item.get("currency_code", "")
+
             store = item.get("store_id")
             store_str = f" — Magasin {store}" if store else ""
-            details.append(f"{code} — {name} — {amount} {currency}{store_str}".strip(" —"))
+
+            price_scope = item.get("scope") or item.get("price_type") or item.get("price_scope", "")
+            scope_str = f" — {price_scope}" if price_scope else ""
+
+            start = item.get("start_date", "")
+            end = item.get("end_date", "")
+            period_str = f" — {start} → {end}" if start and end else ""
+
+            is_active = item.get("is_active")
+            if is_active is True:
+                active_str = " [actif]" if lang == "fr" else " [active]"
+            elif is_active is False:
+                active_str = " [inactif]" if lang == "fr" else " [inactive]"
+            else:
+                active_str = ""
+
+            details.append(
+                f"{code} — {name} — {amount} {currency}{scope_str}{store_str}{period_str}{active_str}".strip(" —")
+            )
+
+        if total > 1:
+            next_step = (
+                "Plusieurs prix existent car il peut y avoir plusieurs scopes (magasin, pays) "
+                "ou périodes différentes. Les prix actifs [actif] sont prioritaires."
+                if lang == "fr"
+                else "Multiple prices exist because there can be several scopes (store, country) "
+                "or different periods. Active prices [active] take priority."
+            )
+        else:
+            next_step = (
+                "Comparez avec les prix de référence pays pour identifier d'éventuels écarts."
+                if lang == "fr"
+                else "Compare with country reference prices to identify potential gaps."
+            )
 
         return self._response_service.format_tool_response(
             summary=f"{total} prix trouvé(s){filters_label}.{suffix}",
             details=details,
-            suggested_next_step=(
-                "Comparez avec les prix de référence pays pour identifier d'éventuels écarts."
-            ),
+            suggested_next_step=next_step,
             lang=lang,
         )
 
@@ -1750,6 +1835,76 @@ class ChatbotOrchestrator:
         ):
             return "INTER_STORE_PRICE_GAP"
         return None
+
+    def _build_chatbot_capabilities_response(self, lang: str = "fr") -> str:
+        if lang == "fr":
+            return self._response_service.format_tool_response(
+                summary="Je suis l'assistant IA du Pricing Control Tower. Voici ce que je peux expliquer :",
+                details=[
+                    "Les KPI métier : chiffre d'affaires, marge, volume, panier moyen, performance promo, uplift",
+                    "Les anomalies de prix : écarts magasin/pays, promotions inefficaces, remises inefficaces",
+                    "Les rôles et permissions RBAC du MVP (Store Manager, Country Director, Pricing Analyst…)",
+                    "Les prix actuels par produit et magasin",
+                    "Les promotions actives et leurs conditions",
+                    "Le workflow de validation des demandes de changement de prix",
+                ],
+                suggested_next_step=(
+                    'Posez une question précise, par exemple : '
+                    '"Quelle est la marge du produit 3 ?" ou "Quels sont les rôles RBAC ?"'
+                ),
+                lang=lang,
+            )
+        return self._response_service.format_tool_response(
+            summary="I am the Pricing Control Tower AI assistant. Here is what I can explain:",
+            details=[
+                "Business KPIs: revenue, margin, volume, average order value, promo performance, uplift",
+                "Price anomalies: store/country price gaps, ineffective promotions and discounts",
+                "MVP RBAC roles and permissions (Store Manager, Country Director, Pricing Analyst…)",
+                "Current prices by product and store",
+                "Active promotions and their conditions",
+                "Price change request validation workflow",
+            ],
+            suggested_next_step=(
+                'Ask a specific question, for example: '
+                '"What is the margin for product 3?" or "What are the RBAC roles?"'
+            ),
+            lang=lang,
+        )
+
+    def _build_chatbot_limits_response(self, lang: str = "fr") -> str:
+        if lang == "fr":
+            return self._response_service.format_tool_response(
+                summary="Je suis un assistant lecture seule. Voici ce que je ne peux pas faire :",
+                details=[
+                    "Modifier, créer ou supprimer un prix",
+                    "Approuver ou rejeter une demande de changement de prix",
+                    "Créer, modifier ou désactiver une promotion",
+                    "Écrire en base de données",
+                    "Contourner le RBAC — je vois uniquement ce que votre rôle autorise",
+                    "Répondre à des questions sur des données sans contexte (magasin, produit ou période)",
+                ],
+                suggested_next_step=(
+                    "Pour toute action (approbation, rejet, changement de prix), "
+                    "utilisez le workflow manuel dans l'application."
+                ),
+                lang=lang,
+            )
+        return self._response_service.format_tool_response(
+            summary="I am a read-only assistant. Here is what I cannot do:",
+            details=[
+                "Modify, create, or delete a price",
+                "Approve or reject a price change request",
+                "Create, modify, or deactivate a promotion",
+                "Write to the database",
+                "Bypass RBAC — I only see what your role allows",
+                "Answer data questions without context (store, product, or period)",
+            ],
+            suggested_next_step=(
+                "For any action (approval, rejection, price change), "
+                "use the manual workflow in the application."
+            ),
+            lang=lang,
+        )
 
     def _build_error_response(
         self,

@@ -8,6 +8,7 @@ KPI_DEFINITIONS: dict[str, dict[str, Any]] = {
             "turnover",
             "sales amount",
             "chiffre d'affaires",
+            "chiffre d affaires",
             "ca",
         ],
         "definition": (

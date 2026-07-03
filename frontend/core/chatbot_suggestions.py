@@ -30,8 +30,8 @@ CHATBOT_SUGGESTIONS_BY_PAGE: dict[str, list[str]] = {
         "Comment les anomalies sont-elles définies ?",
     ],
     "default": [
-        "Que peut faire l'assistant ?",
-        "Explique les permissions du Store Manager",
+        "Que peut faire ce chatbot ?",
+        "Quelle est la part des ventes promo ?",
         "Comment fonctionne le workflow de changement de prix ?",
     ],
 }

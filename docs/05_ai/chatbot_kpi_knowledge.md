@@ -30,6 +30,25 @@ Business interpretation: Volume reflects customer demand. Low volume with high r
 
 Decision support: Compare volume between promotion period and baseline. If volume did not increase during a promotion, the promotion likely failed to stimulate demand.
 
+## Average Order Value / Panier moyen
+
+Average order value (AOV), also called panier moyen in French, is the average revenue generated per transaction.
+
+Formula: `average_order_value = total_revenue / number_of_transactions`
+
+Business interpretation: AOV reflects how much customers spend per order on average. A high AOV can indicate effective upselling or premium product positioning. A declining AOV may indicate customers shifting toward lower-priced products or smaller order sizes.
+
+Difference with Average Selling Price: Average selling price (ASP) is calculated per unit sold (revenue / quantity), while average order value is calculated per transaction (revenue / number of sales). They differ when customers buy multiple units per transaction.
+
+Decision support: If AOV is low despite high transaction volume, investigate whether product mix or pricing can be optimised to increase revenue per order.
+
+Supported question variants:
+- "Qu'est-ce que le panier moyen ?"
+- "What is the average order value?"
+- "Comment est calculé le panier moyen ?"
+- "Quel est le panier moyen du produit 3 ?"
+- "What is the AOV?"
+
 ## Average Selling Price
 
 Average selling price (ASP) is the average price actually paid per unit, including promotions and discounts.

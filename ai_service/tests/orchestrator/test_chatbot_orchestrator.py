@@ -127,6 +127,64 @@ class TestRouting:
         assert routed["intent"] == "explain_rbac"
         assert routed["selected_tool"] == "rbac_tool"
 
+    # --- Regression tests for French KPI routing anomalies ---
+
+    def test_explique_chiffre_affaires_routes_to_kpi_explanation(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        # Anomaly 3: "Explique le chiffre d'affaires" must route to explain_kpi,
+        # not documentary_knowledge, regardless of apostrophe variant.
+        routed = orchestrator.route_question("Explique le chiffre d'affaires")
+
+        assert routed["intent"] == "explain_kpi"
+        assert routed["selected_tool"] == "kpi_explanation_tool"
+
+    def test_explique_chiffre_affaires_typographic_apostrophe_routes_to_kpi_explanation(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        # Anomaly 3 variant: typographic apostrophe must not escape explain_kpi.
+        routed = orchestrator.route_question("Explique le chiffre d’affaires")
+
+        assert routed["intent"] == "explain_kpi"
+        assert routed["selected_tool"] == "kpi_explanation_tool"
+
+    def test_quest_ce_que_le_panier_moyen_routes_to_kpi_explanation(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        # Anomaly 4: "panier moyen" must route to explain_kpi.
+        routed = orchestrator.route_question("Qu’est-ce que le panier moyen ?")
+
+        assert routed["intent"] == "explain_kpi"
+        assert routed["selected_tool"] == "kpi_explanation_tool"
+
+    def test_quelles_sont_tes_limites_routes_to_chatbot_limits(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        # Anomaly 2: limits question must return a static chatbot_limits response,
+        # never fall through to RAG.
+        routed = orchestrator.route_question("Quelles sont tes limites ?")
+
+        assert routed["intent"] == "chatbot_limits"
+        assert routed["selected_tool"] is None
+
+    def test_que_ne_peux_tu_pas_faire_routes_to_chatbot_limits(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Que ne peux-tu pas faire ?")
+
+        assert routed["intent"] == "chatbot_limits"
+        assert routed["selected_tool"] is None
+
+    def test_que_peux_tu_expliquer_routes_to_chatbot_capabilities(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        # "Que peux-tu expliquer ?" must route to the static chatbot_capabilities intent
+        # so the user always gets a clear, structured answer without relying on RAG.
+        routed = orchestrator.route_question("Que peux-tu expliquer ?")
+
+        assert routed["intent"] == "chatbot_capabilities"
+        assert routed["selected_tool"] is None
+
     def test_followup_without_context_is_unsupported(
         self, orchestrator: ChatbotOrchestrator
     ) -> None:
@@ -502,13 +560,13 @@ class TestDocumentaryKnowledgeRouting:
         assert routed["intent"] == "documentary_knowledge"
         assert routed["selected_tool"] == "rag_retriever"
 
-    def test_chatbot_capabilities_question_routes_to_documentary_knowledge(
+    def test_chatbot_capabilities_question_routes_to_chatbot_capabilities(
         self, orchestrator: ChatbotOrchestrator
     ) -> None:
         routed = orchestrator.route_question("What can the chatbot do?")
 
-        assert routed["intent"] == "documentary_knowledge"
-        assert routed["selected_tool"] == "rag_retriever"
+        assert routed["intent"] == "chatbot_capabilities"
+        assert routed["selected_tool"] is None
 
     def test_authorization_documentation_question_routes_to_documentary_knowledge(
         self, orchestrator: ChatbotOrchestrator

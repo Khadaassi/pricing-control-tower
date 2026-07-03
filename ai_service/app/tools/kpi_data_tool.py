@@ -158,12 +158,19 @@ class KPIDataTool:
         if margin is not None:
             lines.append(f"- Marge estimée : {float(margin):,.2f} €")
 
-        if target_kpi == "margin" and context.get("product_id"):
-            next_step = (
-                "Comparez cette marge avec la marge moyenne de la famille produit avant de proposer un changement de prix."
-                if lang == "fr"
-                else "Compare this margin to the product family average before proposing a price change."
-            )
+        if target_kpi == "margin":
+            if margin is not None:
+                next_step = (
+                    "Comparez cette marge avec la marge moyenne de la famille produit avant de proposer un changement de prix."
+                    if lang == "fr"
+                    else "Compare this margin to the product family average before proposing a price change."
+                )
+            else:
+                next_step = (
+                    "La marge n'est pas disponible dans les KPI retournés pour ce scope."
+                    if lang == "fr"
+                    else "Margin is not available in the KPI data returned for this scope."
+                )
         else:
             next_step = (
                 "Consultez les anomalies pour identifier les actions prioritaires."
@@ -187,7 +194,13 @@ def _build_kpi_headline(
     if target_kpi == "revenue":
         val = f"{float(total_revenue):,.2f} €"
         return f"Le chiffre d'affaires est de {val}." if lang == "fr" else f"Revenue: {val}."
-    if target_kpi == "margin" and margin is not None:
+    if target_kpi == "margin":
+        if margin is None:
+            return (
+                "La marge n'est pas disponible pour ce périmètre dans les données actuelles."
+                if lang == "fr"
+                else "Margin data is not available for this scope."
+            )
         val = f"{float(margin):,.2f} €"
         return f"La marge estimée est de {val}." if lang == "fr" else f"Estimated margin: {val}."
     if target_kpi == "volume":

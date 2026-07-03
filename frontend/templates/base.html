@@ -888,14 +888,34 @@
         var typing = document.getElementById("chatbot-typing-indicator");
         if (typing) typing.remove();
         var isError = entry.status === "error";
+        var bubbleCls = isError ? "border-red-200 bg-red-50 text-red-700" : "border-gray-100 bg-gray-50 text-gray-700";
+        var labelCls  = isError ? "text-red-400" : "text-gray-400";
+
         var el = document.createElement("div");
         el.className = "flex justify-start";
-        el.innerHTML = '<div class="max-w-[85%] rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm ' +
-            (isError ? "border-red-200 bg-red-50 text-red-700" : "border-gray-100 bg-gray-50 text-gray-700") + '">' +
-            '<p class="mb-1.5 text-[10px] font-semibold uppercase tracking-wide ' + (isError ? "text-red-400" : "text-gray-400") + '">Assistant</p>' +
-            '<div>' + escHtml(entry.content) + '</div></div>';
+        el.innerHTML = '<div class="max-w-[85%] rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm ' + bubbleCls + '">' +
+            '<p class="mb-1.5 text-[10px] font-semibold uppercase tracking-wide ' + labelCls + '">Assistant</p>' +
+            '<div class="chatbot-typewriter"></div></div>';
         messagesEl.appendChild(el);
         scrollToBottom();
+
+        var contentEl = el.querySelector(".chatbot-typewriter");
+        var fullText  = entry.content || "";
+        var words     = fullText.split(" ");
+        var idx       = 0;
+        var built     = "";
+
+        function typeNext() {
+            if (idx < words.length) {
+                built += (idx > 0 ? " " : "") + words[idx];
+                contentEl.innerHTML = built.replace(/\n/g, "<br>");
+                idx++;
+                scrollToBottom();
+                setTimeout(typeNext, 38);
+            }
+        }
+
+        typeNext();
     }
 
     function appendTypingIndicator() {

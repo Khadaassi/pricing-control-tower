@@ -54,18 +54,44 @@ Ask:
 - "Que vérifier avant de changer un prix ?"
 - "Comment analyser une promotion qui ne fonctionne pas ?"
 
-## What the chatbot cannot do
+## What the chatbot can explain
+
+The chatbot can explain the following topics:
+
+- **KPIs**: revenue (chiffre d'affaires), margin (marge), volume, average order value (panier moyen), promotional uplift, discount rate, price gap, promotion sales share (part du CA en promotion)
+- **Anomalies**: PRICE_ABOVE_REFERENCE, UNDERPERFORMING_PROMO, INEFFECTIVE_DISCOUNT, INTER_STORE_PRICE_GAP — what they mean and what to check
+- **Business rules**: pricing workflow rules, price scope, promotion scope, audit trail
+- **Pricing workflow**: how a price change request is created, submitted, reviewed, approved, and applied
+- **RBAC roles and permissions**: who can do what, what each role can see, why access differs between users
+- **Its own capabilities and limits**: what the chatbot can and cannot do
+
+Ask:
+- "Que peux-tu expliquer ?"
+- "Qu'est-ce que tu peux expliquer ?"
+- "Quels sujets peux-tu couvrir ?"
+- "What can you explain?"
+
+## What the chatbot cannot do — Limites du chatbot
 
 The chatbot is strictly read-only. It never modifies data.
 
-- Cannot apply a price change
-- Cannot approve or reject a price change request
-- Cannot create, modify, or deactivate a promotion
-- Cannot update any record in the system
-- Cannot bypass RBAC — the same access rules apply to the chatbot as to the application
-- Cannot decide for the user (it advises, the user decides)
+| Limit | Detail |
+|---|---|
+| Cannot apply a price change | Pricing actions must go through the manual workflow |
+| Cannot approve or reject a price change request | Approval is a human decision in the application |
+| Cannot create, modify, or deactivate a promotion | Promotion management is outside the chatbot scope |
+| Cannot write to the database | The chatbot is read-only: no inserts, no updates, no deletes |
+| Cannot bypass RBAC | The same access rules apply to the chatbot as to the rest of the application |
+| Cannot decide for the user | The chatbot advises; the user decides |
+| Needs context for data | For live data (KPIs, prices, anomalies), the chatbot needs at minimum a product, store, or period |
 
 If you ask the chatbot to perform an action, it will explain that it is read-only and guide you toward the correct manual workflow.
+
+Ask:
+- "Quelles sont tes limites ?"
+- "Que ne peux-tu pas faire ?"
+- "What are your limitations?"
+- "Can you approve a price change?"
 
 ## Supported languages
 
