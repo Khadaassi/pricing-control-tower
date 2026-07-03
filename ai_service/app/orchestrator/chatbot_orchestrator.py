@@ -142,6 +142,27 @@ _CLARIFICATION_MESSAGES_FR: dict[str, str | None] = {
 # Kept as empty fallback list; add phrases here for any future generic ambiguity.
 _AMBIGUOUS_PHRASES: list[str] = []
 
+# T205 — Price-review detection: questions asking which price to revisit first.
+# Used both for intent routing (already in step 3b) and for post-fetch filtering.
+_PRICE_REVIEW_PHRASES: tuple[str, ...] = (
+    "prix devrais je revoir",
+    "prix devrais-je revoir",
+    "prix a revoir",
+    "prix à revoir",
+    "prix revoir en priorite",
+    "prix revoir en priorité",
+    "quel prix revoir",
+    "quel prix devrais je revoir",
+    "quel prix devrais-je revoir",
+    "price to review",
+    "price should i review",
+)
+
+# Anomaly types that directly relate to pricing (as opposed to promotional anomalies).
+_PRICE_REVIEW_ANOMALY_TYPES: frozenset[str] = frozenset(
+    {"PRICE_ABOVE_REFERENCE", "INTER_STORE_PRICE_GAP"}
+)
+
 
 class ChatbotOrchestrator:
     def __init__(
@@ -904,14 +925,46 @@ class ChatbotOrchestrator:
             product_id=product_id,
             store_id=store_id,
         )
-        explained = self.anomaly_tool.explain_anomalies(anomalies)
-        return self._format_anomalies_list(explained, lang=lang)
 
-    def _format_anomalies_list(self, items: list[dict[str, Any]], lang: str = "fr") -> str:
+        is_price_review = self._is_price_review_question(normalized)
+        if is_price_review:
+            anomalies = [
+                a for a in anomalies
+                if (
+                    a.get("anomaly_type")
+                    or a.get("type")
+                    or a.get("anomaly", {}).get("anomaly_type")
+                ) in _PRICE_REVIEW_ANOMALY_TYPES
+            ]
+
+        explained = self.anomaly_tool.explain_anomalies(anomalies)
+        return self._format_anomalies_list(explained, lang=lang, is_price_review=is_price_review)
+
+    def _format_anomalies_list(
+        self,
+        items: list[dict[str, Any]],
+        lang: str = "fr",
+        is_price_review: bool = False,
+    ) -> str:
         if not items:
+            if is_price_review:
+                return self._response_service.format_tool_response(
+                    summary="Aucune anomalie prix prioritaire n'a été trouvée dans les résultats disponibles.",
+                    details=[
+                        "Les anomalies promotionnelles existent, mais elles ne répondent pas directement à la question sur les prix.",
+                        "Les types attendus pour cette question sont PRICE_ABOVE_REFERENCE ou INTER_STORE_PRICE_GAP.",
+                    ],
+                    suggested_next_step=(
+                        "Consultez les anomalies promotionnelles si vous souhaitez analyser les promotions inefficaces."
+                    ),
+                    lang=lang,
+                )
             return "Aucune anomalie trouvée pour votre périmètre."
+
+        total = len(items)
+        displayed = items[: self._MAX_DISPLAYED_RESULTS] if is_price_review else items
         details = []
-        for item in items:
+        for item in displayed:
             anomaly = item.get("anomaly", item)
             expl = item.get("explanation", {})
             label = expl.get("label", anomaly.get("anomaly_type", "Anomalie"))
@@ -919,6 +972,22 @@ class ChatbotOrchestrator:
             store = anomaly.get("store_id")
             store_str = f" — Magasin {store}" if store else ""
             details.append(f"{label} — Produit {product}{store_str}")
+
+        if is_price_review:
+            suffix = (
+                f" Affichage des {len(displayed)} premières."
+                if total > self._MAX_DISPLAYED_RESULTS
+                else ""
+            )
+            return self._response_service.format_tool_response(
+                summary=f"{total} anomalie(s) prix détectée(s).{suffix}",
+                details=details,
+                suggested_next_step=(
+                    "Comparer le prix magasin avec le prix pays avant de créer une demande de changement de prix."
+                ),
+                lang=lang,
+            )
+
         return self._response_service.format_tool_response(
             summary=f"{len(items)} anomalie(s) détectée(s).",
             details=details,
@@ -991,7 +1060,7 @@ class ChatbotOrchestrator:
         self, items: list[dict[str, Any]], lang: str = "fr"
     ) -> str:
         if not items:
-            return "Aucune donnée trouvée." if lang == "fr" else "No matching data was found."
+            return "Aucune donnée trouvée."
         details = [
             f"Request #{item['id']} — Product {item['product_id']}"
             f" — {item['status'].lower()}"
@@ -1018,7 +1087,7 @@ class ChatbotOrchestrator:
         lang: str = "fr",
     ) -> str:
         if not items:
-            return "Aucune promotion trouvée." if lang == "fr" else "No matching data was found."
+            return "Aucune promotion trouvée."
 
         total = len(items)
         displayed = items[: self._MAX_DISPLAYED_RESULTS]
@@ -1066,7 +1135,7 @@ class ChatbotOrchestrator:
         lang: str = "fr",
     ) -> str:
         if not items:
-            return "Aucun prix trouvé." if lang == "fr" else "No matching data was found."
+            return "Aucun prix trouvé."
 
         total = len(items)
         displayed = items[: self._MAX_DISPLAYED_RESULTS]
@@ -1128,7 +1197,7 @@ class ChatbotOrchestrator:
 
     def _format_countries(self, items: list[dict[str, Any]], lang: str = "fr") -> str:
         if not items:
-            return "Aucune donnée de référence trouvée." if lang == "fr" else "No matching reference data was found."
+            return "Aucune donnée de référence trouvée."
         return self._response_service.format_tool_response(
             summary=f"{len(items)} pays disponible(s).",
             details=[c["name"] for c in items],
@@ -1137,7 +1206,7 @@ class ChatbotOrchestrator:
 
     def _format_stores(self, items: list[dict[str, Any]], lang: str = "fr") -> str:
         if not items:
-            return "Aucune donnée de référence trouvée." if lang == "fr" else "No matching reference data was found."
+            return "Aucune donnée de référence trouvée."
         return self._response_service.format_tool_response(
             summary=f"{len(items)} magasin(s) disponible(s).",
             details=[s["name"] for s in items],
@@ -1146,7 +1215,7 @@ class ChatbotOrchestrator:
 
     def _format_product_families(self, items: list[dict[str, Any]], lang: str = "fr") -> str:
         if not items:
-            return "Aucune donnée de référence trouvée." if lang == "fr" else "No matching reference data was found."
+            return "Aucune donnée de référence trouvée."
         return self._response_service.format_tool_response(
             summary=f"{len(items)} famille(s) de produits disponible(s).",
             details=[f["name"] for f in items],
@@ -1155,7 +1224,7 @@ class ChatbotOrchestrator:
 
     def _format_products(self, items: list[dict[str, Any]], lang: str = "fr") -> str:
         if not items:
-            return "Aucune donnée de référence trouvée." if lang == "fr" else "No matching reference data was found."
+            return "Aucune donnée de référence trouvée."
         return self._response_service.format_tool_response(
             summary=f"{len(items)} produit(s) trouvé(s).",
             details=[f"{p['code']} — {p['name']}" for p in items],
@@ -1226,6 +1295,9 @@ class ChatbotOrchestrator:
 
     def _contains_any_phrase(self, text: str, keywords: list[str]) -> bool:
         return any(keyword in text for keyword in keywords)
+
+    def _is_price_review_question(self, normalized_question: str) -> bool:
+        return any(phrase in normalized_question for phrase in _PRICE_REVIEW_PHRASES)
 
     def _contains_kpi_data_intent(self, text: str) -> bool:
         data_phrases = [

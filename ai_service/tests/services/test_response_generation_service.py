@@ -20,19 +20,19 @@ def service() -> ResponseGenerationService:
 
 class TestFormatToolResponse:
     def test_output_contains_summary_label(self, service: ResponseGenerationService) -> None:
-        result = service.format_tool_response(summary="3 items found.", details=["Item A"], lang="en")
+        result = service.format_tool_response(summary="3 résultats trouvés.", details=["Item A"])
 
-        assert "Summary:" in result
+        assert "Résumé :" in result
 
     def test_output_contains_summary_text(self, service: ResponseGenerationService) -> None:
-        result = service.format_tool_response(summary="3 items found.", details=["Item A"])
+        result = service.format_tool_response(summary="3 résultats trouvés.", details=["Item A"])
 
-        assert "3 items found." in result
+        assert "3 résultats trouvés." in result
 
     def test_output_contains_details_label(self, service: ResponseGenerationService) -> None:
-        result = service.format_tool_response(summary="1 item.", details=["Item A"], lang="en")
+        result = service.format_tool_response(summary="1 item.", details=["Item A"])
 
-        assert "Details:" in result
+        assert "Détails :" in result
 
     def test_each_detail_line_has_bullet_prefix(self, service: ResponseGenerationService) -> None:
         result = service.format_tool_response(
@@ -57,12 +57,11 @@ class TestFormatToolResponse:
         result = service.format_tool_response(
             summary="1 item.",
             details=["Item A"],
-            suggested_next_step="Review before approving.",
-            lang="en",
+            suggested_next_step="Vérifiez avant de valider.",
         )
 
-        assert "Suggested next step:" in result
-        assert "Review before approving." in result
+        assert "Prochaine étape suggérée :" in result
+        assert "Vérifiez avant de valider." in result
 
     def test_suggested_next_step_absent_when_none(
         self, service: ResponseGenerationService
@@ -71,21 +70,21 @@ class TestFormatToolResponse:
             summary="1 item.", details=["Item A"], suggested_next_step=None
         )
 
-        assert "Suggested next step:" not in result
+        assert "Prochaine étape suggérée :" not in result
 
     def test_suggested_next_step_absent_by_default(
         self, service: ResponseGenerationService
     ) -> None:
         result = service.format_tool_response(summary="1 item.", details=["Item A"])
 
-        assert "Suggested next step:" not in result
+        assert "Prochaine étape suggérée :" not in result
 
     def test_summary_appears_before_details(self, service: ResponseGenerationService) -> None:
         result = service.format_tool_response(
-            summary="The summary.", details=["The detail."], lang="en"
+            summary="Le résumé.", details=["Le détail."]
         )
 
-        assert result.index("Summary:") < result.index("Details:")
+        assert result.index("Résumé :") < result.index("Détails :")
 
     def test_details_appear_before_suggested_next_step(
         self, service: ResponseGenerationService
@@ -93,11 +92,10 @@ class TestFormatToolResponse:
         result = service.format_tool_response(
             summary="S.",
             details=["D."],
-            suggested_next_step="Next step.",
-            lang="en",
+            suggested_next_step="Prochaine étape.",
         )
 
-        assert result.index("Details:") < result.index("Suggested next step:")
+        assert result.index("Détails :") < result.index("Prochaine étape suggérée :")
 
     def test_no_forbidden_action_verbs_in_next_step(
         self, service: ResponseGenerationService

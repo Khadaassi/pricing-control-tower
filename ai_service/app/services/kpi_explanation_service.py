@@ -21,18 +21,12 @@ class KPIExplanationService:
         kpi_context = self.kpi_tool.search_kpis(question)
 
         if not kpi_context["found"]:
-            lang = detect_language(question)
-            not_found = (
-                "Je n'ai pas trouvé de KPI documenté correspondant à cette question. "
-                "Je peux expliquer le chiffre d'affaires, la marge, le volume, le panier moyen, "
-                "la performance promotionnelle et l'uplift."
-            ) if lang == "fr" else (
-                "No documented KPI was found matching this question. "
-                "I can explain revenue, margin, volume, average basket, "
-                "promotional performance and uplift."
-            )
             return {
-                "answer": not_found,
+                "answer": (
+                    "Je n'ai pas trouvé de KPI documenté correspondant à cette question. "
+                    "Je peux expliquer le chiffre d'affaires, la marge, le volume, le panier moyen, "
+                    "la performance promotionnelle et l'uplift."
+                ),
                 "source": "kpi_explanation_tool",
                 "kpis_used": [],
                 "llm_used": False,

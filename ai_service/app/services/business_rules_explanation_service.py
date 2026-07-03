@@ -21,18 +21,12 @@ class BusinessRulesExplanationService:
         rules_context = self.rules_tool.search_rules(question)
 
         if not rules_context["found"]:
-            lang = detect_language(question)
-            not_found = (
-                "Je n'ai pas trouvé de règle métier documentée correspondant à cette question. "
-                "Je peux répondre aux questions sur les règles tarifaires, les promotions, "
-                "le workflow de changement de prix, la traçabilité, le RBAC ou les limitations du chatbot."
-            ) if lang == "fr" else (
-                "No documented business rule was found matching this question. "
-                "I can answer questions about pricing rules, promotions, "
-                "the price change workflow, traceability, RBAC, or chatbot limitations."
-            )
             return {
-                "answer": not_found,
+                "answer": (
+                    "Je n'ai pas trouvé de règle métier documentée correspondant à cette question. "
+                    "Je peux répondre aux questions sur les règles tarifaires, les promotions, "
+                    "le workflow de changement de prix, la traçabilité, le RBAC ou les limitations du chatbot."
+                ),
                 "source": "business_rules_tool",
                 "rules_used": [],
                 "llm_used": False,

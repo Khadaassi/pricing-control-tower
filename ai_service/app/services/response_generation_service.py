@@ -18,16 +18,10 @@ class ResponseGenerationService:
         suggested_next_step: str | None = None,
         lang: str = "fr",
     ) -> str:
-        if lang == "fr":
-            lines = ["Résumé :", summary, "", "Détails :"]
-            lines += [f"- {d}" for d in details]
-            if suggested_next_step:
-                lines += ["", "Prochaine étape suggérée :", suggested_next_step]
-        else:
-            lines = ["Summary:", summary, "", "Details:"]
-            lines += [f"- {d}" for d in details]
-            if suggested_next_step:
-                lines += ["", "Suggested next step:", suggested_next_step]
+        lines = ["Résumé :", summary, "", "Détails :"]
+        lines += [f"- {d}" for d in details]
+        if suggested_next_step:
+            lines += ["", "Prochaine étape suggérée :", suggested_next_step]
         return "\n".join(lines)
 
     def format_guardrail_response(self, lang: str = "en") -> str:

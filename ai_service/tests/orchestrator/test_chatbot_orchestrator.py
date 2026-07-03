@@ -1078,7 +1078,7 @@ class TestReferenceDataAnswering:
         result = orchestrator.answer_question("List countries")
 
         assert result["status"] == "answered"
-        assert result["answer"] == "No matching reference data was found."
+        assert result["answer"] == "Aucune donnée de référence trouvée."
 
     def test_reference_data_tool_exception_returns_error_response(
         self,
@@ -1219,7 +1219,7 @@ class TestPriceChangeRequestsAnswering:
 
         result = orchestrator.answer_question("List pending price change requests")
 
-        assert result["answer"] == "No matching data was found."
+        assert result["answer"] == "Aucune donnée trouvée."
         assert result["status"] == "answered"
 
     def test_exception_returns_error_response(
@@ -1319,7 +1319,7 @@ class TestPromotionsAnswering:
 
         result = orchestrator.answer_question("List active promotions")
 
-        assert result["answer"] == "No matching data was found."
+        assert result["answer"] == "Aucune promotion trouvée."
 
     def test_exception_returns_error_response(
         self,
@@ -1393,7 +1393,7 @@ class TestPricesAnswering:
 
         result = orchestrator.answer_question("List prices for product 3")
 
-        assert result["answer"] == "No matching data was found."
+        assert result["answer"] == "Aucun prix trouvé."
 
     def test_exception_returns_error_response(
         self,
@@ -1737,8 +1737,8 @@ class TestT202ToolResponseStructure:
 
         result = orchestrator.answer_question("List pending price change requests")
 
-        assert "Summary:" in result["answer"]
-        assert "Details:" in result["answer"]
+        assert "Résumé :" in result["answer"]
+        assert "Détails :" in result["answer"]
 
     def test_price_change_request_includes_suggested_next_step_for_pending(
         self,
@@ -1751,7 +1751,7 @@ class TestT202ToolResponseStructure:
 
         result = orchestrator.answer_question("List pending price change requests")
 
-        assert "Suggested next step:" in result["answer"]
+        assert "Prochaine étape suggérée :" in result["answer"]
 
     def test_approved_price_change_has_no_suggested_next_step(
         self,
@@ -1764,7 +1764,7 @@ class TestT202ToolResponseStructure:
 
         result = orchestrator.answer_question("Show approved price requests")
 
-        assert "Suggested next step:" not in result["answer"]
+        assert "Prochaine étape suggérée :" not in result["answer"]
 
     def test_promotions_response_has_summary_and_details(
         self,
@@ -1783,9 +1783,9 @@ class TestT202ToolResponseStructure:
 
         result = orchestrator.answer_question("List active promotions")
 
-        assert "Summary:" in result["answer"]
-        assert "Details:" in result["answer"]
-        assert "Suggested next step:" in result["answer"]
+        assert "Résumé :" in result["answer"]
+        assert "Détails :" in result["answer"]
+        assert "Prochaine étape suggérée :" in result["answer"]
 
     def test_prices_response_has_summary_and_suggested_next_step(
         self,
@@ -1804,9 +1804,9 @@ class TestT202ToolResponseStructure:
 
         result = orchestrator.answer_question("List prices for product 3")
 
-        assert "Summary:" in result["answer"]
-        assert "Details:" in result["answer"]
-        assert "Suggested next step:" in result["answer"]
+        assert "Résumé :" in result["answer"]
+        assert "Détails :" in result["answer"]
+        assert "Prochaine étape suggérée :" in result["answer"]
 
     def test_countries_response_has_summary(
         self,
@@ -1820,8 +1820,8 @@ class TestT202ToolResponseStructure:
 
         result = orchestrator.answer_question("List countries")
 
-        assert "Summary:" in result["answer"]
-        assert "Details:" in result["answer"]
+        assert "Résumé :" in result["answer"]
+        assert "Détails :" in result["answer"]
 
     def test_stores_response_has_summary(
         self,
@@ -1834,7 +1834,7 @@ class TestT202ToolResponseStructure:
 
         result = orchestrator.answer_question("What stores are available?")
 
-        assert "Summary:" in result["answer"]
+        assert "Résumé :" in result["answer"]
         assert "Lille Centre" in result["answer"]
 
     def test_products_response_has_summary(
@@ -1848,7 +1848,7 @@ class TestT202ToolResponseStructure:
 
         result = orchestrator.answer_question("List active products")
 
-        assert "Summary:" in result["answer"]
+        assert "Résumé :" in result["answer"]
         assert "RUN-001" in result["answer"]
 
 
@@ -2352,3 +2352,83 @@ class TestFrontendValidationRoutingNonRegression:
         assert result["status"] != "unsupported"
         assert result["intent"] == "explain_rbac"
         mock_document_retriever.search.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# T205 — Price-review anomaly filtering
+# ---------------------------------------------------------------------------
+
+
+class TestPriceReviewAnomalyFiltering:
+    """When the question asks which price to review first, only price-type
+    anomalies (PRICE_ABOVE_REFERENCE, INTER_STORE_PRICE_GAP) should appear
+    in the answer — promotional anomalies must be excluded."""
+
+    def _fake_explain(self, anomalies: list[dict]) -> list[dict]:
+        """Minimal explain stub: wraps each raw anomaly in the standard envelope."""
+        return [
+            {"anomaly": a, "explanation": {"label": a.get("anomaly_type", "Anomalie")}}
+            for a in anomalies
+        ]
+
+    def test_price_review_question_keeps_price_above_reference(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_anomaly_tool: MagicMock,
+    ) -> None:
+        mock_anomaly_tool.list_anomalies.return_value = [
+            {"anomaly_type": "PRICE_ABOVE_REFERENCE", "product_id": 12, "store_id": 1},
+            {"anomaly_type": "UNDERPERFORMING_PROMO", "product_id": 5, "store_id": 2},
+        ]
+        mock_anomaly_tool.explain_anomalies.side_effect = self._fake_explain
+
+        result = orchestrator.answer_question(
+            "Quel prix devrais-je revoir en priorité ?",
+            user_email="user@example.com",
+        )
+
+        assert result["status"] == "answered"
+        assert "PRICE_ABOVE_REFERENCE" in result["answer"]
+        assert "anomalie(s) prix" in result["answer"]
+
+    def test_price_review_question_excludes_underperforming_promo(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_anomaly_tool: MagicMock,
+    ) -> None:
+        mock_anomaly_tool.list_anomalies.return_value = [
+            {"anomaly_type": "PRICE_ABOVE_REFERENCE", "product_id": 12, "store_id": 1},
+            {"anomaly_type": "UNDERPERFORMING_PROMO", "product_id": 5, "store_id": 2},
+        ]
+        mock_anomaly_tool.explain_anomalies.side_effect = self._fake_explain
+
+        result = orchestrator.answer_question(
+            "Quel prix devrais-je revoir en priorité ?",
+            user_email="user@example.com",
+        )
+
+        # explain_anomalies must have been called with the filtered list only
+        called_with = mock_anomaly_tool.explain_anomalies.call_args[0][0]
+        types_passed = {a["anomaly_type"] for a in called_with}
+        assert "UNDERPERFORMING_PROMO" not in types_passed
+        assert "PRICE_ABOVE_REFERENCE" in types_passed
+
+    def test_price_review_with_no_price_anomaly_does_not_list_promo_anomalies(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_anomaly_tool: MagicMock,
+    ) -> None:
+        mock_anomaly_tool.list_anomalies.return_value = [
+            {"anomaly_type": "UNDERPERFORMING_PROMO", "product_id": 5, "store_id": 2},
+        ]
+        mock_anomaly_tool.explain_anomalies.side_effect = self._fake_explain
+
+        result = orchestrator.answer_question(
+            "Quel prix devrais-je revoir en priorité ?",
+            user_email="user@example.com",
+        )
+
+        assert result["status"] == "answered"
+        assert "UNDERPERFORMING_PROMO" not in result["answer"]
+        assert "Aucune anomalie prix prioritaire" in result["answer"]
+        assert "PRICE_ABOVE_REFERENCE" in result["answer"]

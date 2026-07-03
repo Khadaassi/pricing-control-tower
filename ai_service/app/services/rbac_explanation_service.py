@@ -70,37 +70,37 @@ _RBAC_WORKFLOW_RIGHTS_RESPONSE = (
 )
 
 _RBAC_LIST_ROLES_RESPONSE_FR = (
-    "Summary:\n"
+    "Résumé :\n"
     "Le MVP définit 4 rôles RBAC.\n\n"
-    "Details:\n"
+    "Détails :\n"
     "- STORE_MANAGER — utilisateur limité à un magasin assigné.\n"
     "- STORE_DIRECTOR — utilisateur limité à un magasin assigné.\n"
     "- COUNTRY_DIRECTOR — utilisateur limité à un pays assigné.\n"
     "- PRICING_ANALYST — utilisateur avec un accès plus large à l'analyse tarifaire MVP.\n\n"
-    "Suggested next step:\n"
+    "Prochaine étape suggérée :\n"
     'Posez une question sur un rôle spécifique, par exemple : "Expliquez les permissions du Store Manager".'
 )
 
 _RBAC_PERSONAL_RIGHTS_RESPONSE_FR = (
-    "Summary:\n"
+    "Résumé :\n"
     "Je peux expliquer les permissions par rôle, mais je ne peux pas déterminer vos droits "
     "personnels exacts sans connaître votre rôle et votre périmètre assignés.\n\n"
-    "Details:\n"
+    "Détails :\n"
     "- Les permissions dépendent de votre rôle.\n"
     "- L'accès dépend également de votre magasin ou pays assigné.\n"
     "- Le contrôle d'accès réel est appliqué par le backend.\n\n"
-    "Suggested next step:\n"
+    "Prochaine étape suggérée :\n"
     'Posez une question sur un rôle spécifique, par exemple : "Quelles sont les permissions du Store Manager ?".'
 )
 
 _RBAC_WORKFLOW_RIGHTS_RESPONSE_FR = (
-    "Summary:\n"
+    "Résumé :\n"
     "Vos droits sur le pricing workflow dépendent de votre rôle et de vos permissions.\n\n"
-    "Details:\n"
+    "Détails :\n"
     "- Certains utilisateurs peuvent créer des demandes de changement de prix.\n"
     "- Seuls les utilisateurs autorisés peuvent approuver ou rejeter les demandes.\n"
     "- Le chatbot peut expliquer le workflow mais ne peut pas approuver, rejeter ou appliquer un changement de prix.\n\n"
-    "Suggested next step:\n"
+    "Prochaine étape suggérée :\n"
     "Vérifiez votre rôle assigné, puis posez une question sur les permissions correspondantes."
 )
 
