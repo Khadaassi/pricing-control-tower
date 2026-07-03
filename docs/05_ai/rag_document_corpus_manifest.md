@@ -37,12 +37,13 @@ it is always served by Tool Calling via the backend.
 | `docs/05_ai/chatbot_promotion_knowledge.md` | business_knowledge | markdown | end_user | validated | promotion concepts, analysis, anomalies | high |
 | `docs/05_ai/chatbot_pricing_decision_support.md` | business_knowledge | markdown | end_user | validated | pricing decision guidance, anomaly prioritisation | high |
 | `docs/05_ai/chatbot_rbac_knowledge.md` | rbac | markdown | end_user | validated | RBAC roles, permissions, access questions | high |
+| `docs/05_ai/chatbot_pricing_workflow_knowledge.md` | business_knowledge | markdown | end_user | validated | price change workflow, pending/approved/rejected statuses | high |
 | `docs/05_runbook/ai_chatbot_monitoring.md` | monitoring | runbook | technical | validated | troubleshooting, explanation | medium |
 | `docs/05_runbook/operations_runbook.md` | operations | runbook | technical | validated | troubleshooting | medium |
 | `docs/06_validation/ai_chatbot_manual_validation.md` | user_guide | validation_report | technical | validated | routing context, explanation | medium |
 | `docs/07_operations/operations_documentation_index.md` | operations | markdown | technical | validated | troubleshooting | low |
 
-**Total: 22 documents retained.**
+**Total: 23 documents retained.**
 
 ---
 
@@ -95,7 +96,7 @@ it is always served by Tool Calling via the backend.
 |---|---|---|
 | `architecture` | 7 | 4 high, 2 medium, 1 low |
 | `business_rules` | 2 | 2 high |
-| `business_knowledge` | 3 | 3 high |
+| `business_knowledge` | 4 | 4 high |
 | `rbac` | 3 | 3 high |
 | `user_guide` | 3 | 2 high, 1 medium |
 | `monitoring` | 2 | 1 medium, 1 medium |

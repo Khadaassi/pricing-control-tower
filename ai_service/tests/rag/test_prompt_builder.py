@@ -116,9 +116,11 @@ class TestPromptStructure:
         assert "Content:" in prompt
 
     def test_prompt_contains_answer_format_section(self, builder: RAGPromptBuilder) -> None:
-        prompt = builder.build("Any question?", [CHUNK_RBAC])
+        prompt_en = builder.build("Any question?", [CHUNK_RBAC], lang="en")
+        prompt_fr = builder.build("Any question?", [CHUNK_RBAC], lang="fr")
 
-        assert "Expected answer format" in prompt
+        assert "Expected answer format" in prompt_en
+        assert "Format de réponse attendu" in prompt_fr
 
     def test_prompt_ends_with_answer_marker(self, builder: RAGPromptBuilder) -> None:
         prompt = builder.build("Any question?", [CHUNK_RBAC])
@@ -152,38 +154,49 @@ class TestPromptStructure:
 
 class TestAntiHallucinationRules:
     def test_prompt_forbids_inventing_information(self, builder: RAGPromptBuilder) -> None:
-        prompt = builder.build("Any question?", [CHUNK_RBAC])
+        prompt_en = builder.build("Any question?", [CHUNK_RBAC], lang="en")
+        prompt_fr = builder.build("Any question?", [CHUNK_RBAC], lang="fr")
 
-        assert "Do not invent" in prompt
+        assert "Do not invent" in prompt_en
+        assert "N'invente pas" in prompt_fr
 
     def test_prompt_requires_documentary_context_only(
         self, builder: RAGPromptBuilder
     ) -> None:
-        prompt = builder.build("Any question?", [CHUNK_RBAC])
+        prompt_en = builder.build("Any question?", [CHUNK_RBAC], lang="en")
+        prompt_fr = builder.build("Any question?", [CHUNK_RBAC], lang="fr")
 
-        assert "Use only the documentary context" in prompt
+        assert "Use only the documentary context" in prompt_en
+        assert "uniquement le contexte documentaire" in prompt_fr
 
     def test_prompt_instructs_insufficient_context_response(
         self, builder: RAGPromptBuilder
     ) -> None:
-        prompt = builder.build("Any question?", [CHUNK_RBAC])
+        prompt_en = builder.build("Any question?", [CHUNK_RBAC], lang="en")
+        prompt_fr = builder.build("Any question?", [CHUNK_RBAC], lang="fr")
 
-        assert "does not provide enough information" in prompt
+        assert "does not provide enough information" in prompt_en
+        assert "ne fournit pas assez d'informations" in prompt_fr
 
     def test_prompt_forbids_answering_operational_data_from_docs(
         self, builder: RAGPromptBuilder
     ) -> None:
-        prompt = builder.build("Any question?", [CHUNK_RBAC])
+        prompt_en = builder.build("Any question?", [CHUNK_RBAC], lang="en")
+        prompt_fr = builder.build("Any question?", [CHUNK_RBAC], lang="fr")
 
-        assert "operational data must be retrieved through business tools" in prompt
+        assert "operational data must be retrieved through business tools" in prompt_en
+        assert "outils métier" in prompt_fr
 
     def test_prompt_explicitly_lists_operational_data_types(
         self, builder: RAGPromptBuilder
     ) -> None:
-        prompt = builder.build("Any question?", [CHUNK_RBAC])
+        prompt_en = builder.build("Any question?", [CHUNK_RBAC], lang="en")
+        prompt_fr = builder.build("Any question?", [CHUNK_RBAC], lang="fr")
 
-        assert "revenue" in prompt
-        assert "anomalies" in prompt
+        assert "revenue" in prompt_en
+        assert "anomalies" in prompt_en
+        assert "revenus" in prompt_fr
+        assert "anomalies" in prompt_fr
 
     def test_prompt_requires_sources_to_be_mentioned(
         self, builder: RAGPromptBuilder
@@ -262,19 +275,23 @@ class TestOperationalDataGuard:
         self, builder: RAGPromptBuilder
     ) -> None:
         question = "What is the current revenue of France?"
-        prompt = builder.build(question, [CHUNK_WORKFLOW])
+        prompt_en = builder.build(question, [CHUNK_WORKFLOW], lang="en")
+        prompt_fr = builder.build(question, [CHUNK_WORKFLOW], lang="fr")
 
         # The prompt must carry the guard regardless of the question, so that
         # even if the router wrongly dispatches an operational question to RAG,
         # the LLM is instructed not to fabricate data.
-        assert "operational data must be retrieved through business tools" in prompt
+        assert "operational data must be retrieved through business tools" in prompt_en
+        assert "outils métier" in prompt_fr
 
     def test_prompt_does_not_invent_prices_or_promotions(
         self, builder: RAGPromptBuilder
     ) -> None:
-        prompt = builder.build("What promotions are active?", [CHUNK_MONITORING])
+        prompt_en = builder.build("What promotions are active?", [CHUNK_MONITORING], lang="en")
+        prompt_fr = builder.build("Quelles promotions sont actives ?", [CHUNK_MONITORING], lang="fr")
 
-        assert "prices" in prompt or "promotions" in prompt  # listed as forbidden topics
+        assert "prices" in prompt_en or "promotions" in prompt_en
+        assert "prix" in prompt_fr or "promotions" in prompt_fr
 
 
 # ---------------------------------------------------------------------------
@@ -286,37 +303,47 @@ class TestStyleGuidelines:
     def test_prompt_requests_concise_business_tone(
         self, builder: RAGPromptBuilder
     ) -> None:
-        prompt = builder.build("Any question?", [CHUNK_RBAC])
+        prompt_en = builder.build("Any question?", [CHUNK_RBAC], lang="en")
+        prompt_fr = builder.build("Any question?", [CHUNK_RBAC], lang="fr")
 
-        assert "business tone" in prompt
+        assert "business tone" in prompt_en
+        assert "ton métier" in prompt_fr
 
     def test_prompt_requests_direct_answer_first(
         self, builder: RAGPromptBuilder
     ) -> None:
-        prompt = builder.build("Any question?", [CHUNK_RBAC])
+        prompt_en = builder.build("Any question?", [CHUNK_RBAC], lang="en")
+        prompt_fr = builder.build("Any question?", [CHUNK_RBAC], lang="fr")
 
-        assert "direct answer" in prompt.lower()
+        assert "direct answer" in prompt_en.lower()
+        assert "réponse directe" in prompt_fr.lower()
 
     def test_prompt_restricts_bullet_points(
         self, builder: RAGPromptBuilder
     ) -> None:
-        prompt = builder.build("Any question?", [CHUNK_RBAC])
+        prompt_en = builder.build("Any question?", [CHUNK_RBAC], lang="en")
+        prompt_fr = builder.build("Any question?", [CHUNK_RBAC], lang="fr")
 
-        assert "bullet point" in prompt.lower()
+        assert "bullet point" in prompt_en.lower()
+        assert "puces" in prompt_fr.lower()
 
     def test_prompt_includes_suggested_next_step_guideline(
         self, builder: RAGPromptBuilder
     ) -> None:
-        prompt = builder.build("Any question?", [CHUNK_RBAC])
+        prompt_en = builder.build("Any question?", [CHUNK_RBAC], lang="en")
+        prompt_fr = builder.build("Any question?", [CHUNK_RBAC], lang="fr")
 
-        assert "Suggested next step" in prompt
+        assert "Suggested next step" in prompt_en
+        assert "Prochaine étape suggérée" in prompt_fr
 
     def test_suggested_next_step_conditioned_on_context(
         self, builder: RAGPromptBuilder
     ) -> None:
-        prompt = builder.build("Any question?", [CHUNK_RBAC])
+        prompt_en = builder.build("Any question?", [CHUNK_RBAC], lang="en")
+        prompt_fr = builder.build("Any question?", [CHUNK_RBAC], lang="fr")
 
-        assert "supported by the" in prompt or "supported by" in prompt
+        assert "supported by" in prompt_en
+        assert "soutenue par" in prompt_fr
 
     def test_prompt_limits_response_length(
         self, builder: RAGPromptBuilder
@@ -335,10 +362,13 @@ class TestStyleGuidelines:
     def test_style_guidelines_coexist_with_anti_hallucination_rules(
         self, builder: RAGPromptBuilder
     ) -> None:
-        prompt = builder.build("Any question?", [CHUNK_RBAC])
+        prompt_en = builder.build("Any question?", [CHUNK_RBAC], lang="en")
+        prompt_fr = builder.build("Any question?", [CHUNK_RBAC], lang="fr")
 
-        assert "Do not invent" in prompt
-        assert "business tone" in prompt
+        assert "Do not invent" in prompt_en
+        assert "business tone" in prompt_en
+        assert "N'invente pas" in prompt_fr
+        assert "ton métier" in prompt_fr
 
 
 # ---------------------------------------------------------------------------
@@ -350,30 +380,38 @@ class TestNoSourcesInstruction:
     def test_prompt_forbids_source_section_in_answer(
         self, builder: RAGPromptBuilder
     ) -> None:
-        prompt = builder.build("Any question?", [CHUNK_RBAC])
+        prompt_en = builder.build("Any question?", [CHUNK_RBAC], lang="en")
+        prompt_fr = builder.build("Any question?", [CHUNK_RBAC], lang="fr")
 
-        assert "Do not include any source section" in prompt
+        assert "Do not include any source section" in prompt_en
+        assert "aucune section de sources" in prompt_fr
 
     def test_prompt_explains_sources_are_appended_automatically(
         self, builder: RAGPromptBuilder
     ) -> None:
-        prompt = builder.build("Any question?", [CHUNK_RBAC])
+        prompt_en = builder.build("Any question?", [CHUNK_RBAC], lang="en")
+        prompt_fr = builder.build("Any question?", [CHUNK_RBAC], lang="fr")
 
-        assert "The application will append documentary sources automatically" in prompt
+        assert "The application will append documentary sources automatically" in prompt_en
+        assert "ajoutera automatiquement les sources documentaires" in prompt_fr
 
     def test_prompt_instructs_answer_to_stop_after_suggested_next_step(
         self, builder: RAGPromptBuilder
     ) -> None:
-        prompt = builder.build("Any question?", [CHUNK_RBAC])
+        prompt_en = builder.build("Any question?", [CHUNK_RBAC], lang="en")
+        prompt_fr = builder.build("Any question?", [CHUNK_RBAC], lang="fr")
 
-        assert "Your answer must stop after the suggested next step" in prompt
+        assert "Your answer must stop after the suggested next step" in prompt_en
+        assert "s'arrêter après la prochaine étape suggérée" in prompt_fr
 
     def test_prompt_forbids_documentary_sources_label(
         self, builder: RAGPromptBuilder
     ) -> None:
-        prompt = builder.build("Any question?", [CHUNK_RBAC])
+        prompt_en = builder.build("Any question?", [CHUNK_RBAC], lang="en")
+        prompt_fr = builder.build("Any question?", [CHUNK_RBAC], lang="fr")
 
-        assert "Documentary sources" in prompt or "Do not write" in prompt
+        assert "Documentary sources" in prompt_en or "Do not write" in prompt_en
+        assert "Sources documentaires" in prompt_fr or "Ne mets pas" in prompt_fr
 
     def test_answer_format_does_not_contain_sources_step(
         self, builder: RAGPromptBuilder

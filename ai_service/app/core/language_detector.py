@@ -7,6 +7,8 @@ _FRENCH_INDICATORS = [
     " le ", " la ", " du ", " au ", " un ", " ce ", " cette ", " ces ",
     # French pronouns
     " je ", " tu ", " il ", " elle ", " nous ", " vous ",
+    # French imperative verbs (common in chatbot questions)
+    "explique ", "expliquez ", "montrez ", "listez ",
     # French question words
     "quels ", "quelles ", "quel ", "quelle ",
     "pourquoi ", "comment ", "combien ",

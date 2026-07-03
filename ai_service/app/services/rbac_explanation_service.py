@@ -104,6 +104,129 @@ _RBAC_WORKFLOW_RIGHTS_RESPONSE_FR = (
     "Vérifiez votre rôle assigné, puis posez une question sur les permissions correspondantes."
 )
 
+# T210 — Static responses for "qui peut…" and "pourquoi je ne vois pas…" questions.
+_CAN_CHANGE_PRICE_PHRASES = [
+    "qui peut changer un prix",
+    "qui peut modifier un prix",
+    "qui peut changer le prix",
+    "droit de changer",
+    "droit de modifier",
+    "who can change a price",
+    "who can change the price",
+    "can change a price",
+]
+
+_CAN_APPROVE_PHRASES = [
+    "qui peut approuver",
+    "qui peut rejeter",
+    "who can approve",
+    "who can reject",
+]
+
+_CAN_CREATE_PROMOTION_PHRASES = [
+    "qui peut créer une promotion",
+    "qui peut creer une promotion",
+    "qui peut créer des promotions",
+    "who can create a promotion",
+    "can create a promotion",
+]
+
+_CANNOT_SEE_STORE_PHRASES = [
+    "pourquoi je ne peux pas voir",
+    "pourquoi je ne vois pas",
+    "cannot see this store",
+    "why can't i see",
+    "why cant i see",
+]
+
+_RBAC_CAN_CHANGE_PRICE_RESPONSE = (
+    "Summary:\n"
+    "A user can request a price change only if their role and scope allow it.\n\n"
+    "Details:\n"
+    "- A Store Manager can create a request for their store if permission is granted.\n"
+    "- A Country Director or Pricing Analyst can act on a broader scope.\n"
+    "- The chatbot can never apply the change itself.\n\n"
+    "Suggested next step:\n"
+    "Check your assigned role and the associated permissions in the application."
+)
+
+_RBAC_CAN_CHANGE_PRICE_RESPONSE_FR = (
+    "Résumé :\n"
+    "Un utilisateur peut demander un changement de prix uniquement si son rôle et son périmètre l'autorisent.\n\n"
+    "Détails :\n"
+    "- Le Store Manager peut créer une demande dans son magasin si la permission est accordée.\n"
+    "- Le Country Director ou Pricing Analyst peut intervenir sur un périmètre plus large.\n"
+    "- Le chatbot ne peut jamais appliquer le changement lui-même.\n\n"
+    "Prochaine étape suggérée :\n"
+    "Vérifiez votre rôle assigné et les permissions associées dans l'application."
+)
+
+_RBAC_CAN_APPROVE_RESPONSE = (
+    "Summary:\n"
+    "Only authorized users can approve or reject a price change request.\n\n"
+    "Details:\n"
+    "- Approval depends on the user's role and scope.\n"
+    "- A pending request can move to approved or rejected.\n"
+    "- The chatbot can explain the workflow but cannot approve or reject.\n\n"
+    "Suggested next step:\n"
+    "Check the validation workflow and verify who has approval rights in your organization."
+)
+
+_RBAC_CAN_APPROVE_RESPONSE_FR = (
+    "Résumé :\n"
+    "Seuls les utilisateurs autorisés peuvent approuver ou refuser une demande de changement de prix.\n\n"
+    "Détails :\n"
+    "- L'approbation dépend du rôle et du périmètre utilisateur.\n"
+    "- Une demande pending peut passer à approved ou rejected.\n"
+    "- Le chatbot peut expliquer le workflow mais ne peut pas approuver ou refuser.\n\n"
+    "Prochaine étape suggérée :\n"
+    "Consultez le workflow de validation et vérifiez qui dispose des droits d'approbation dans votre organisation."
+)
+
+_RBAC_CAN_CREATE_PROMOTION_RESPONSE = (
+    "Summary:\n"
+    "Creating a promotion depends on the type of promotion and the user's role.\n\n"
+    "Details:\n"
+    "- Country promotions require a role authorized at country level.\n"
+    "- Store promotions require a role authorized for the store.\n"
+    "- The chatbot can explain the rules but cannot create a promotion.\n\n"
+    "Suggested next step:\n"
+    "Check your role and associated permissions for promotion creation."
+)
+
+_RBAC_CAN_CREATE_PROMOTION_RESPONSE_FR = (
+    "Résumé :\n"
+    "La création d'une promotion dépend du type de promotion et du rôle utilisateur.\n\n"
+    "Détails :\n"
+    "- Les promotions pays nécessitent un rôle autorisé au niveau pays.\n"
+    "- Les promotions magasin nécessitent un rôle autorisé sur le magasin.\n"
+    "- Le chatbot peut expliquer les règles mais ne peut pas créer la promotion.\n\n"
+    "Prochaine étape suggérée :\n"
+    "Vérifiez votre rôle et les permissions associées pour la création de promotions."
+)
+
+_RBAC_CANNOT_SEE_STORE_RESPONSE = (
+    "Summary:\n"
+    "Access to a store depends on your role and assigned scope.\n\n"
+    "Details:\n"
+    "- A store user is limited to their assigned store.\n"
+    "- A country user is limited to their assigned country.\n"
+    "- A Pricing Analyst has broader access in the MVP.\n\n"
+    "Suggested next step:\n"
+    "Check your assigned role and the corresponding scope in the application."
+)
+
+_RBAC_CANNOT_SEE_STORE_RESPONSE_FR = (
+    "Résumé :\n"
+    "L'accès à un magasin dépend de votre rôle et de votre périmètre assigné.\n\n"
+    "Détails :\n"
+    "- Un utilisateur magasin est limité à son magasin assigné.\n"
+    "- Un utilisateur pays est limité à son pays assigné.\n"
+    "- Un Pricing Analyst dispose d'un périmètre plus large dans le MVP.\n\n"
+    "Prochaine étape suggérée :\n"
+    "Vérifiez votre rôle assigné et le périmètre correspondant dans l'application."
+)
+
 
 class RBACExplanationService:
     def __init__(
@@ -128,6 +251,22 @@ class RBACExplanationService:
 
         if static_intent == "personal_rights":
             response = _RBAC_PERSONAL_RIGHTS_RESPONSE_FR if lang == "fr" else _RBAC_PERSONAL_RIGHTS_RESPONSE
+            return {"answer": response, "source": "rbac_tool", "roles_used": [], "llm_used": False}
+
+        if static_intent == "can_change_price":
+            response = _RBAC_CAN_CHANGE_PRICE_RESPONSE_FR if lang == "fr" else _RBAC_CAN_CHANGE_PRICE_RESPONSE
+            return {"answer": response, "source": "rbac_tool", "roles_used": [], "llm_used": False}
+
+        if static_intent == "can_approve":
+            response = _RBAC_CAN_APPROVE_RESPONSE_FR if lang == "fr" else _RBAC_CAN_APPROVE_RESPONSE
+            return {"answer": response, "source": "rbac_tool", "roles_used": [], "llm_used": False}
+
+        if static_intent == "can_create_promotion":
+            response = _RBAC_CAN_CREATE_PROMOTION_RESPONSE_FR if lang == "fr" else _RBAC_CAN_CREATE_PROMOTION_RESPONSE
+            return {"answer": response, "source": "rbac_tool", "roles_used": [], "llm_used": False}
+
+        if static_intent == "cannot_see_store":
+            response = _RBAC_CANNOT_SEE_STORE_RESPONSE_FR if lang == "fr" else _RBAC_CANNOT_SEE_STORE_RESPONSE
             return {"answer": response, "source": "rbac_tool", "roles_used": [], "llm_used": False}
 
         rbac_context = self.rbac_tool.search_rbac_rules(question)
@@ -175,6 +314,14 @@ class RBACExplanationService:
             return "list_roles"
         if any(phrase in normalized for phrase in _MY_PERSONAL_RIGHTS_PHRASES):
             return "personal_rights"
+        if any(phrase in normalized for phrase in _CAN_CHANGE_PRICE_PHRASES):
+            return "can_change_price"
+        if any(phrase in normalized for phrase in _CAN_APPROVE_PHRASES):
+            return "can_approve"
+        if any(phrase in normalized for phrase in _CAN_CREATE_PROMOTION_PHRASES):
+            return "can_create_promotion"
+        if any(phrase in normalized for phrase in _CANNOT_SEE_STORE_PHRASES):
+            return "cannot_see_store"
         return None
 
     def _build_prompt(

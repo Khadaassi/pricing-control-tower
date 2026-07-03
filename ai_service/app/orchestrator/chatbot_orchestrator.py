@@ -163,6 +163,113 @@ _PRICE_REVIEW_ANOMALY_TYPES: frozenset[str] = frozenset(
     {"PRICE_ABOVE_REFERENCE", "INTER_STORE_PRICE_GAP"}
 )
 
+# T210 — Business priority order for "anomalies critiques" questions.
+_CRITICAL_ANOMALY_PRIORITY: list[str] = [
+    "PRICE_ABOVE_REFERENCE",
+    "INEFFECTIVE_DISCOUNT",
+    "UNDERPERFORMING_PROMO",
+    "INTER_STORE_PRICE_GAP",
+]
+
+_CRITICAL_ANOMALY_PHRASES: tuple[str, ...] = (
+    "anomalies critiques",
+    "anomalies prioritaires",
+    "anomalies les plus critiques",
+    "anomalies les plus importantes",
+    "sont critiques",
+    "les plus critiques",
+    "les plus urgentes",
+    "critical anomalies",
+    "priority anomalies",
+    "most critical",
+    "highest priority",
+)
+
+# T210 — Static bilingual definitions for each anomaly type.
+# Used by explain_anomaly_definition intent so no data call is needed.
+_ANOMALY_DEFINITION_TEXTS: dict[str, dict] = {
+    "PRICE_ABOVE_REFERENCE": {
+        "fr": {
+            "summary": "PRICE_ABOVE_REFERENCE signifie que le prix magasin est supérieur au prix de référence pays.",
+            "details": [
+                "Cela peut créer une incohérence prix pour le client.",
+                "L'écart doit être vérifié avant toute action.",
+                "Le prix ne doit pas être modifié automatiquement.",
+            ],
+            "next_step": "Comparez le prix magasin au prix pays et vérifiez si l'écart est justifié localement.",
+        },
+        "en": {
+            "summary": "PRICE_ABOVE_REFERENCE means the store price is higher than the country reference price.",
+            "details": [
+                "This may create price inconsistency for customers.",
+                "The gap must be verified before any action.",
+                "The price must not be changed automatically.",
+            ],
+            "next_step": "Compare the store price with the country reference price and verify if the gap is justified locally.",
+        },
+    },
+    "UNDERPERFORMING_PROMO": {
+        "fr": {
+            "summary": "UNDERPERFORMING_PROMO signifie que la promotion génère des performances inférieures aux attentes.",
+            "details": [
+                "La promotion n'attire pas suffisamment de ventes supplémentaires.",
+                "Cela peut indiquer un mauvais ciblage ou une remise insuffisante.",
+                "Elle doit être analysée avant d'être prolongée ou arrêtée.",
+            ],
+            "next_step": "Vérifiez la période, le niveau de remise et la tendance des ventes avant et pendant la promotion.",
+        },
+        "en": {
+            "summary": "UNDERPERFORMING_PROMO means the promotion generates weaker performance than expected.",
+            "details": [
+                "The promoted product did not attract enough additional sales.",
+                "This may indicate poor targeting or insufficient discount.",
+                "It should be analyzed before extending or stopping it.",
+            ],
+            "next_step": "Review the promotion period, discount level, and sales trend before and during the promotion.",
+        },
+    },
+    "INEFFECTIVE_DISCOUNT": {
+        "fr": {
+            "summary": "INEFFECTIVE_DISCOUNT signifie que la remise ne produit pas d'impact métier significatif.",
+            "details": [
+                "La réduction de prix peut être trop faible, mal ciblée ou appliquée à un produit peu demandé.",
+                "L'impact sur les ventes, le chiffre d'affaires ou la marge est insuffisant.",
+                "Vérifiez si la remise a augmenté le volume ou la marge.",
+            ],
+            "next_step": "Vérifiez si la remise a augmenté le volume des ventes, le CA ou la marge par rapport à la baseline attendue.",
+        },
+        "en": {
+            "summary": "INEFFECTIVE_DISCOUNT means the discount does not produce a meaningful business impact.",
+            "details": [
+                "The price reduction may be too low, poorly targeted, or applied to a product with limited demand.",
+                "The impact on sales, revenue, or margin is insufficient.",
+                "Check whether the discount increased sales volume, revenue, or margin.",
+            ],
+            "next_step": "Check whether the discount increased sales volume, revenue, or margin compared with the expected baseline.",
+        },
+    },
+    "INTER_STORE_PRICE_GAP": {
+        "fr": {
+            "summary": "INTER_STORE_PRICE_GAP signifie que le prix d'un produit diffère significativement entre magasins.",
+            "details": [
+                "L'écart de prix peut indiquer une incohérence tarifaire locale.",
+                "Il doit être vérifié avant toute action corrective.",
+                "Une règle métier locale peut justifier l'écart.",
+            ],
+            "next_step": "Comparez le prix du magasin avec les autres magasins et vérifiez si l'écart est justifié par une règle locale.",
+        },
+        "en": {
+            "summary": "INTER_STORE_PRICE_GAP means a product price differs significantly across stores.",
+            "details": [
+                "The price gap may indicate a local pricing inconsistency.",
+                "It must be verified before any corrective action.",
+                "A local business rule may justify the gap.",
+            ],
+            "next_step": "Compare the store price with other stores and check whether the gap is explained by a local business rule.",
+        },
+    },
+}
+
 
 class ChatbotOrchestrator:
     def __init__(
@@ -318,6 +425,18 @@ class ChatbotOrchestrator:
             except Exception as error:
                 return self._build_error_response(routed, error)
 
+        if intent == "explain_anomaly_definition":
+            try:
+                answer = self._answer_anomaly_definition_question(question, lang)
+                return {
+                    **routed,
+                    "status": "answered",
+                    "answer": answer,
+                    "source": "anomaly_tool",
+                }
+            except Exception as error:
+                return self._build_error_response(routed, error)
+
         if intent == "list_anomalies":
             if not user_email:
                 return {
@@ -409,7 +528,7 @@ class ChatbotOrchestrator:
 
         if intent == "documentary_knowledge":
             try:
-                rag_response = self._answer_documentary_question(question)
+                rag_response = self._answer_documentary_question(question, lang=lang)
                 return {
                     **routed,
                     **rag_response,
@@ -533,6 +652,70 @@ class ChatbotOrchestrator:
         ):
             return "explain_business_rule"
 
+        # 2.5: Documentary anomaly handling questions — placed before step 3b
+        # so "anomalie" in the question does not route to list_anomalies.
+        if self._contains_any_phrase(
+            normalized_question,
+            [
+                "que faire avec une anomalie prix",
+                "que dois-je faire avec une anomalie prix",
+                "que dois je faire avec une anomalie prix",
+            ],
+        ):
+            return "documentary_knowledge"
+
+        # 3.pre1: Anomaly type definition — static response, no data call needed.
+        # Must come before step 3a so "price_above_reference" in the question
+        # does not trigger the store-scoped mismatch route.
+        if self._contains_any_phrase(
+            normalized_question,
+            [
+                "explique price_above_reference",
+                "explain price_above_reference",
+                "explique underperforming_promo",
+                "explain underperforming_promo",
+                "explique ineffective_discount",
+                "explain ineffective_discount",
+                "explique inter_store_price_gap",
+                "explain inter_store_price_gap",
+            ],
+        ):
+            return "explain_anomaly_definition"
+
+        # 3.pre2: General price-type anomaly queries (no store_id required).
+        # Placed before step 3a so accented/unaccented "écart de prix" questions
+        # do not hit the store-scoped mismatch route that requires store_id.
+        if self._contains_any_phrase(
+            normalized_question,
+            [
+                # PRICE_ABOVE_REFERENCE — unaccented (user may omit accents)
+                "produits sont au dessus du prix conseille",
+                "produits au dessus du prix conseille",
+                "prix au dessus du prix conseille",
+                "prix conseille",
+                "au-dessus du prix conseille",
+                # PRICE_ABOVE_REFERENCE — accented (standard French)
+                "produits sont au dessus du prix conseillé",
+                "produits au dessus du prix conseillé",
+                "prix au dessus du prix conseillé",
+                "prix conseillé",
+                "au-dessus du prix conseillé",
+                # PRICE_ABOVE_REFERENCE — English
+                "price above reference",
+                # INTER_STORE_PRICE_GAP — unaccented
+                "magasins ont un ecart de prix",
+                "ecart de prix entre magasins",
+                "ecart de prix",
+                # INTER_STORE_PRICE_GAP — accented
+                "magasins ont un écart de prix",
+                "écart de prix entre magasins",
+                "écart de prix",
+                # INTER_STORE_PRICE_GAP — English
+                "inter store price gap",
+            ],
+        ):
+            return "list_anomalies"
+
         # 3a. Price mismatch — specific store-vs-country price queries.
         # Kept separate from general anomalies because this route requires store_id.
         if self._contains_any_phrase(
@@ -600,8 +783,18 @@ class ChatbotOrchestrator:
                 "demandes de prix",
                 "demandes pending",
                 "demandes en attente",
+                "demandes approved",
+                "demandes approuvees",
                 "demandes approuvées",
+                "demandes validees",
+                "demandes validées",
+                "demandes rejected",
+                "demandes rejetees",
                 "demandes rejetées",
+                "demandes refusees",
+                "demandes refusées",
+                "approved requests",
+                "rejected requests",
             ],
         ):
             return "list_store_price_changes"
@@ -866,6 +1059,7 @@ class ChatbotOrchestrator:
         tool_by_intent = {
             "get_kpi_data": "kpi_data_tool",
             "list_anomalies": "anomaly_tool",
+            "explain_anomaly_definition": "anomaly_tool",
             "list_store_price_changes": "price_change_request_tool",
             "list_store_country_price_mismatches": "anomaly_tool",
             "explain_kpi": "kpi_explanation_tool",
@@ -941,21 +1135,39 @@ class ChatbotOrchestrator:
         if is_price_review:
             anomalies = [
                 a for a in anomalies
-                if (
-                    a.get("anomaly_type")
-                    or a.get("type")
-                    or a.get("anomaly", {}).get("anomaly_type")
-                ) in _PRICE_REVIEW_ANOMALY_TYPES
+                if a.get("anomaly_type") in _PRICE_REVIEW_ANOMALY_TYPES
             ]
 
+        # T210 — filter by anomaly type when the question targets a specific type.
+        anomaly_type_filter = self._detect_anomaly_type_filter(normalized)
+        if anomaly_type_filter and not is_price_review:
+            anomalies = [a for a in anomalies if a.get("anomaly_type") == anomaly_type_filter]
+
+        # T210 — sort by business priority when the question asks for critical anomalies.
+        is_critical = any(phrase in normalized for phrase in _CRITICAL_ANOMALY_PHRASES)
+        if is_critical:
+            priority_index = {t: i for i, t in enumerate(_CRITICAL_ANOMALY_PRIORITY)}
+            anomalies = sorted(
+                anomalies,
+                key=lambda a: priority_index.get(a.get("anomaly_type", ""), len(_CRITICAL_ANOMALY_PRIORITY)),
+            )
+
         explained = self.anomaly_tool.explain_anomalies(anomalies)
-        return self._format_anomalies_list(explained, lang=lang, is_price_review=is_price_review)
+        return self._format_anomalies_list(
+            explained,
+            lang=lang,
+            is_price_review=is_price_review,
+            is_critical=is_critical,
+            anomaly_type_filter=anomaly_type_filter,
+        )
 
     def _format_anomalies_list(
         self,
         items: list[dict[str, Any]],
         lang: str = "fr",
         is_price_review: bool = False,
+        is_critical: bool = False,
+        anomaly_type_filter: str | None = None,
     ) -> str:
         if not items:
             if is_price_review:
@@ -970,10 +1182,40 @@ class ChatbotOrchestrator:
                     ),
                     lang=lang,
                 )
+            if anomaly_type_filter:
+                return self._response_service.format_tool_response(
+                    summary=f"Aucune anomalie de type {anomaly_type_filter} trouvée pour votre périmètre.",
+                    details=["Aucun résultat ne correspond à ce filtre dans les données disponibles."],
+                    lang=lang,
+                )
             return "Aucune anomalie trouvée pour votre périmètre."
 
+        # T210 — critical view: warn when no price-critical anomalies are present.
+        if is_critical:
+            price_critical_types = {"PRICE_ABOVE_REFERENCE", "INEFFECTIVE_DISCOUNT"}
+            has_price_critical = any(
+                item.get("anomaly", item).get("anomaly_type") in price_critical_types
+                for item in items
+            )
+            if not has_price_critical:
+                return self._response_service.format_tool_response(
+                    summary=f"{len(items)} anomalie(s) détectée(s). Aucune anomalie prix critique n'est disponible dans les résultats actuels.",
+                    details=[
+                        "Les anomalies disponibles sont principalement des promotions sous-performantes.",
+                        "Elles doivent être analysées après les anomalies prix critiques.",
+                        "Le niveau critique dépend du type d'anomalie et de son impact financier.",
+                    ],
+                    lang=lang,
+                )
+
         total = len(items)
-        displayed = items[: self._MAX_DISPLAYED_RESULTS] if is_price_review else items
+        displayed = items[: self._MAX_DISPLAYED_RESULTS]
+        suffix = (
+            f" Affichage des {len(displayed)} premières."
+            if total > self._MAX_DISPLAYED_RESULTS
+            else ""
+        )
+
         details = []
         for item in displayed:
             anomaly = item.get("anomaly", item)
@@ -985,11 +1227,6 @@ class ChatbotOrchestrator:
             details.append(f"{label} — Produit {product}{store_str}")
 
         if is_price_review:
-            suffix = (
-                f" Affichage des {len(displayed)} premières."
-                if total > self._MAX_DISPLAYED_RESULTS
-                else ""
-            )
             return self._response_service.format_tool_response(
                 summary=f"{total} anomalie(s) prix détectée(s).{suffix}",
                 details=details,
@@ -999,8 +1236,19 @@ class ChatbotOrchestrator:
                 lang=lang,
             )
 
+        if is_critical:
+            return self._response_service.format_tool_response(
+                summary=f"{total} anomalie(s) triée(s) par criticité métier.{suffix}",
+                details=details,
+                suggested_next_step=(
+                    "Traitez en priorité les anomalies PRICE_ABOVE_REFERENCE, puis INEFFECTIVE_DISCOUNT, "
+                    "UNDERPERFORMING_PROMO, et enfin INTER_STORE_PRICE_GAP."
+                ),
+                lang=lang,
+            )
+
         return self._response_service.format_tool_response(
-            summary=f"{len(items)} anomalie(s) détectée(s).",
+            summary=f"{total} anomalie(s) détectée(s).{suffix}",
             details=details,
             suggested_next_step=(
                 "Consultez les détails de chaque anomalie pour prioriser votre plan d'action."
@@ -1015,9 +1263,15 @@ class ChatbotOrchestrator:
         status: str | None = None
         if self._contains_any_phrase(normalized, ["pending", "waiting", "en attente"]):
             status = "PENDING"
-        elif self._contains_any_phrase(normalized, ["approved", "approuvé", "approuvée"]):
+        elif self._contains_any_phrase(
+            normalized,
+            ["approved", "approuvé", "approuvée", "approuvee", "validé", "validée", "validee"],
+        ):
             status = "APPROVED"
-        elif self._contains_any_phrase(normalized, ["rejected", "rejeté", "rejetée"]):
+        elif self._contains_any_phrase(
+            normalized,
+            ["rejected", "rejeté", "rejetée", "rejetee", "refusé", "refusée", "refusee"],
+        ):
             status = "REJECTED"
 
         items = self.price_change_request_tool.list_price_change_requests(
@@ -1329,7 +1583,7 @@ class ChatbotOrchestrator:
             return location if location else None
         return None
 
-    def _answer_documentary_question(self, question: str) -> dict[str, Any]:
+    def _answer_documentary_question(self, question: str, lang: str = "fr") -> dict[str, Any]:
         chunks = self.document_retriever.search(question, top_k=settings.rag_top_k)
 
         relevant_chunks = [
@@ -1353,7 +1607,7 @@ class ChatbotOrchestrator:
                 "rag_sources": [],
             }
 
-        prompt = self._prompt_builder.build(question, relevant_chunks)
+        prompt = self._prompt_builder.build(question, relevant_chunks, lang=lang)
         raw_answer = self.llm_provider.generate_response(prompt)
         llm_answer = strip_llm_sources_section(strip_leading_greeting(raw_answer))
 
@@ -1434,6 +1688,68 @@ class ChatbotOrchestrator:
             return True
         # "\bca\b" — French acronym for chiffre d'affaires; boundary avoids matching "can".
         return bool(re.search(r"\bca\b", text))
+
+    def _answer_anomaly_definition_question(self, question: str, lang: str = "fr") -> str:
+        normalized = question.lower()
+        # Override language from the trigger keyword when detect_language may have
+        # returned "en" for short mixed-language questions like "Explique PRICE_ABOVE_REFERENCE".
+        if "explique" in normalized:
+            lang = "fr"
+        elif "explain" in normalized:
+            lang = "en"
+        anomaly_type: str | None = None
+        for atype in _ANOMALY_DEFINITION_TEXTS:
+            if atype.lower() in normalized:
+                anomaly_type = atype
+                break
+
+        if anomaly_type is None:
+            return "Type d'anomalie non reconnu. Les types disponibles sont : PRICE_ABOVE_REFERENCE, UNDERPERFORMING_PROMO, INEFFECTIVE_DISCOUNT, INTER_STORE_PRICE_GAP."
+
+        texts = _ANOMALY_DEFINITION_TEXTS[anomaly_type]
+        content = texts.get(lang, texts["en"])
+        return self._response_service.format_tool_response(
+            summary=content["summary"],
+            details=content["details"],
+            suggested_next_step=content["next_step"],
+            lang=lang,
+        )
+
+    def _detect_anomaly_type_filter(self, normalized: str) -> str | None:
+        if self._contains_any_phrase(
+            normalized,
+            [
+                # unaccented forms
+                "au dessus du prix conseille",
+                "au-dessus du prix conseille",
+                "produits au dessus",
+                "prix conseille",
+                # accented forms
+                "au dessus du prix conseillé",
+                "au-dessus du prix conseillé",
+                "prix conseillé",
+                # English
+                "price above reference",
+            ],
+        ):
+            return "PRICE_ABOVE_REFERENCE"
+        if self._contains_any_phrase(
+            normalized,
+            [
+                # unaccented forms
+                "ecart de prix entre magasins",
+                "magasins ont un ecart",
+                "ecart de prix",
+                # accented forms
+                "écart de prix entre magasins",
+                "magasins ont un écart",
+                "écart de prix",
+                # English
+                "inter store price gap",
+            ],
+        ):
+            return "INTER_STORE_PRICE_GAP"
+        return None
 
     def _build_error_response(
         self,
