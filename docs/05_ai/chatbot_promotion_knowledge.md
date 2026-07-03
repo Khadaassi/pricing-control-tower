@@ -82,3 +82,21 @@ The chatbot can help with steps 1 and 2 by listing anomalies and explaining KPI 
 | Deactivate a promotion | Country Director, Pricing Analyst |
 
 The chatbot cannot create, modify, or deactivate promotions.
+
+## Comment savoir si une promotion fonctionne ?
+
+Une promotion fonctionne si elle améliore la performance commerciale sans dégrader excessivement la marge.
+
+Pour l’évaluer, il faut vérifier :
+- le chiffre d’affaires généré pendant la promotion ;
+- le volume vendu ;
+- l’uplift par rapport à une période de référence ;
+- l’impact sur la marge ;
+- la part du CA en promotion ;
+- le taux de remise ;
+- les anomalies associées comme UNDERPERFORMING_PROMO ou INEFFECTIVE_DISCOUNT.
+
+Une promotion ne doit pas être jugée uniquement sur le chiffre d’affaires. Une hausse du CA peut masquer une baisse de marge.
+
+Prochaine étape recommandée :
+Comparer les KPI avant et pendant la promotion, puis vérifier les anomalies liées à cette promotion.

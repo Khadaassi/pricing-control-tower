@@ -41,9 +41,8 @@ it is always served by Tool Calling via the backend.
 | `docs/05_runbook/operations_runbook.md` | operations | runbook | technical | validated | troubleshooting | medium |
 | `docs/06_validation/ai_chatbot_manual_validation.md` | user_guide | validation_report | technical | validated | routing context, explanation | medium |
 | `docs/07_operations/operations_documentation_index.md` | operations | markdown | technical | validated | troubleshooting | low |
-| `COMMANDES.md` | operations | command_reference | technical | validated | troubleshooting | low |
 
-**Total: 23 documents retained.**
+**Total: 22 documents retained.**
 
 ---
 
@@ -51,6 +50,7 @@ it is always served by Tool Calling via the backend.
 
 | Document | Reason for exclusion |
 |---|---|
+| `COMMANDES.md` | RAG usage = excluded|
 | `docs/02_data_model/MCD.md` | Entity-relationship diagram — not useful for natural language answers |
 | `docs/02_data_model/MLD_pct_analytics.md` | Low-level SQL schema — not useful for chatbot answers |
 | `docs/02_data_model/MLD_pct_core.md` | Low-level SQL schema — not useful for chatbot answers |
@@ -126,7 +126,6 @@ it is always served by Tool Calling via the backend.
 - **Chunk boundary strategy:** split on H2 headings first; fallback to H3 if section exceeds 512 tokens.
 - **Metadata to attach per chunk:** `source_file`, `domain`, `priority`, `section_title`.
 - **High-priority documents** should be indexed first and given higher retrieval weight if the vector store supports it.
-- **`COMMANDES.md`** contains command blocks — preserve code fences as single chunks to avoid breaking command syntax.
 - **`anomaly_business_rules.md`** contains structured rule tables — keep each rule as one chunk.
 - **`rbac_roles_permissions.md`** contains permission matrices — keep each role section as one chunk.
 - No document in this corpus should be split mid-table or mid-code-block.

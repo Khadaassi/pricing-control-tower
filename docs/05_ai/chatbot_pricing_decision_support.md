@@ -105,3 +105,21 @@ The chatbot will not say:
 - "Approuvez cette demande"
 
 The decision and the action are always the user's responsibility.
+
+## Comment décider si un prix doit être changé ?
+
+Un prix doit être revu lorsqu’un indicateur métier montre un risque ou une opportunité.
+
+Avant de proposer un changement de prix, il faut vérifier :
+- l’écart entre le prix magasin et le prix pays ;
+- la marge ;
+- le volume vendu ;
+- le chiffre d’affaires ;
+- les anomalies pricing ;
+- l’historique des changements de prix ;
+- les promotions actives sur le produit.
+
+Le chatbot peut recommander une analyse ou suggérer de créer une demande de changement de prix, mais il ne peut jamais appliquer le changement automatiquement.
+
+Prochaine étape recommandée :
+Consulter les anomalies prix et comparer le prix magasin au prix de référence pays.

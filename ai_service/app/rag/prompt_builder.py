@@ -33,7 +33,7 @@ Writing style:
 _ANSWER_FORMAT = """\
 Expected answer format:
 1. Direct answer
-2. Important details if useful (max 3 points)
+2. Détails importants si utiles (max 3 points)
 3. Suggested next step (only if supported by the documentary context)"""
 
 

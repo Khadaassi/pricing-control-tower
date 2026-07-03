@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy import case, func, select
@@ -29,6 +30,8 @@ def get_sales_kpis(
     allowed_store_ids: list[int] | None = None,
     is_promo: bool | None = None,
     price_type: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
 ) -> SalesKpiRead:
     query = select(
         func.count(ObtSales.transaction_id).label("total_sales_count"),
@@ -67,6 +70,12 @@ def get_sales_kpis(
 
     if price_type is not None:
         query = query.where(ObtSales.price_type == price_type.upper())
+
+    if date_from is not None:
+        query = query.where(ObtSales.transaction_date >= date_from)
+
+    if date_to is not None:
+        query = query.where(ObtSales.transaction_date <= date_to)
 
     result = db.execute(query).one()
 
