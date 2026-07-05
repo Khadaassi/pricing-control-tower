@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import date, timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -1327,13 +1328,15 @@ class TestPromotionsAnswering:
         orchestrator: ChatbotOrchestrator,
         mock_promotion_tool: MagicMock,
     ) -> None:
+        start_date = (date.today() - timedelta(days=7)).isoformat()
+        end_date = (date.today() + timedelta(days=7)).isoformat()
         mock_promotion_tool.list_promotions.return_value = [
             {
                 "product_id": 5,
                 "discount_type": "PERCENTAGE",
                 "discount_value": "20.00",
-                "start_date": "2026-06-01",
-                "end_date": "2026-06-15",
+                "start_date": start_date,
+                "end_date": end_date,
                 "active": True,
             }
         ]
@@ -1346,7 +1349,7 @@ class TestPromotionsAnswering:
         assert result["status"] == "answered"
         assert result["source"] == "promotion_tool"
         assert "20.00% discount" in result["answer"]
-        assert "2026-06-01" in result["answer"]
+        assert start_date in result["answer"]
 
     def test_fixed_price_promotion_formatted_correctly(
         self,
@@ -1358,8 +1361,8 @@ class TestPromotionsAnswering:
                 "product_id": 9,
                 "discount_type": "FIXED_PRICE",
                 "discount_value": "14.99",
-                "start_date": "2026-06-10",
-                "end_date": "2026-06-20",
+                "start_date": (date.today() - timedelta(days=3)).isoformat(),
+                "end_date": (date.today() + timedelta(days=10)).isoformat(),
                 "active": True,
             }
         ]
@@ -1375,7 +1378,7 @@ class TestPromotionsAnswering:
     ) -> None:
         mock_promotion_tool.list_promotions.return_value = []
 
-        result = orchestrator.answer_question("List active promotions")
+        result = orchestrator.answer_question("Liste les promotions actives")
 
         assert result["answer"] == "Aucune promotion trouvée."
 
@@ -2708,8 +2711,8 @@ class TestPromoWithCityResolution:
                 "product_id": 7,
                 "discount_type": "PERCENTAGE",
                 "discount_value": "15.00",
-                "start_date": "2026-06-01",
-                "end_date": "2026-06-30",
+                "start_date": (date.today() - timedelta(days=7)).isoformat(),
+                "end_date": (date.today() + timedelta(days=14)).isoformat(),
                 "store_id": 3,
             }
         ]
