@@ -11,15 +11,15 @@ returned without calling the LLM.
 from typing import Any
 
 from app.core.chatbot_messages import CHATBOT_TECHNICAL_ERROR_MESSAGE
+from app.core.config import settings
 from app.core.llm_response_cleaner import strip_leading_greeting, strip_llm_sources_section
 from app.core.logging_config import get_logger, log_event
-from app.core.config import settings
+from app.llm.base import BaseLLMProvider
 from app.orchestrator.chat_context import ChatContext
 from app.orchestrator.intent_types import IntentMatch
 from app.rag.prompt_builder import RAGPromptBuilder
 from app.rag.retriever import DocumentRetriever
 from app.rag.source_formatter import deduplicate_sources, enrich_sources, format_sources_block
-from app.llm.base import BaseLLMProvider
 from app.services.response_generation_service import ResponseGenerationService
 
 logger = get_logger("ai_service.orchestrator")

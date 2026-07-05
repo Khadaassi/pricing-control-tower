@@ -1,5 +1,4 @@
 import re
-from pathlib import Path
 
 from app.rag.config import PROJECT_ROOT, RAG_CORPUS_MANIFEST_PATH
 

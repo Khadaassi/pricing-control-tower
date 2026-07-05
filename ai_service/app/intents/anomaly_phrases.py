@@ -181,82 +181,132 @@ ANOMALY_SEVERITY: dict[str, str] = {
 ANOMALY_DEFINITION_TEXTS: dict[str, dict] = {
     "PRICE_ABOVE_REFERENCE": {
         "fr": {
-            "summary": "PRICE_ABOVE_REFERENCE signifie que le prix magasin est supérieur au prix de référence pays.",
+            "summary": (
+                "PRICE_ABOVE_REFERENCE signifie que le prix magasin"
+                " est supérieur au prix de référence pays."
+            ),
             "details": [
                 "Cela peut créer une incohérence prix pour le client.",
                 "L'écart doit être vérifié avant toute action.",
                 "Le prix ne doit pas être modifié automatiquement.",
             ],
-            "next_step": "Comparez le prix magasin au prix pays et vérifiez si l'écart est justifié localement.",
+            "next_step": (
+                "Comparez le prix magasin au prix pays"
+                " et vérifiez si l'écart est justifié localement."
+            ),
         },
         "en": {
-            "summary": "PRICE_ABOVE_REFERENCE means the store price is higher than the country reference price.",
+            "summary": (
+                "PRICE_ABOVE_REFERENCE means the store price"
+                " is higher than the country reference price."
+            ),
             "details": [
                 "This may create price inconsistency for customers.",
                 "The gap must be verified before any action.",
                 "The price must not be changed automatically.",
             ],
-            "next_step": "Compare the store price with the country reference price and verify if the gap is justified locally.",
+            "next_step": (
+                "Compare the store price with the country reference price"
+                " and verify if the gap is justified locally."
+            ),
         },
     },
     "UNDERPERFORMING_PROMO": {
         "fr": {
-            "summary": "UNDERPERFORMING_PROMO signifie que la promotion génère des performances inférieures aux attentes.",
+            "summary": (
+                "UNDERPERFORMING_PROMO signifie que la promotion"
+                " génère des performances inférieures aux attentes."
+            ),
             "details": [
                 "La promotion n'attire pas suffisamment de ventes supplémentaires.",
                 "Cela peut indiquer un mauvais ciblage ou une remise insuffisante.",
                 "Elle doit être analysée avant d'être prolongée ou arrêtée.",
             ],
-            "next_step": "Vérifiez la période, le niveau de remise et la tendance des ventes avant et pendant la promotion.",
+            "next_step": (
+                "Vérifiez la période, le niveau de remise"
+                " et la tendance des ventes avant et pendant la promotion."
+            ),
         },
         "en": {
-            "summary": "UNDERPERFORMING_PROMO means the promotion generates weaker performance than expected.",
+            "summary": (
+                "UNDERPERFORMING_PROMO means the promotion"
+                " generates weaker performance than expected."
+            ),
             "details": [
                 "The promoted product did not attract enough additional sales.",
                 "This may indicate poor targeting or insufficient discount.",
                 "It should be analyzed before extending or stopping it.",
             ],
-            "next_step": "Review the promotion period, discount level, and sales trend before and during the promotion.",
+            "next_step": (
+                "Review the promotion period, discount level,"
+                " and sales trend before and during the promotion."
+            ),
         },
     },
     "INEFFECTIVE_DISCOUNT": {
         "fr": {
-            "summary": "INEFFECTIVE_DISCOUNT signifie que la remise ne produit pas d'impact métier significatif.",
+            "summary": (
+                "INEFFECTIVE_DISCOUNT signifie que la remise"
+                " ne produit pas d'impact métier significatif."
+            ),
             "details": [
-                "La réduction de prix peut être trop faible, mal ciblée ou appliquée à un produit peu demandé.",
+                "La réduction de prix peut être trop faible, mal ciblée"
+                " ou appliquée à un produit peu demandé.",
                 "L'impact sur les ventes, le chiffre d'affaires ou la marge est insuffisant.",
                 "Vérifiez si la remise a augmenté le volume ou la marge.",
             ],
-            "next_step": "Vérifiez si la remise a augmenté le volume des ventes, le CA ou la marge par rapport à la baseline attendue.",
+            "next_step": (
+                "Vérifiez si la remise a augmenté le volume des ventes,"
+                " le CA ou la marge par rapport à la baseline attendue."
+            ),
         },
         "en": {
-            "summary": "INEFFECTIVE_DISCOUNT means the discount does not produce a meaningful business impact.",
+            "summary": (
+                "INEFFECTIVE_DISCOUNT means the discount"
+                " does not produce a meaningful business impact."
+            ),
             "details": [
-                "The price reduction may be too low, poorly targeted, or applied to a product with limited demand.",
+                "The price reduction may be too low, poorly targeted,"
+                " or applied to a product with limited demand.",
                 "The impact on sales, revenue, or margin is insufficient.",
                 "Check whether the discount increased sales volume, revenue, or margin.",
             ],
-            "next_step": "Check whether the discount increased sales volume, revenue, or margin compared with the expected baseline.",
+            "next_step": (
+                "Check whether the discount increased sales volume, revenue, or margin"
+                " compared with the expected baseline."
+            ),
         },
     },
     "INTER_STORE_PRICE_GAP": {
         "fr": {
-            "summary": "INTER_STORE_PRICE_GAP signifie que le prix d'un produit diffère significativement entre magasins.",
+            "summary": (
+                "INTER_STORE_PRICE_GAP signifie que le prix d'un produit"
+                " diffère significativement entre magasins."
+            ),
             "details": [
                 "L'écart de prix peut indiquer une incohérence tarifaire locale.",
                 "Il doit être vérifié avant toute action corrective.",
                 "Une règle métier locale peut justifier l'écart.",
             ],
-            "next_step": "Comparez le prix du magasin avec les autres magasins et vérifiez si l'écart est justifié par une règle locale.",
+            "next_step": (
+                "Comparez le prix du magasin avec les autres magasins"
+                " et vérifiez si l'écart est justifié par une règle locale."
+            ),
         },
         "en": {
-            "summary": "INTER_STORE_PRICE_GAP means a product price differs significantly across stores.",
+            "summary": (
+                "INTER_STORE_PRICE_GAP means a product price"
+                " differs significantly across stores."
+            ),
             "details": [
                 "The price gap may indicate a local pricing inconsistency.",
                 "It must be verified before any corrective action.",
                 "A local business rule may justify the gap.",
             ],
-            "next_step": "Compare the store price with other stores and check whether the gap is explained by a local business rule.",
+            "next_step": (
+                "Compare the store price with other stores and check"
+                " whether the gap is explained by a local business rule."
+            ),
         },
     },
 }

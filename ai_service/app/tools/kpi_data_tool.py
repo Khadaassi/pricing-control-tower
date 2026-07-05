@@ -161,9 +161,11 @@ class KPIDataTool:
         if target_kpi == "margin":
             if margin is not None:
                 next_step = (
-                    "Comparez cette marge avec la marge moyenne de la famille produit avant de proposer un changement de prix."
+                    "Comparez cette marge avec la marge moyenne de la famille"
+                    " produit avant de proposer un changement de prix."
                     if lang == "fr"
-                    else "Compare this margin to the product family average before proposing a price change."
+                    else "Compare this margin to the product family average"
+                    " before proposing a price change."
                 )
             else:
                 next_step = (
@@ -205,7 +207,10 @@ def _build_kpi_headline(
         return f"La marge estimée est de {val}." if lang == "fr" else f"Estimated margin: {val}."
     if target_kpi == "volume":
         val = f"{int(total_quantity):,} unités"
-        return f"Le volume vendu est de {val}." if lang == "fr" else f"Volume sold: {int(total_quantity):,} units."
+        return (
+            f"Le volume vendu est de {val}." if lang == "fr"
+            else f"Volume sold: {int(total_quantity):,} units."
+        )
     if target_kpi == "average_order_value":
         val = f"{float(avg_order):,.2f} €"
         return f"Le panier moyen est de {val}." if lang == "fr" else f"Average order value: {val}."

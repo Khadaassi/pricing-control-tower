@@ -57,11 +57,17 @@ class StaticResponseHandler:
     def _capabilities(self, lang: str) -> str:
         if lang == "fr":
             return self._response_service.format_tool_response(
-                summary="Je suis l'assistant IA du Pricing Control Tower. Voici ce que je peux expliquer :",
+                summary=(
+                    "Je suis l'assistant IA du Pricing Control Tower."
+                    " Voici ce que je peux expliquer :"
+                ),
                 details=[
-                    "Les KPI métier : chiffre d'affaires, marge, volume, panier moyen, performance promo, uplift",
-                    "Les anomalies de prix : écarts magasin/pays, promotions inefficaces, remises inefficaces",
-                    "Les rôles et permissions RBAC du MVP (Store Manager, Country Director, Pricing Analyst…)",
+                    "Les KPI métier : chiffre d'affaires, marge, volume,"
+                    " panier moyen, performance promo, uplift",
+                    "Les anomalies de prix : écarts magasin/pays,"
+                    " promotions inefficaces, remises inefficaces",
+                    "Les rôles et permissions RBAC du MVP"
+                    " (Store Manager, Country Director, Pricing Analyst…)",
                     "Les prix actuels par produit et magasin",
                     "Les promotions actives et leurs conditions",
                     "Le workflow de validation des demandes de changement de prix",
@@ -75,9 +81,11 @@ class StaticResponseHandler:
         return self._response_service.format_tool_response(
             summary="I am the Pricing Control Tower AI assistant. Here is what I can explain:",
             details=[
-                "Business KPIs: revenue, margin, volume, average order value, promo performance, uplift",
+                "Business KPIs: revenue, margin, volume, average order value,"
+                " promo performance, uplift",
                 "Price anomalies: store/country price gaps, ineffective promotions and discounts",
-                "MVP RBAC roles and permissions (Store Manager, Country Director, Pricing Analyst…)",
+                "MVP RBAC roles and permissions"
+                " (Store Manager, Country Director, Pricing Analyst…)",
                 "Current prices by product and store",
                 "Active promotions and their conditions",
                 "Price change request validation workflow",
@@ -99,7 +107,8 @@ class StaticResponseHandler:
                     "Créer, modifier ou désactiver une promotion",
                     "Écrire en base de données",
                     "Contourner le RBAC — je vois uniquement ce que votre rôle autorise",
-                    "Répondre à des questions sur des données sans contexte (magasin, produit ou période)",
+                    "Répondre à des questions sur des données"
+                    " sans contexte (magasin, produit ou période)",
                 ],
                 suggested_next_step=(
                     "Pour toute action (approbation, rejet, changement de prix), "
@@ -135,7 +144,8 @@ class StaticResponseHandler:
                     "Panier moyen (AOV) — l'achat moyen a-t-il changé ?",
                     "Uplift promotionnel — la promotion a-t-elle généré un revenu supplémentaire ?",
                     "Part du CA en promotion — quelle proportion des ventes est sous promotion ?",
-                    "Écart prix magasin / prix pays — y a-t-il une anomalie PRICE_ABOVE_REFERENCE ou INTER_STORE_PRICE_GAP ?",
+                    "Écart prix magasin / prix pays — y a-t-il une anomalie"
+                    " PRICE_ABOVE_REFERENCE ou INTER_STORE_PRICE_GAP ?",
                     "Anomalies détectées — quelles anomalies sont actives (type, sévérité) ?",
                     "Historique des changements de prix — une demande est-elle déjà en cours ?",
                 ],
@@ -156,7 +166,8 @@ class StaticResponseHandler:
                 "Average order value (AOV) — has the average purchase changed?",
                 "Promotional uplift — did the promotion generate incremental revenue?",
                 "Promo sales share — what proportion of sales occurred under a promotion?",
-                "Store / country price gap — is there a PRICE_ABOVE_REFERENCE or INTER_STORE_PRICE_GAP anomaly?",
+                "Store / country price gap — is there a PRICE_ABOVE_REFERENCE"
+                " or INTER_STORE_PRICE_GAP anomaly?",
                 "Detected anomalies — which anomalies are active (type, severity)?",
                 "Price change history — is a request already pending for this product?",
             ],

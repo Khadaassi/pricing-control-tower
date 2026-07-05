@@ -1,7 +1,6 @@
 import json
 from typing import Any
 
-from app.core.language_detector import detect_language
 from app.core.llm_response_cleaner import strip_leading_greeting
 from app.llm.base import BaseLLMProvider
 from app.llm.factory import get_llm_provider
@@ -25,7 +24,8 @@ class BusinessRulesExplanationService:
                 "answer": (
                     "Je n'ai pas trouvé de règle métier documentée correspondant à cette question. "
                     "Je peux répondre aux questions sur les règles tarifaires, les promotions, "
-                    "le workflow de changement de prix, la traçabilité, le RBAC ou les limitations du chatbot."
+                    "le workflow de changement de prix, la traçabilité,"
+                    " le RBAC ou les limitations du chatbot."
                 ),
                 "source": "business_rules_tool",
                 "rules_used": [],

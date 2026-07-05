@@ -61,7 +61,8 @@ KPI_DEFINITIONS: dict[str, dict[str, Any]] = {
             "average basket",
         ],
         "definition": (
-            "Average order value (panier moyen) represents the average revenue generated per transaction."
+            "Average order value (panier moyen) represents the average"
+            " revenue generated per transaction."
         ),
         "business_use": (
             "It helps users understand how much customers spend on average per order."

@@ -186,7 +186,9 @@ class TestListProducts:
     def test_returns_list_when_backend_returns_a_list(
         self, reference_data_tool: ReferenceDataTool, mock_backend_client: MagicMock
     ) -> None:
-        mock_backend_client.get.return_value = [{"id": 1, "code": "RUN-001", "name": "Running Shoes"}]
+        mock_backend_client.get.return_value = [
+            {"id": 1, "code": "RUN-001", "name": "Running Shoes"},
+        ]
 
         result = reference_data_tool.list_products()
 
@@ -207,7 +209,10 @@ class TestFindProductByText:
         self, reference_data_tool: ReferenceDataTool, mock_backend_client: MagicMock
     ) -> None:
         mock_backend_client.get.return_value = [
-            {"id": 1, "code": "FB_14910562664828", "sku": "FB_14910562664828", "name": "Ceinture cuir à boucle"},
+            {
+                "id": 1, "code": "FB_14910562664828",
+                "sku": "FB_14910562664828", "name": "Ceinture cuir à boucle",
+            },
             {"id": 2, "code": "FB_999", "sku": "FB_999", "name": "Autre produit"},
         ]
 
@@ -220,7 +225,10 @@ class TestFindProductByText:
         self, reference_data_tool: ReferenceDataTool, mock_backend_client: MagicMock
     ) -> None:
         mock_backend_client.get.return_value = [
-            {"id": 1, "code": "FB_14910562664828", "sku": "FB_14910562664828", "name": "Ceinture cuir à boucle"},
+            {
+                "id": 1, "code": "FB_14910562664828",
+                "sku": "FB_14910562664828", "name": "Ceinture cuir à boucle",
+            },
             {"id": 2, "code": "FB_999", "sku": "FB_999", "name": "Veste Lestée Ajustable"},
         ]
 

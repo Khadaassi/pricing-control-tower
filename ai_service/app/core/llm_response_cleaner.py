@@ -37,7 +37,11 @@ def strip_leading_greeting(answer: str) -> str:
     first_newline = answer.find("\n")
     if first_newline != -1:
         first_line = answer[:first_newline].strip().lower()
-        if first_line.startswith(("bonjour", "hello", "salut", "hi ", "bien sûr", "bien sur", "certainement", "avec plaisir")):
+        _greetings = (
+            "bonjour", "hello", "salut", "hi ",
+            "bien sûr", "bien sur", "certainement", "avec plaisir",
+        )
+        if first_line.startswith(_greetings):
             return answer[first_newline:].lstrip()
 
     return answer

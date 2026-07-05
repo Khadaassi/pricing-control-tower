@@ -288,7 +288,9 @@ class TestOperationalDataGuard:
         self, builder: RAGPromptBuilder
     ) -> None:
         prompt_en = builder.build("What promotions are active?", [CHUNK_MONITORING], lang="en")
-        prompt_fr = builder.build("Quelles promotions sont actives ?", [CHUNK_MONITORING], lang="fr")
+        prompt_fr = builder.build(
+            "Quelles promotions sont actives ?", [CHUNK_MONITORING], lang="fr"
+        )
 
         assert "prices" in prompt_en or "promotions" in prompt_en
         assert "prix" in prompt_fr or "promotions" in prompt_fr

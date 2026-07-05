@@ -78,7 +78,8 @@ _RBAC_LIST_ROLES_RESPONSE_FR = (
     "- COUNTRY_DIRECTOR — utilisateur limité à un pays assigné.\n"
     "- PRICING_ANALYST — utilisateur avec un accès plus large à l'analyse tarifaire MVP.\n\n"
     "Prochaine étape suggérée :\n"
-    'Posez une question sur un rôle spécifique, par exemple : "Expliquez les permissions du Store Manager".'
+    'Posez une question sur un rôle spécifique, par exemple :'
+    ' "Expliquez les permissions du Store Manager".'
 )
 
 _RBAC_PERSONAL_RIGHTS_RESPONSE_FR = (
@@ -90,7 +91,8 @@ _RBAC_PERSONAL_RIGHTS_RESPONSE_FR = (
     "- L'accès dépend également de votre magasin ou pays assigné.\n"
     "- Le contrôle d'accès réel est appliqué par le backend.\n\n"
     "Prochaine étape suggérée :\n"
-    'Posez une question sur un rôle spécifique, par exemple : "Quelles sont les permissions du Store Manager ?".'
+    'Posez une question sur un rôle spécifique, par exemple :'
+    ' "Quelles sont les permissions du Store Manager ?".'
 )
 
 _RBAC_WORKFLOW_RIGHTS_RESPONSE_FR = (
@@ -99,7 +101,8 @@ _RBAC_WORKFLOW_RIGHTS_RESPONSE_FR = (
     "Détails :\n"
     "- Certains utilisateurs peuvent créer des demandes de changement de prix.\n"
     "- Seuls les utilisateurs autorisés peuvent approuver ou rejeter les demandes.\n"
-    "- Le chatbot peut expliquer le workflow mais ne peut pas approuver, rejeter ou appliquer un changement de prix.\n\n"
+    "- Le chatbot peut expliquer le workflow mais ne peut pas"
+    " approuver, rejeter ou appliquer un changement de prix.\n\n"
     "Prochaine étape suggérée :\n"
     "Vérifiez votre rôle assigné, puis posez une question sur les permissions correspondantes."
 )
@@ -162,7 +165,8 @@ _RBAC_CAN_CHANGE_PRICE_RESPONSE = (
 
 _RBAC_CAN_CHANGE_PRICE_RESPONSE_FR = (
     "Résumé :\n"
-    "Un utilisateur peut demander un changement de prix uniquement si son rôle et son périmètre l'autorisent.\n\n"
+    "Un utilisateur peut demander un changement de prix"
+    " uniquement si son rôle et son périmètre l'autorisent.\n\n"
     "Détails :\n"
     "- Le Store Manager peut créer une demande dans son magasin si la permission est accordée.\n"
     "- Le Country Director ou Pricing Analyst peut intervenir sur un périmètre plus large.\n"
@@ -184,13 +188,15 @@ _RBAC_CAN_APPROVE_RESPONSE = (
 
 _RBAC_CAN_APPROVE_RESPONSE_FR = (
     "Résumé :\n"
-    "Seuls les utilisateurs autorisés peuvent approuver ou refuser une demande de changement de prix.\n\n"
+    "Seuls les utilisateurs autorisés peuvent approuver"
+    " ou refuser une demande de changement de prix.\n\n"
     "Détails :\n"
     "- L'approbation dépend du rôle et du périmètre utilisateur.\n"
     "- Une demande pending peut passer à approved ou rejected.\n"
     "- Le chatbot peut expliquer le workflow mais ne peut pas approuver ou refuser.\n\n"
     "Prochaine étape suggérée :\n"
-    "Consultez le workflow de validation et vérifiez qui dispose des droits d'approbation dans votre organisation."
+    "Consultez le workflow de validation et vérifiez"
+    " qui dispose des droits d'approbation dans votre organisation."
 )
 
 _RBAC_CAN_REJECT_RESPONSE = (
@@ -280,15 +286,24 @@ class RBACExplanationService:
             return {"answer": response, "source": "rbac_tool", "roles_used": [], "llm_used": False}
 
         if static_intent == "workflow_rights":
-            response = _RBAC_WORKFLOW_RIGHTS_RESPONSE_FR if lang == "fr" else _RBAC_WORKFLOW_RIGHTS_RESPONSE
+            response = (
+                _RBAC_WORKFLOW_RIGHTS_RESPONSE_FR if lang == "fr"
+                else _RBAC_WORKFLOW_RIGHTS_RESPONSE
+            )
             return {"answer": response, "source": "rbac_tool", "roles_used": [], "llm_used": False}
 
         if static_intent == "personal_rights":
-            response = _RBAC_PERSONAL_RIGHTS_RESPONSE_FR if lang == "fr" else _RBAC_PERSONAL_RIGHTS_RESPONSE
+            response = (
+                _RBAC_PERSONAL_RIGHTS_RESPONSE_FR if lang == "fr"
+                else _RBAC_PERSONAL_RIGHTS_RESPONSE
+            )
             return {"answer": response, "source": "rbac_tool", "roles_used": [], "llm_used": False}
 
         if static_intent == "can_change_price":
-            response = _RBAC_CAN_CHANGE_PRICE_RESPONSE_FR if lang == "fr" else _RBAC_CAN_CHANGE_PRICE_RESPONSE
+            response = (
+                _RBAC_CAN_CHANGE_PRICE_RESPONSE_FR if lang == "fr"
+                else _RBAC_CAN_CHANGE_PRICE_RESPONSE
+            )
             return {"answer": response, "source": "rbac_tool", "roles_used": [], "llm_used": False}
 
         if static_intent == "can_approve":
@@ -300,11 +315,17 @@ class RBACExplanationService:
             return {"answer": response, "source": "rbac_tool", "roles_used": [], "llm_used": False}
 
         if static_intent == "can_create_promotion":
-            response = _RBAC_CAN_CREATE_PROMOTION_RESPONSE_FR if lang == "fr" else _RBAC_CAN_CREATE_PROMOTION_RESPONSE
+            response = (
+                _RBAC_CAN_CREATE_PROMOTION_RESPONSE_FR if lang == "fr"
+                else _RBAC_CAN_CREATE_PROMOTION_RESPONSE
+            )
             return {"answer": response, "source": "rbac_tool", "roles_used": [], "llm_used": False}
 
         if static_intent == "cannot_see_store":
-            response = _RBAC_CANNOT_SEE_STORE_RESPONSE_FR if lang == "fr" else _RBAC_CANNOT_SEE_STORE_RESPONSE
+            response = (
+                _RBAC_CANNOT_SEE_STORE_RESPONSE_FR if lang == "fr"
+                else _RBAC_CANNOT_SEE_STORE_RESPONSE
+            )
             return {"answer": response, "source": "rbac_tool", "roles_used": [], "llm_used": False}
 
         rbac_context = self.rbac_tool.search_rbac_rules(question)
@@ -312,7 +333,8 @@ class RBACExplanationService:
         if not rbac_context["found"]:
             not_found = (
                 "Je n'ai pas trouvé de règle RBAC documentée correspondant à cette question. "
-                "Je peux expliquer les rôles, permissions, périmètres utilisateurs et restrictions d'accès."
+                "Je peux expliquer les rôles, permissions,"
+                " périmètres utilisateurs et restrictions d'accès."
             ) if lang == "fr" else (
                 "No documented RBAC rule was found matching this question. "
                 "I can explain roles, permissions, user scopes and access restrictions."

@@ -25,12 +25,18 @@ class ResponseGenerationService:
         return "\n".join(lines)
 
     def format_guardrail_response(self, lang: str = "en") -> str:
-        return CHATBOT_GUARDRAIL_ACTION_MESSAGE_FR if lang == "fr" else CHATBOT_GUARDRAIL_ACTION_MESSAGE
+        return (
+            CHATBOT_GUARDRAIL_ACTION_MESSAGE_FR if lang == "fr"
+            else CHATBOT_GUARDRAIL_ACTION_MESSAGE
+        )
 
     def format_clarification_response(self, message: str | None = None, lang: str = "en") -> str:
         if message is not None:
             return message
-        return CHATBOT_AMBIGUOUS_QUESTION_MESSAGE_FR if lang == "fr" else CHATBOT_AMBIGUOUS_QUESTION_MESSAGE
+        return (
+            CHATBOT_AMBIGUOUS_QUESTION_MESSAGE_FR if lang == "fr"
+            else CHATBOT_AMBIGUOUS_QUESTION_MESSAGE
+        )
 
     def format_fallback_response(self, lang: str = "en") -> str:
         return CHATBOT_OUT_OF_SCOPE_MESSAGE_FR if lang == "fr" else CHATBOT_OUT_OF_SCOPE_MESSAGE

@@ -300,25 +300,37 @@ class ToolResponseHandler:
         if not items:
             if is_price_review:
                 return self._response_service.format_tool_response(
-                    summary="Aucune anomalie prix prioritaire n'a été trouvée dans les résultats disponibles.",
+                    summary=(
+                        "Aucune anomalie prix prioritaire n'a été trouvée"
+                        " dans les résultats disponibles."
+                    ),
                     details=[
-                        "Les anomalies promotionnelles existent, mais elles ne répondent pas directement à la question sur les prix.",
-                        "Les types attendus pour cette question sont PRICE_ABOVE_REFERENCE ou INTER_STORE_PRICE_GAP.",
+                        "Les anomalies promotionnelles existent, mais elles ne répondent"
+                        " pas directement à la question sur les prix.",
+                        "Les types attendus pour cette question sont"
+                        " PRICE_ABOVE_REFERENCE ou INTER_STORE_PRICE_GAP.",
                     ],
                     suggested_next_step=(
-                        "Consultez les anomalies promotionnelles si vous souhaitez analyser les promotions inefficaces."
+                        "Consultez les anomalies promotionnelles si vous souhaitez"
+                        " analyser les promotions inefficaces."
                     ),
                     lang=lang,
                 )
             if is_margin_impact:
                 return self._response_service.format_tool_response(
-                    summary="Aucune anomalie de marge promotionnelle détectée dans votre périmètre.",
+                    summary=(
+                        "Aucune anomalie de marge promotionnelle"
+                        " détectée dans votre périmètre."
+                    ),
                     details=[
-                        "La criticité de l'impact marge n'est pas disponible comme champ structuré dans les données actuelles.",
-                        "Elle est déduite du type d'anomalie : INEFFECTIVE_DISCOUNT (HIGH) et UNDERPERFORMING_PROMO (MEDIUM).",
+                        "La criticité de l'impact marge n'est pas disponible"
+                        " comme champ structuré dans les données actuelles.",
+                        "Elle est déduite du type d'anomalie :"
+                        " INEFFECTIVE_DISCOUNT (HIGH) et UNDERPERFORMING_PROMO (MEDIUM).",
                     ],
                     suggested_next_step=(
-                        "Demandez 'quelle est la performance de la promotion X ?' pour analyser son impact marge via le KPI promotion performance."
+                        "Demandez 'quelle est la performance de la promotion X ?'"
+                        " pour analyser son impact marge via le KPI promotion performance."
                     ),
                     lang=lang,
                 )
@@ -327,17 +339,25 @@ class ToolResponseHandler:
                     summary="Aucune anomalie promotionnelle détectée dans votre périmètre.",
                     details=[
                         "Les types attendus sont UNDERPERFORMING_PROMO et INEFFECTIVE_DISCOUNT.",
-                        "Si aucune anomalie n'est présente, vos promotions actives sont dans les seuils attendus.",
+                        "Si aucune anomalie n'est présente, vos promotions actives"
+                        " sont dans les seuils attendus.",
                     ],
                     suggested_next_step=(
-                        "Consultez les KPI de performance promotionnelle pour confirmer l'absence d'anomalie."
+                        "Consultez les KPI de performance promotionnelle"
+                        " pour confirmer l'absence d'anomalie."
                     ),
                     lang=lang,
                 )
             if anomaly_type_filter:
                 return self._response_service.format_tool_response(
-                    summary=f"Aucune anomalie de type {anomaly_type_filter} trouvée pour votre périmètre.",
-                    details=["Aucun résultat ne correspond à ce filtre dans les données disponibles."],
+                    summary=(
+                        f"Aucune anomalie de type {anomaly_type_filter}"
+                        " trouvée pour votre périmètre."
+                    ),
+                    details=[
+                        "Aucun résultat ne correspond à ce filtre"
+                        " dans les données disponibles.",
+                    ],
                     lang=lang,
                 )
             return "Aucune anomalie trouvée pour votre périmètre."
@@ -350,13 +370,18 @@ class ToolResponseHandler:
             )
             if not has_price_critical:
                 return self._response_service.format_tool_response(
-                    summary=f"{len(items)} anomalie(s) détectée(s). Aucune anomalie prix critique (PRICE_ABOVE_REFERENCE) n'est disponible.",
+                    summary=(
+                        f"{len(items)} anomalie(s) détectée(s)."
+                        " Aucune anomalie prix critique (PRICE_ABOVE_REFERENCE)"
+                        " n'est disponible."
+                    ),
                     details=[
                         "Niveaux de sévérité métier (déduits du type, non stockés en base) :",
                         "  • CRITICAL — PRICE_ABOVE_REFERENCE",
                         "  • HIGH     — INEFFECTIVE_DISCOUNT",
                         "  • MEDIUM   — UNDERPERFORMING_PROMO, INTER_STORE_PRICE_GAP",
-                        "Les anomalies actuelles sont de sévérité MEDIUM — traitez-les après les anomalies CRITICAL et HIGH.",
+                        "Les anomalies actuelles sont de sévérité MEDIUM"
+                        " — traitez-les après les anomalies CRITICAL et HIGH.",
                     ],
                     lang=lang,
                 )
@@ -387,7 +412,8 @@ class ToolResponseHandler:
                 summary=f"{total} anomalie(s) prix détectée(s).{suffix}",
                 details=details,
                 suggested_next_step=(
-                    "Comparer le prix magasin avec le prix pays avant de créer une demande de changement de prix."
+                    "Comparer le prix magasin avec le prix pays"
+                    " avant de créer une demande de changement de prix."
                 ),
                 lang=lang,
             )
@@ -396,7 +422,8 @@ class ToolResponseHandler:
                 summary=f"{total} anomalie(s) promotionnelle(s) à analyser en priorité.{suffix}",
                 details=details,
                 suggested_next_step=(
-                    "Analysez d'abord les anomalies INEFFECTIVE_DISCOUNT (HIGH), puis UNDERPERFORMING_PROMO (MEDIUM). "
+                    "Analysez d'abord les anomalies INEFFECTIVE_DISCOUNT (HIGH),"
+                    " puis UNDERPERFORMING_PROMO (MEDIUM). "
                     "Vérifiez l'uplift revenu, le volume vendu et la marge avant toute décision."
                 ),
                 lang=lang,
@@ -406,7 +433,8 @@ class ToolResponseHandler:
                 summary=f"{total} anomalie(s) triée(s) par criticité métier.{suffix}",
                 details=details,
                 suggested_next_step=(
-                    "Traitez en priorité les anomalies PRICE_ABOVE_REFERENCE, puis INEFFECTIVE_DISCOUNT, "
+                    "Traitez en priorité les anomalies PRICE_ABOVE_REFERENCE,"
+                    " puis INEFFECTIVE_DISCOUNT, "
                     "UNDERPERFORMING_PROMO, et enfin INTER_STORE_PRICE_GAP."
                 ),
                 lang=lang,
@@ -437,7 +465,8 @@ class ToolResponseHandler:
         if anomaly_type is None:
             return (
                 "Type d'anomalie non reconnu. Les types disponibles sont : "
-                "PRICE_ABOVE_REFERENCE, UNDERPERFORMING_PROMO, INEFFECTIVE_DISCOUNT, INTER_STORE_PRICE_GAP."
+                "PRICE_ABOVE_REFERENCE, UNDERPERFORMING_PROMO,"
+                " INEFFECTIVE_DISCOUNT, INTER_STORE_PRICE_GAP."
             )
 
         texts = ANOMALY_DEFINITION_TEXTS[anomaly_type]
@@ -612,7 +641,8 @@ class ToolResponseHandler:
         if not items:
             if excluded_expired_count > 0:
                 note = (
-                    f"{excluded_expired_count} promotion(s) avec statut ACTIVE ont une période expirée "
+                    f"{excluded_expired_count} promotion(s) avec statut ACTIVE"
+                    " ont une période expirée "
                     f"et ont été exclues car elles ne sont plus en cours aujourd'hui."
                     if lang == "fr"
                     else f"{excluded_expired_count} ACTIVE promotion(s) had an expired period "
@@ -626,9 +656,11 @@ class ToolResponseHandler:
                     ),
                     details=[note],
                     suggested_next_step=(
-                        "Vérifiez dans l'application les promotions expirées si vous souhaitez les prolonger."
+                        "Vérifiez dans l'application les promotions expirées"
+                        " si vous souhaitez les prolonger."
                         if lang == "fr"
-                        else "Check the application for expired promotions if you wish to extend them."
+                        else "Check the application for expired promotions"
+                        " if you wish to extend them."
                     ),
                     lang=lang,
                 )
@@ -662,7 +694,9 @@ class ToolResponseHandler:
                 )
             else:
                 discount_label = (
-                    f"prix fixe {discount_value}" if lang == "fr" else f"fixed price {discount_value}"
+                    f"prix fixe {discount_value}"
+                    if lang == "fr"
+                    else f"fixed price {discount_value}"
                 )
 
             store_label = (
@@ -678,7 +712,8 @@ class ToolResponseHandler:
             pid = item.get("product_id")
             product = (products_by_id or {}).get(pid) if pid is not None else None
             if product:
-                product_label = f"{product.get('code', pid)} — {product.get('name', '')}".strip(" —")
+                raw = f"{product.get('code', pid)} — {product.get('name', '')}"
+                product_label = raw.strip(" —")
             else:
                 product_label = f"Produit {pid}"
 
@@ -715,7 +750,10 @@ class ToolResponseHandler:
             else ""
         )
         return self._response_service.format_tool_response(
-            summary=f"{total} promotion(s) en cours aujourd'hui{filters_label}.{suffix}{excluded_note}",
+            summary=(
+                f"{total} promotion(s) en cours aujourd'hui"
+                f"{filters_label}.{suffix}{excluded_note}"
+            ),
             details=details,
             suggested_next_step="Vérifiez les KPI de chaque promotion avant de les prolonger.",
             lang=lang,
@@ -834,7 +872,10 @@ class ToolResponseHandler:
                 active_str = f" [{status.lower()}]" if status else ""
 
             details.append(
-                f"{code} — {name} — {amount} {currency}{type_str}{location_str}{period_str}{active_str}".strip(" —")
+                (
+                    f"{code} — {name} — {amount} {currency}"
+                    f"{type_str}{location_str}{period_str}{active_str}"
+                ).strip(" —")
             )
 
         if total > 1:

@@ -7,7 +7,10 @@ pure routing switch between the handler layer and the orchestrator.
 
 from typing import Any
 
-from app.core.chatbot_messages import CHATBOT_NOT_IMPLEMENTED_MESSAGE, CHATBOT_UNSUPPORTED_USE_CASE_MESSAGE
+from app.core.chatbot_messages import (
+    CHATBOT_NOT_IMPLEMENTED_MESSAGE,
+    CHATBOT_UNSUPPORTED_USE_CASE_MESSAGE,
+)
 from app.handlers.clarification_handler import ClarificationHandler
 from app.handlers.guardrail_handler import GuardrailHandler
 from app.handlers.rag_response_handler import RAGResponseHandler

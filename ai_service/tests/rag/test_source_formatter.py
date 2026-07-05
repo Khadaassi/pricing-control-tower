@@ -1,6 +1,5 @@
 """Unit tests for source_formatter — pure functions, no I/O."""
 
-import pytest
 
 from app.rag.source_formatter import (
     build_source_title,

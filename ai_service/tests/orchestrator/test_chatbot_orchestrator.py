@@ -6,26 +6,20 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.core.chatbot_messages import (
-    CHATBOT_AMBIGUOUS_QUESTION_MESSAGE,
     CHATBOT_GUARDRAIL_ACTION_MESSAGE,
     CHATBOT_GUARDRAIL_ACTION_MESSAGE_FR,
-    CHATBOT_MISSING_STORE_ID_MESSAGE,
     CHATBOT_MISSING_USER_EMAIL_MESSAGE,
-    CHATBOT_NOT_IMPLEMENTED_MESSAGE,
-    CHATBOT_OUT_OF_SCOPE_MESSAGE,
     CHATBOT_OUT_OF_SCOPE_MESSAGE_FR,
     CHATBOT_PRICE_CLARIFICATION_MESSAGE,
     CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE_EN,
     CHATBOT_PRODUCT_CLARIFICATION_MESSAGE_EN,
-    CHATBOT_PROMOTION_CLARIFICATION_MESSAGE,
     CHATBOT_PROMOTION_CLARIFICATION_MESSAGE_EN,
     CHATBOT_STORE_CLARIFICATION_MESSAGE,
-    CHATBOT_SUPPORTED_SCOPE_MESSAGE,
 )
 from app.core.metrics import get_metric_value
 from app.orchestrator.chatbot_orchestrator import (
-    ChatbotOrchestrator,
     _RAG_FALLBACK_ANSWER,
+    ChatbotOrchestrator,
 )
 
 
@@ -269,7 +263,12 @@ class TestAnswerQuestionDispatch:
         orchestrator: ChatbotOrchestrator,
         mock_anomaly_tool: MagicMock,
     ) -> None:
-        raw = [{"anomaly": {"anomaly_type": "PRICE_ABOVE_REFERENCE", "product_id": 1}, "explanation": {}}]
+        raw = [
+            {
+                "anomaly": {"anomaly_type": "PRICE_ABOVE_REFERENCE", "product_id": 1},
+                "explanation": {},
+            },
+        ]
         mock_anomaly_tool.list_anomalies.return_value = raw
         mock_anomaly_tool.explain_anomalies.return_value = raw
 
@@ -637,7 +636,10 @@ class TestDocumentaryKnowledgeAnswering:
         assert result["source"] == "rag_retriever"
         assert result["status"] == "answered"
         assert len(result["rag_sources"]) == 1
-        assert result["rag_sources"][0]["source_file"] == "docs/01_functional/rbac_roles_permissions.md"
+        assert (
+            result["rag_sources"][0]["source_file"]
+            == "docs/01_functional/rbac_roles_permissions.md"
+        )
         assert result["rag_sources"][0]["section_title"] == "STORE_MANAGER"
 
     def test_monitoring_question_calls_rag_and_returns_monitoring_source(
@@ -673,7 +675,9 @@ class TestDocumentaryKnowledgeAnswering:
             "The workflow goes through DRAFT → PENDING → APPROVED → APPLIED."
         )
 
-        result = orchestrator.answer_question("What does the pricing architecture documentation describe?")
+        result = orchestrator.answer_question(
+            "What does the pricing architecture documentation describe?"
+        )
 
         mock_document_retriever.search.assert_called_once()
         mock_anomaly_tool.list_store_country_price_mismatches.assert_not_called()
@@ -1438,7 +1442,9 @@ class TestPricesAnswering:
 
         result = orchestrator.answer_question("List prices for product 3")
 
-        mock_price_tool.list_prices.assert_called_once_with(product_id=3, store_id=None, user_email=None)
+        mock_price_tool.list_prices.assert_called_once_with(
+            product_id=3, store_id=None, user_email=None
+        )
         assert result["status"] == "answered"
         assert result["source"] == "price_tool"
         assert "RUN-001" in result["answer"]
@@ -2202,7 +2208,10 @@ class TestT204FrenchRoutingNonRegression:
         mock_business_rules_service: MagicMock,
     ) -> None:
         mock_business_rules_service.explain.return_value = {
-            "answer": "Une promotion inefficace doit être désactivée via le workflow de validation.",
+            "answer": (
+                "Une promotion inefficace doit être désactivée"
+                " via le workflow de validation."
+            ),
             "source": "business_rules_tool + llm",
             "rules_used": [],
             "llm_used": True,
@@ -2229,7 +2238,10 @@ class TestT204FrenchRoutingNonRegression:
         mock_rbac_service: MagicMock,
     ) -> None:
         mock_rbac_service.explain.return_value = {
-            "answer": "Seuls les Store Managers et Country Directors peuvent proposer un changement de prix.",
+            "answer": (
+                "Seuls les Store Managers et Country Directors"
+                " peuvent proposer un changement de prix."
+            ),
             "source": "rbac_tool + llm",
             "roles_used": [],
             "llm_used": True,
@@ -2365,7 +2377,10 @@ class TestFrontendValidationRoutingNonRegression:
         mock_rbac_service: MagicMock,
     ) -> None:
         mock_rbac_service.explain.return_value = {
-            "answer": "Les rôles définis dans le MVP sont : STORE_MANAGER, STORE_DIRECTOR, COUNTRY_DIRECTOR, PRICING_ANALYST.",
+            "answer": (
+                "Les rôles définis dans le MVP sont :"
+                " STORE_MANAGER, STORE_DIRECTOR, COUNTRY_DIRECTOR, PRICING_ANALYST."
+            ),
             "source": "rbac_tool + llm",
             "roles_used": [],
             "llm_used": True,
@@ -2382,7 +2397,10 @@ class TestFrontendValidationRoutingNonRegression:
         mock_rbac_service: MagicMock,
     ) -> None:
         mock_rbac_service.explain.return_value = {
-            "answer": "Je peux expliquer les permissions par rôle, mais je n'ai pas accès à votre rôle actuel.",
+            "answer": (
+                "Je peux expliquer les permissions par rôle,"
+                " mais je n'ai pas accès à votre rôle actuel."
+            ),
             "source": "rbac_tool + llm",
             "roles_used": [],
             "llm_used": True,
@@ -2400,7 +2418,10 @@ class TestFrontendValidationRoutingNonRegression:
         mock_document_retriever: MagicMock,
     ) -> None:
         mock_rbac_service.explain.return_value = {
-            "answer": "Les Store Managers peuvent créer des demandes. Les Store Directors et Country Directors peuvent les approuver.",
+            "answer": (
+                "Les Store Managers peuvent créer des demandes."
+                " Les Store Directors et Country Directors peuvent les approuver."
+            ),
             "source": "rbac_tool + llm",
             "roles_used": [],
             "llm_used": True,
@@ -2463,7 +2484,7 @@ class TestPriceReviewAnomalyFiltering:
         ]
         mock_anomaly_tool.explain_anomalies.side_effect = self._fake_explain
 
-        result = orchestrator.answer_question(
+        orchestrator.answer_question(
             "Quel prix devrais-je revoir en priorité ?",
             user_email="user@example.com",
         )

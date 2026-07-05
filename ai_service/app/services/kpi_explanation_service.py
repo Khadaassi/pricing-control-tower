@@ -1,7 +1,6 @@
 import json
 from typing import Any
 
-from app.core.language_detector import detect_language
 from app.core.llm_response_cleaner import strip_leading_greeting
 from app.llm.base import BaseLLMProvider
 from app.llm.factory import get_llm_provider
@@ -24,7 +23,8 @@ class KPIExplanationService:
             return {
                 "answer": (
                     "Je n'ai pas trouvé de KPI documenté correspondant à cette question. "
-                    "Je peux expliquer le chiffre d'affaires, la marge, le volume, le panier moyen, "
+                    "Je peux expliquer le chiffre d'affaires, la marge,"
+                    " le volume, le panier moyen, "
                     "la performance promotionnelle et l'uplift."
                 ),
                 "source": "kpi_explanation_tool",

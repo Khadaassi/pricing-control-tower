@@ -8,7 +8,6 @@ Verifies that normalize() correctly:
   - preserves hyphens
 """
 
-import pytest
 
 from app.orchestrator.normalization import normalize
 

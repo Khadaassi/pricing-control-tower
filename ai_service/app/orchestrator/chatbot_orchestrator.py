@@ -25,14 +25,14 @@ from app.core.logging_config import get_logger, log_event
 from app.core.metrics import increment_chat_tool_usage_total
 from app.handlers.clarification_handler import ClarificationHandler
 from app.handlers.guardrail_handler import GuardrailHandler
-from app.handlers.rag_response_handler import RAGResponseHandler, RAG_FALLBACK_ANSWER
+from app.handlers.rag_response_handler import RAG_FALLBACK_ANSWER, RAGResponseHandler
 from app.handlers.static_response_handler import StaticResponseHandler
 from app.handlers.tool_response_handler import ToolResponseHandler
 from app.llm.base import BaseLLMProvider
 from app.llm.factory import get_llm_provider
 from app.orchestrator.chat_context import ChatContext
-from app.orchestrator.intent_types import Intent, RouteType
 from app.orchestrator.intent_router import IntentRouter
+from app.orchestrator.intent_types import Intent, RouteType
 from app.orchestrator.normalization import normalize
 from app.orchestrator.response_dispatcher import ResponseDispatcher
 from app.rag.prompt_builder import RAGPromptBuilder

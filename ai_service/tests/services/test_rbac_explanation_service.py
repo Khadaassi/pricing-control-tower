@@ -4,13 +4,11 @@ import pytest
 
 from app.llm.base import BaseLLMProvider
 from app.services.rbac_explanation_service import (
-    RBACExplanationService,
     _RBAC_LIST_ROLES_RESPONSE,
     _RBAC_LIST_ROLES_RESPONSE_FR,
-    _RBAC_PERSONAL_RIGHTS_RESPONSE,
     _RBAC_PERSONAL_RIGHTS_RESPONSE_FR,
-    _RBAC_WORKFLOW_RIGHTS_RESPONSE,
     _RBAC_WORKFLOW_RIGHTS_RESPONSE_FR,
+    RBACExplanationService,
 )
 from app.tools.rbac_tool import RBACTool
 
