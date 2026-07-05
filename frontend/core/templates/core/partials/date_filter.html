@@ -6,7 +6,7 @@
 
     {# ── Trigger button ── #}
     <button type="button" id="dp-trigger"
-            class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-violet-400">
+            class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-amber-400">
         <svg class="h-3.5 w-3.5 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/>
         </svg>
@@ -24,13 +24,13 @@
         {# Presets column #}
         <div class="flex flex-col gap-0.5 border-r border-gray-100 p-2.5 w-44 shrink-0">
             <p class="px-2 pb-1.5 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Raccourcis</p>
-            <button type="button" data-preset="today"       class="dp-preset text-left rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-violet-50 hover:text-violet-700">Aujourd'hui</button>
-            <button type="button" data-preset="yesterday"   class="dp-preset text-left rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-violet-50 hover:text-violet-700">Hier</button>
-            <button type="button" data-preset="last7"       class="dp-preset text-left rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-violet-50 hover:text-violet-700">7 derniers jours</button>
-            <button type="button" data-preset="lastWeek"    class="dp-preset text-left rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-violet-50 hover:text-violet-700">Semaine dernière</button>
-            <button type="button" data-preset="lastMonth"   class="dp-preset text-left rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-violet-50 hover:text-violet-700">Mois dernier</button>
-            <button type="button" data-preset="lastQuarter" class="dp-preset text-left rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-violet-50 hover:text-violet-700">Trimestre dernier</button>
-            <button type="button" data-preset="lastYear"    class="dp-preset text-left rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-violet-50 hover:text-violet-700">Année dernière</button>
+            <button type="button" data-preset="today"       class="dp-preset text-left rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-[#EBF2F9] hover:text-[#1E3A5F]">Aujourd'hui</button>
+            <button type="button" data-preset="yesterday"   class="dp-preset text-left rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-[#EBF2F9] hover:text-[#1E3A5F]">Hier</button>
+            <button type="button" data-preset="last7"       class="dp-preset text-left rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-[#EBF2F9] hover:text-[#1E3A5F]">7 derniers jours</button>
+            <button type="button" data-preset="lastWeek"    class="dp-preset text-left rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-[#EBF2F9] hover:text-[#1E3A5F]">Semaine dernière</button>
+            <button type="button" data-preset="lastMonth"   class="dp-preset text-left rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-[#EBF2F9] hover:text-[#1E3A5F]">Mois dernier</button>
+            <button type="button" data-preset="lastQuarter" class="dp-preset text-left rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-[#EBF2F9] hover:text-[#1E3A5F]">Trimestre dernier</button>
+            <button type="button" data-preset="lastYear"    class="dp-preset text-left rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-[#EBF2F9] hover:text-[#1E3A5F]">Année dernière</button>
         </div>
 
         {# Calendar column #}
@@ -65,7 +65,7 @@
                         Effacer
                     </button>
                     <button type="button" id="dp-apply"
-                            class="rounded-lg bg-violet-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                            class="rounded-lg bg-[#1E3A5F] px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-[#162d4a] disabled:opacity-40 disabled:cursor-not-allowed">
                         Appliquer
                     </button>
                 </div>
@@ -193,8 +193,8 @@
             if (!p) return;
             const [f, t] = p();
             const active = f === fromInput.value && t === toInput.value;
-            btn.classList.toggle('bg-violet-50',   active);
-            btn.classList.toggle('text-violet-700', active);
+            btn.classList.toggle('bg-[#EBF2F9]',   active);
+            btn.classList.toggle('text-[#1E3A5F]', active);
             btn.classList.toggle('font-semibold',   active);
         });
     }
@@ -243,15 +243,15 @@
             let cls = 'flex items-center justify-center h-7 w-full text-xs transition-colors cursor-pointer ';
 
             if (isStart || isEnd) {
-                cls += 'bg-violet-600 text-white font-semibold rounded-lg z-10 ';
+                cls += 'bg-[#1E3A5F] text-white font-semibold rounded-lg z-10 ';
             } else if (inRange) {
-                cls += 'bg-violet-100 text-violet-800 rounded-none ';
+                cls += 'bg-[#EBF2F9] text-[#1E3A5F] rounded-none ';
                 // Round left edge of range (day after start)
                 if (iso === shiftDays(rS, 1)) cls += 'rounded-l-lg ';
                 // Round right edge (day before end)
                 if (iso === shiftDays(rE, -1)) cls += 'rounded-r-lg ';
             } else if (isToday) {
-                cls += 'text-violet-600 font-semibold rounded-lg hover:bg-violet-50 ';
+                cls += 'text-[#4F83B6] font-semibold rounded-lg hover:bg-[#EBF2F9] ';
             } else {
                 cls += 'text-gray-700 rounded-lg hover:bg-gray-100 ';
             }

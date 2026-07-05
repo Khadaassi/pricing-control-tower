@@ -46,6 +46,10 @@ class ChatMetadata(BaseModel):
         default_factory=list,
         description="KPI utilisés pour répondre.",
     )
+    rag_sources: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Documentary sources returned by the RAG retriever.",
+    )
     error_type: str | None = Field(
         default=None,
         description="Type d'erreur technique si une erreur est survenue.",

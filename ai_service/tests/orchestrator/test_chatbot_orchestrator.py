@@ -1,17 +1,26 @@
 import json
 import logging
+from datetime import date, timedelta
 from unittest.mock import MagicMock
 
 import pytest
 
 from app.core.chatbot_messages import (
-    CHATBOT_MISSING_STORE_ID_MESSAGE,
+    CHATBOT_GUARDRAIL_ACTION_MESSAGE,
+    CHATBOT_GUARDRAIL_ACTION_MESSAGE_FR,
     CHATBOT_MISSING_USER_EMAIL_MESSAGE,
-    CHATBOT_NOT_IMPLEMENTED_MESSAGE,
-    CHATBOT_SUPPORTED_SCOPE_MESSAGE,
+    CHATBOT_OUT_OF_SCOPE_MESSAGE_FR,
+    CHATBOT_PRICE_CLARIFICATION_MESSAGE,
+    CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE_EN,
+    CHATBOT_PRODUCT_CLARIFICATION_MESSAGE_EN,
+    CHATBOT_PROMOTION_CLARIFICATION_MESSAGE_EN,
+    CHATBOT_STORE_CLARIFICATION_MESSAGE,
 )
 from app.core.metrics import get_metric_value
-from app.orchestrator.chatbot_orchestrator import ChatbotOrchestrator
+from app.orchestrator.chatbot_orchestrator import (
+    _RAG_FALLBACK_ANSWER,
+    ChatbotOrchestrator,
+)
 
 
 def logged_events(caplog: pytest.LogCaptureFixture, event_name: str) -> list[dict]:
@@ -28,11 +37,20 @@ def assert_no_business_tool_was_called(
     mock_rbac_service: MagicMock,
     mock_business_rules_service: MagicMock,
     mock_anomaly_tool: MagicMock,
+    mock_price_change_request_tool: MagicMock | None = None,
+    mock_promotion_tool: MagicMock | None = None,
+    mock_price_tool: MagicMock | None = None,
 ) -> None:
     mock_kpi_service.explain.assert_not_called()
     mock_rbac_service.explain.assert_not_called()
     mock_business_rules_service.explain.assert_not_called()
     mock_anomaly_tool.list_store_country_price_mismatches.assert_not_called()
+    if mock_price_change_request_tool is not None:
+        mock_price_change_request_tool.list_price_change_requests.assert_not_called()
+    if mock_promotion_tool is not None:
+        mock_promotion_tool.list_promotions.assert_not_called()
+    if mock_price_tool is not None:
+        mock_price_tool.list_prices.assert_not_called()
 
 
 class TestRouting:
@@ -49,7 +67,7 @@ class TestRouting:
     ) -> None:
         routed = orchestrator.route_question("Explique-moi les anomalies de prix.")
 
-        assert routed["intent"] == "list_store_country_price_mismatches"
+        assert routed["intent"] == "list_anomalies"
         assert routed["selected_tool"] == "anomaly_tool"
 
     def test_business_rule_question_is_routed_to_business_rules_tool(
@@ -79,6 +97,97 @@ class TestRouting:
 
         assert routed["intent"] == "explain_rbac"
         assert routed["selected_tool"] == "rbac_tool"
+
+    def test_list_roles_question_is_routed_to_rbac_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("quels sont les différents rôles ?")
+
+        assert routed["intent"] == "explain_rbac"
+        assert routed["selected_tool"] == "rbac_tool"
+
+    def test_my_rights_question_is_routed_to_rbac_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Quels sont mes droits ?")
+
+        assert routed["intent"] == "explain_rbac"
+        assert routed["selected_tool"] == "rbac_tool"
+
+    def test_my_workflow_rights_question_is_routed_to_rbac_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Quels sont mes droits sur le pricing workflow ?")
+
+        assert routed["intent"] == "explain_rbac"
+        assert routed["selected_tool"] == "rbac_tool"
+
+    # --- Regression tests for French KPI routing anomalies ---
+
+    def test_explique_chiffre_affaires_routes_to_kpi_explanation(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        # Anomaly 3: "Explique le chiffre d'affaires" must route to explain_kpi,
+        # not documentary_knowledge, regardless of apostrophe variant.
+        routed = orchestrator.route_question("Explique le chiffre d'affaires")
+
+        assert routed["intent"] == "explain_kpi"
+        assert routed["selected_tool"] == "kpi_explanation_tool"
+
+    def test_explique_chiffre_affaires_typographic_apostrophe_routes_to_kpi_explanation(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        # Anomaly 3 variant: typographic apostrophe must not escape explain_kpi.
+        routed = orchestrator.route_question("Explique le chiffre d’affaires")
+
+        assert routed["intent"] == "explain_kpi"
+        assert routed["selected_tool"] == "kpi_explanation_tool"
+
+    def test_quest_ce_que_le_panier_moyen_routes_to_kpi_explanation(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        # Anomaly 4: "panier moyen" must route to explain_kpi.
+        routed = orchestrator.route_question("Qu’est-ce que le panier moyen ?")
+
+        assert routed["intent"] == "explain_kpi"
+        assert routed["selected_tool"] == "kpi_explanation_tool"
+
+    def test_quelles_sont_tes_limites_routes_to_chatbot_limits(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        # Anomaly 2: limits question must return a static chatbot_limits response,
+        # never fall through to RAG.
+        routed = orchestrator.route_question("Quelles sont tes limites ?")
+
+        assert routed["intent"] == "chatbot_limits"
+        assert routed["selected_tool"] is None
+
+    def test_que_ne_peux_tu_pas_faire_routes_to_chatbot_limits(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Que ne peux-tu pas faire ?")
+
+        assert routed["intent"] == "chatbot_limits"
+        assert routed["selected_tool"] is None
+
+    def test_que_peux_tu_expliquer_routes_to_chatbot_capabilities(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        # "Que peux-tu expliquer ?" must route to the static chatbot_capabilities intent
+        # so the user always gets a clear, structured answer without relying on RAG.
+        routed = orchestrator.route_question("Que peux-tu expliquer ?")
+
+        assert routed["intent"] == "chatbot_capabilities"
+        assert routed["selected_tool"] is None
+
+    def test_followup_without_context_is_unsupported(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        # The chatbot has no multi-turn memory: bare follow-ups cannot be resolved.
+        routed = orchestrator.route_question("oui explique cela")
+
+        assert routed["intent"] == "unknown"
+        assert routed["status"] == "unsupported"
 
     def test_unrecognized_question_is_not_routed_to_any_tool(
         self, orchestrator: ChatbotOrchestrator
@@ -154,9 +263,14 @@ class TestAnswerQuestionDispatch:
         orchestrator: ChatbotOrchestrator,
         mock_anomaly_tool: MagicMock,
     ) -> None:
-        mock_anomaly_tool.list_store_country_price_mismatches.return_value = [
-            {"anomaly": {"anomaly_type": "PRICE_ABOVE_REFERENCE"}, "explanation": {}},
+        raw = [
+            {
+                "anomaly": {"anomaly_type": "PRICE_ABOVE_REFERENCE", "product_id": 1},
+                "explanation": {},
+            },
         ]
+        mock_anomaly_tool.list_anomalies.return_value = raw
+        mock_anomaly_tool.explain_anomalies.return_value = raw
 
         result = orchestrator.answer_question(
             "Explique-moi les anomalies de prix.",
@@ -164,16 +278,13 @@ class TestAnswerQuestionDispatch:
             store_id=42,
         )
 
-        mock_anomaly_tool.list_store_country_price_mismatches.assert_called_once_with(
+        mock_anomaly_tool.list_anomalies.assert_called_once_with(
             user_email="user@example.com",
-            store_id=42,
+            product_id=None,
+            store_id=None,
         )
         assert result["status"] == "answered"
         assert result["selected_tool"] == "anomaly_tool"
-        assert (
-            result["answer"]
-            == mock_anomaly_tool.list_store_country_price_mismatches.return_value
-        )
 
     def test_anomaly_question_without_user_email_does_not_call_anomaly_tool(
         self,
@@ -189,19 +300,26 @@ class TestAnswerQuestionDispatch:
         assert result["status"] == "missing_context"
         assert result["answer"] == CHATBOT_MISSING_USER_EMAIL_MESSAGE
 
-    def test_anomaly_question_without_store_id_does_not_call_anomaly_tool(
+    def test_anomaly_question_without_store_id_calls_anomaly_tool_without_filter(
         self,
         orchestrator: ChatbotOrchestrator,
         mock_anomaly_tool: MagicMock,
     ) -> None:
+        mock_anomaly_tool.list_anomalies.return_value = []
+        mock_anomaly_tool.explain_anomalies.return_value = []
+
         result = orchestrator.answer_question(
             "Explique-moi les anomalies de prix.",
             user_email="user@example.com",
         )
 
-        mock_anomaly_tool.list_store_country_price_mismatches.assert_not_called()
-        assert result["status"] == "missing_context"
-        assert result["answer"] == CHATBOT_MISSING_STORE_ID_MESSAGE
+        # list_anomalies does not require store_id; store_id is an optional filter
+        mock_anomaly_tool.list_anomalies.assert_called_once_with(
+            user_email="user@example.com",
+            product_id=None,
+            store_id=None,
+        )
+        assert result["status"] == "answered"
 
     def test_unrecognized_question_calls_no_business_tool(
         self,
@@ -214,7 +332,7 @@ class TestAnswerQuestionDispatch:
         result = orchestrator.answer_question("Raconte-moi une blague.")
 
         assert result["status"] == "unsupported"
-        assert result["answer"] == CHATBOT_SUPPORTED_SCOPE_MESSAGE
+        assert result["answer"] == CHATBOT_OUT_OF_SCOPE_MESSAGE_FR
         assert_no_business_tool_was_called(
             mock_kpi_service, mock_rbac_service, mock_business_rules_service, mock_anomaly_tool
         )
@@ -257,36 +375,29 @@ class TestGuardrails:
         mock_business_rules_service: MagicMock,
         mock_anomaly_tool: MagicMock,
     ) -> None:
-        # No keyword maps this phrasing to a known intent, so it falls back to
-        # "unknown" and the orchestrator answers with the generic scope message
-        # instead of attempting any write action (the chatbot has no write
-        # capability in the first place, but no read tool is touched either).
         result = orchestrator.answer_question("Approuve cette demande de changement de prix")
 
-        assert result["status"] == "unsupported"
-        assert result["answer"] == CHATBOT_SUPPORTED_SCOPE_MESSAGE
+        assert result["status"] == "guardrail"
+        assert result["answer"] == CHATBOT_GUARDRAIL_ACTION_MESSAGE_FR
         assert_no_business_tool_was_called(
             mock_kpi_service, mock_rbac_service, mock_business_rules_service, mock_anomaly_tool
         )
 
 
-class TestRevenueIntentNotYetWired:
-    """`get_country_revenue` is detected and routed to `kpi_tool`, but
-    `answer_question` has no handler for it yet: it falls through to the
-    generic "not implemented" response without calling `kpi_service.explain`.
-    """
+class TestRevenueIntentRouting:
+    """Revenue questions route to `get_kpi_data` and are handled by the KPI data tool."""
 
-    def test_revenue_question_is_routed_but_answered_as_not_implemented(
+    def test_revenue_question_is_routed_to_kpi_data_tool(
         self,
         orchestrator: ChatbotOrchestrator,
         mock_kpi_service: MagicMock,
     ) -> None:
         result = orchestrator.answer_question("What is our total revenue?")
 
-        assert result["intent"] == "get_country_revenue"
-        assert result["selected_tool"] == "kpi_tool"
-        assert result["status"] == "not_implemented"
-        assert result["answer"] == CHATBOT_NOT_IMPLEMENTED_MESSAGE
+        assert result["intent"] == "get_kpi_data"
+        assert result["selected_tool"] == "kpi_data_tool"
+        # Without user_email, returns a missing-context message but still "answered"
+        assert result["status"] == "answered"
         mock_kpi_service.explain.assert_not_called()
 
 
@@ -391,3 +502,2711 @@ class TestToolUsageMetrics:
         assert get_metric_value(
             "ai_chat_tool_usage_total", {"tool_name": "none"}
         ) == 1.0
+
+
+# ---------------------------------------------------------------------------
+# RAG — Documentary knowledge routing
+# ---------------------------------------------------------------------------
+
+_SAMPLE_CHUNK = {
+    "text": "Store managers can only access their own store data.",
+    "source_file": "docs/01_functional/rbac_roles_permissions.md",
+    "section_title": "STORE_MANAGER",
+    "domain": "rbac",
+    "score": 0.82,
+}
+
+_MONITORING_CHUNK = {
+    "text": "The chatbot is monitored via Prometheus and Grafana dashboards.",
+    "source_file": "docs/04_monitoring/monitoring_setup.md",
+    "section_title": "Chatbot Observability",
+    "domain": "monitoring",
+    "score": 0.78,
+}
+
+_WORKFLOW_CHUNK = {
+    "text": "A price change goes through DRAFT → PENDING → APPROVED → APPLIED.",
+    "source_file": "docs/03_architecture/pricing_workflow.md",
+    "section_title": "Workflow Statuses",
+    "domain": "architecture",
+    "score": 0.76,
+}
+
+
+class TestDocumentaryKnowledgeRouting:
+    def test_monitoring_question_routes_to_documentary_knowledge(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("How is the chatbot monitored?")
+
+        assert routed["intent"] == "documentary_knowledge"
+        assert routed["selected_tool"] == "rag_retriever"
+
+    def test_architecture_question_routes_to_documentary_knowledge(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "What does the pricing architecture documentation describe?"
+        )
+
+        assert routed["intent"] == "documentary_knowledge"
+        assert routed["selected_tool"] == "rag_retriever"
+
+    def test_runbook_question_routes_to_documentary_knowledge(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Is there a runbook for this system?")
+
+        assert routed["intent"] == "documentary_knowledge"
+        assert routed["selected_tool"] == "rag_retriever"
+
+    def test_chatbot_capabilities_question_routes_to_chatbot_capabilities(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("What can the chatbot do?")
+
+        assert routed["intent"] == "chatbot_capabilities"
+        assert routed["selected_tool"] is None
+
+    def test_authorization_documentation_question_routes_to_documentary_knowledge(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        # "authorization" contains none of the RBAC keywords (role, permission,
+        # store manager, rbac, access…); "documentation" triggers documentary_knowledge.
+        routed = orchestrator.route_question(
+            "What does the authorization documentation describe?"
+        )
+
+        assert routed["intent"] == "documentary_knowledge"
+        assert routed["selected_tool"] == "rag_retriever"
+
+    def test_observability_question_routes_to_documentary_knowledge(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("What is the observability strategy?")
+
+        assert routed["intent"] == "documentary_knowledge"
+        assert routed["selected_tool"] == "rag_retriever"
+
+
+class TestDocumentaryKnowledgeAnswering:
+    def test_documentary_question_calls_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        mock_document_retriever.search.return_value = [_SAMPLE_CHUNK]
+        mock_llm_provider.generate_response.return_value = (
+            "Store managers can only view their own store."
+        )
+
+        orchestrator.answer_question("What does the authorization documentation describe?")
+
+        mock_document_retriever.search.assert_called_once()
+
+    def test_documentary_question_calls_llm_with_context(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        mock_document_retriever.search.return_value = [_SAMPLE_CHUNK]
+        mock_llm_provider.generate_response.return_value = "Store managers are scoped."
+
+        orchestrator.answer_question("What does the authorization documentation describe?")
+
+        mock_llm_provider.generate_response.assert_called_once()
+        prompt = mock_llm_provider.generate_response.call_args[0][0]
+        assert "rbac_roles_permissions.md" in prompt
+
+    def test_documentary_response_includes_rag_sources(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        mock_document_retriever.search.return_value = [_SAMPLE_CHUNK]
+        mock_llm_provider.generate_response.return_value = "Store managers are scoped."
+
+        result = orchestrator.answer_question(
+            "What does the authorization documentation describe?"
+        )
+
+        assert result["source"] == "rag_retriever"
+        assert result["status"] == "answered"
+        assert len(result["rag_sources"]) == 1
+        assert (
+            result["rag_sources"][0]["source_file"]
+            == "docs/01_functional/rbac_roles_permissions.md"
+        )
+        assert result["rag_sources"][0]["section_title"] == "STORE_MANAGER"
+
+    def test_monitoring_question_calls_rag_and_returns_monitoring_source(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        mock_document_retriever.search.return_value = [_MONITORING_CHUNK]
+        mock_llm_provider.generate_response.return_value = (
+            "The chatbot is monitored via Prometheus."
+        )
+
+        result = orchestrator.answer_question("How is the chatbot monitored?")
+
+        mock_document_retriever.search.assert_called_once()
+        assert result["source"] == "rag_retriever"
+        assert any(
+            "monitoring_setup.md" in s["source_file"] for s in result["rag_sources"]
+        )
+
+    def test_workflow_documentation_question_calls_rag_without_backend(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+        mock_llm_provider: MagicMock,
+        mock_anomaly_tool: MagicMock,
+        mock_rbac_service: MagicMock,
+        mock_business_rules_service: MagicMock,
+    ) -> None:
+        mock_document_retriever.search.return_value = [_WORKFLOW_CHUNK]
+        mock_llm_provider.generate_response.return_value = (
+            "The workflow goes through DRAFT → PENDING → APPROVED → APPLIED."
+        )
+
+        result = orchestrator.answer_question(
+            "What does the pricing architecture documentation describe?"
+        )
+
+        mock_document_retriever.search.assert_called_once()
+        mock_anomaly_tool.list_store_country_price_mismatches.assert_not_called()
+        mock_rbac_service.explain.assert_not_called()
+        mock_business_rules_service.explain.assert_not_called()
+        assert result["source"] == "rag_retriever"
+        assert any(
+            "pricing_workflow.md" in s["source_file"] for s in result["rag_sources"]
+        )
+
+    def test_low_score_chunks_trigger_fallback_answer(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        low_score_chunk = {**_SAMPLE_CHUNK, "score": 0.10}
+        mock_document_retriever.search.return_value = [low_score_chunk]
+
+        result = orchestrator.answer_question("What does the authorization documentation describe?")
+
+        mock_llm_provider.generate_response.assert_not_called()
+        assert result["answer"] == _RAG_FALLBACK_ANSWER
+        assert result["rag_sources"] == []
+        assert result["llm_used"] is False
+
+    def test_empty_retriever_results_trigger_fallback_answer(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        mock_document_retriever.search.return_value = []
+
+        result = orchestrator.answer_question("How is the chatbot monitored?")
+
+        mock_llm_provider.generate_response.assert_not_called()
+        assert result["answer"] == _RAG_FALLBACK_ANSWER
+
+    def test_retriever_exception_returns_error_response(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        mock_document_retriever.search.side_effect = RuntimeError("Chroma unreachable")
+
+        result = orchestrator.answer_question("How is the chatbot monitored?")
+
+        assert result["status"] == "error"
+        assert result["error_type"] == "RuntimeError"
+
+
+# ---------------------------------------------------------------------------
+# Non-regression: operational questions must NOT trigger RAG
+# ---------------------------------------------------------------------------
+
+
+class TestRAGNonRegression:
+    def test_revenue_question_does_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        result = orchestrator.answer_question("What is our total revenue?")
+
+        mock_document_retriever.search.assert_not_called()
+        assert result["intent"] == "get_kpi_data"
+
+    def test_operational_anomaly_question_does_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        result = orchestrator.answer_question(
+            "Explique-moi les anomalies de prix.",
+            user_email="user@example.com",
+            store_id=1,
+        )
+
+        mock_document_retriever.search.assert_not_called()
+        assert result["intent"] == "list_anomalies"
+
+    def test_rbac_question_routes_to_rbac_tool_not_rag(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_rbac_service: MagicMock,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": "Un store manager accède uniquement à son magasin.",
+            "source": "rbac_tool + llm",
+            "roles_used": [],
+            "llm_used": True,
+        }
+
+        result = orchestrator.answer_question("Que peut faire un store manager ?")
+
+        mock_rbac_service.explain.assert_called_once()
+        mock_document_retriever.search.assert_not_called()
+        assert result["intent"] == "explain_rbac"
+
+    def test_business_rule_question_routes_to_business_rules_tool_not_rag(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_business_rules_service: MagicMock,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        mock_business_rules_service.explain.return_value = {
+            "answer": "Le chatbot est en lecture seule.",
+            "source": "business_rules_tool + llm",
+            "rules_used": [],
+            "llm_used": True,
+        }
+
+        result = orchestrator.answer_question(
+            "Quel est le workflow pour valider un changement de prix ?"
+        )
+
+        mock_business_rules_service.explain.assert_called_once()
+        mock_document_retriever.search.assert_not_called()
+        assert result["intent"] == "explain_business_rule"
+
+    def test_kpi_question_routes_to_kpi_tool_not_rag(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_kpi_service: MagicMock,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        mock_kpi_service.explain.return_value = {
+            "answer": "La marge est la différence entre prix de vente et coût.",
+            "source": "kpi_explanation_tool + llm",
+            "kpis_used": [],
+            "llm_used": True,
+        }
+
+        result = orchestrator.answer_question("Peux-tu m'expliquer ce KPI ?")
+
+        mock_kpi_service.explain.assert_called_once()
+        mock_document_retriever.search.assert_not_called()
+        assert result["intent"] == "explain_kpi"
+
+    def test_direct_action_request_does_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        result = orchestrator.answer_question("Approuve cette demande de changement de prix")
+
+        mock_document_retriever.search.assert_not_called()
+        assert result["status"] == "guardrail"
+
+    def test_rag_tool_usage_metric_is_incremented_for_documentary_question(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        mock_document_retriever.search.return_value = [_MONITORING_CHUNK]
+        mock_llm_provider.generate_response.return_value = "Monitored via Prometheus."
+
+        orchestrator.answer_question("How is the chatbot monitored?")
+
+        assert get_metric_value(
+            "ai_chat_tool_usage_total", {"tool_name": "rag_retriever"}
+        ) == 1.0
+
+
+# ---------------------------------------------------------------------------
+# T198 — Source references in RAG responses
+# ---------------------------------------------------------------------------
+
+_DUPLICATE_CHUNK = {
+    "text": "Additional context from the same section.",
+    "source_file": "docs/01_functional/rbac_roles_permissions.md",
+    "section_title": "STORE_MANAGER",
+    "domain": "rbac",
+    "score": 0.79,
+}
+
+
+class TestSourceReferences:
+    def test_rag_sources_include_title_field(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        mock_document_retriever.search.return_value = [_SAMPLE_CHUNK]
+        mock_llm_provider.generate_response.return_value = "Store managers are scoped."
+
+        result = orchestrator.answer_question(
+            "What does the authorization documentation describe?"
+        )
+
+        assert "title" in result["rag_sources"][0]
+        assert result["rag_sources"][0]["title"] == "Rbac Roles Permissions"
+
+    def test_rag_answer_contains_sources_block(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        mock_document_retriever.search.return_value = [_SAMPLE_CHUNK]
+        mock_llm_provider.generate_response.return_value = "Store managers are scoped."
+
+        result = orchestrator.answer_question(
+            "What does the authorization documentation describe?"
+        )
+
+        assert "Documentary sources:" in result["answer"]
+        assert "Rbac Roles Permissions" in result["answer"]
+
+    def test_sources_block_shows_section_title(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        mock_document_retriever.search.return_value = [_SAMPLE_CHUNK]
+        mock_llm_provider.generate_response.return_value = "Store managers are scoped."
+
+        result = orchestrator.answer_question(
+            "What does the authorization documentation describe?"
+        )
+
+        assert "STORE_MANAGER" in result["answer"]
+
+    def test_duplicate_chunks_deduplicated_in_rag_sources(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        mock_document_retriever.search.return_value = [_SAMPLE_CHUNK, _DUPLICATE_CHUNK]
+        mock_llm_provider.generate_response.return_value = "Store managers are scoped."
+
+        result = orchestrator.answer_question(
+            "What does the authorization documentation describe?"
+        )
+
+        assert len(result["rag_sources"]) == 1
+
+    def test_duplicate_chunks_deduplicated_in_sources_block(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        mock_document_retriever.search.return_value = [_SAMPLE_CHUNK, _DUPLICATE_CHUNK]
+        mock_llm_provider.generate_response.return_value = "Store managers are scoped."
+
+        result = orchestrator.answer_question(
+            "What does the authorization documentation describe?"
+        )
+
+        # "STORE_MANAGER" must appear exactly once in the sources block
+        sources_block_start = result["answer"].find("Documentary sources:")
+        sources_section = result["answer"][sources_block_start:]
+        assert sources_section.count("STORE_MANAGER") == 1
+
+    def test_sources_block_appended_after_llm_answer(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        mock_document_retriever.search.return_value = [_SAMPLE_CHUNK]
+        mock_llm_provider.generate_response.return_value = "LLM answer here."
+
+        result = orchestrator.answer_question(
+            "What does the authorization documentation describe?"
+        )
+
+        answer = result["answer"]
+        llm_part_end = answer.index("Documentary sources:")
+        assert "LLM answer here." in answer[:llm_part_end]
+
+    def test_fallback_answer_has_no_sources_block(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        mock_document_retriever.search.return_value = []
+
+        result = orchestrator.answer_question("How is the chatbot monitored?")
+
+        assert "Documentary sources:" not in result["answer"]
+        assert result["rag_sources"] == []
+
+    def test_tool_calling_response_has_no_rag_sources(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_rbac_service: MagicMock,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": "Un store manager accède uniquement à son magasin.",
+            "source": "rbac_tool + llm",
+            "roles_used": [],
+            "llm_used": True,
+        }
+
+        result = orchestrator.answer_question("Que peut faire un store manager ?")
+
+        mock_document_retriever.search.assert_not_called()
+        assert "rag_sources" not in result or result.get("rag_sources", []) == []
+        assert "Documentary sources:" not in str(result.get("answer", ""))
+
+
+# ---------------------------------------------------------------------------
+# T199 — Reference data tool (countries, stores, products, product families)
+# ---------------------------------------------------------------------------
+
+
+class TestReferenceDataRouting:
+    def test_list_countries_routes_to_reference_data_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List countries")
+
+        assert routed["intent"] == "reference_data"
+        assert routed["selected_tool"] == "reference_data_tool"
+
+    def test_what_stores_are_available_routes_to_reference_data_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("What stores are available?")
+
+        assert routed["intent"] == "reference_data"
+        assert routed["selected_tool"] == "reference_data_tool"
+
+    def test_show_product_families_routes_to_reference_data_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Show me the product families")
+
+        assert routed["intent"] == "reference_data"
+        assert routed["selected_tool"] == "reference_data_tool"
+
+    def test_list_active_products_routes_to_reference_data_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List active products")
+
+        assert routed["intent"] == "reference_data"
+        assert routed["selected_tool"] == "reference_data_tool"
+
+    def test_french_stores_question_routes_to_reference_data_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Quels magasins existent ?")
+
+        assert routed["intent"] == "reference_data"
+        assert routed["selected_tool"] == "reference_data_tool"
+
+    def test_french_product_families_question_routes_to_reference_data_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Quelles sont les familles de produits ?")
+
+        assert routed["intent"] == "reference_data"
+        assert routed["selected_tool"] == "reference_data_tool"
+
+    def test_documentary_pricing_rule_question_does_not_route_to_reference_data(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("How does the price change workflow work?")
+
+        assert routed["intent"] != "reference_data"
+
+    def test_anomaly_question_does_not_route_to_reference_data(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Explique-moi les anomalies de prix.")
+
+        assert routed["intent"] != "reference_data"
+
+    def test_revenue_question_does_not_route_to_reference_data(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("What is our total revenue?")
+
+        assert routed["intent"] != "reference_data"
+
+
+class TestReferenceDataAnswering:
+    def test_list_countries_calls_reference_data_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.list_countries.return_value = [
+            {"id": 1, "code": "FR", "name": "France"}
+        ]
+
+        result = orchestrator.answer_question("List countries")
+
+        mock_reference_data_tool.list_countries.assert_called_once()
+        assert result["status"] == "answered"
+        assert result["source"] == "reference_data_tool"
+        assert "France" in result["answer"]
+
+    def test_list_stores_calls_reference_data_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.list_stores.return_value = [
+            {"id": 1, "code": "LIL", "name": "Lille Centre", "country_id": 1}
+        ]
+
+        result = orchestrator.answer_question("What stores are available?")
+
+        mock_reference_data_tool.list_stores.assert_called_once()
+        assert result["status"] == "answered"
+        assert "Lille Centre" in result["answer"]
+
+    def test_list_product_families_calls_reference_data_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.list_product_families.return_value = [
+            {"id": 1, "code": "RUN", "name": "Running"},
+            {"id": 2, "code": "HIK", "name": "Hiking"},
+        ]
+
+        result = orchestrator.answer_question("Show me the product families")
+
+        mock_reference_data_tool.list_product_families.assert_called_once()
+        assert result["status"] == "answered"
+        assert "Running" in result["answer"]
+        assert "Hiking" in result["answer"]
+
+    def test_list_active_products_passes_active_filter(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.list_products.return_value = [
+            {"id": 1, "code": "RUN-001", "name": "Running Shoes", "active": True}
+        ]
+
+        result = orchestrator.answer_question("List active products")
+
+        mock_reference_data_tool.list_products.assert_called_once_with(
+            active=True, user_email=None
+        )
+        assert result["status"] == "answered"
+        assert "RUN-001" in result["answer"]
+
+    def test_empty_countries_returns_no_data_found_message(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.list_countries.return_value = []
+
+        result = orchestrator.answer_question("List countries")
+
+        assert result["status"] == "answered"
+        assert result["answer"] == "Aucune donnée de référence trouvée."
+
+    def test_reference_data_tool_exception_returns_error_response(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.list_countries.side_effect = RuntimeError("Backend unreachable")
+
+        result = orchestrator.answer_question("List countries")
+
+        assert result["status"] == "error"
+        assert result["error_type"] == "RuntimeError"
+
+
+class TestReferenceDataRAGNonRegression:
+    def test_reference_data_question_does_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.list_countries.return_value = [
+            {"id": 1, "code": "FR", "name": "France"}
+        ]
+
+        orchestrator.answer_question("List countries")
+
+        mock_document_retriever.search.assert_not_called()
+
+    def test_store_manager_rbac_question_does_not_route_to_reference_data(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+        mock_rbac_service: MagicMock,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": "Un store manager accède uniquement à son magasin.",
+            "source": "rbac_tool + llm",
+            "roles_used": [],
+            "llm_used": True,
+        }
+
+        result = orchestrator.answer_question("Que peut faire un store manager ?")
+
+        mock_reference_data_tool.list_stores.assert_not_called()
+        assert result["intent"] == "explain_rbac"
+
+
+# ---------------------------------------------------------------------------
+# T200 — Business tools extension
+# ---------------------------------------------------------------------------
+
+
+class TestPriceChangeRequestsRouting:
+    def test_list_pending_price_change_requests_routes_to_price_change_request_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List pending price change requests")
+
+        assert routed["intent"] == "list_store_price_changes"
+        assert routed["selected_tool"] == "price_change_request_tool"
+
+    def test_show_approved_price_requests_routes_to_price_change_request_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Show approved price requests")
+
+        assert routed["intent"] == "list_store_price_changes"
+        assert routed["selected_tool"] == "price_change_request_tool"
+
+    def test_waiting_for_approval_routes_to_price_change_request_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "What price changes are waiting for approval?"
+        )
+
+        assert routed["intent"] == "list_store_price_changes"
+        assert routed["selected_tool"] == "price_change_request_tool"
+
+    def test_french_price_change_requests_routes_correctly(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "Liste les demandes de changement de prix en attente"
+        )
+
+        assert routed["intent"] == "list_store_price_changes"
+        assert routed["selected_tool"] == "price_change_request_tool"
+
+
+class TestPriceChangeRequestsAnswering:
+    def test_pending_question_calls_tool_with_pending_status(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.return_value = [
+            {
+                "id": 12,
+                "product_id": 4,
+                "status": "PENDING",
+                "requested_price_amount": "19.99",
+            }
+        ]
+
+        result = orchestrator.answer_question("List pending price change requests")
+
+        mock_price_change_request_tool.list_price_change_requests.assert_called_once_with(
+            status="PENDING",
+            user_email=None,
+        )
+        assert result["status"] == "answered"
+        assert result["source"] == "price_change_request_tool"
+        assert "Request #12" in result["answer"]
+        assert "19.99" in result["answer"]
+
+    def test_no_status_filter_when_unspecified(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.return_value = []
+
+        orchestrator.answer_question("List price change requests")
+
+        mock_price_change_request_tool.list_price_change_requests.assert_called_once_with(
+            status=None,
+            user_email=None,
+        )
+
+    def test_empty_result_returns_no_data_message(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.return_value = []
+
+        result = orchestrator.answer_question("List pending price change requests")
+
+        assert result["answer"] == "Aucune donnée trouvée."
+        assert result["status"] == "answered"
+
+    def test_exception_returns_error_response(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.side_effect = RuntimeError(
+            "Backend error"
+        )
+
+        result = orchestrator.answer_question("List pending price change requests")
+
+        assert result["status"] == "error"
+        assert result["error_type"] == "RuntimeError"
+
+
+class TestPromotionsRouting:
+    def test_list_active_promotions_routes_to_promotion_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List active promotions")
+
+        assert routed["intent"] == "promotions"
+        assert routed["selected_tool"] == "promotion_tool"
+
+    def test_what_promotions_are_currently_active_routes_correctly(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("What promotions are currently active?")
+
+        assert routed["intent"] == "promotions"
+        assert routed["selected_tool"] == "promotion_tool"
+
+    def test_french_promotions_question_routes_correctly(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Liste les promotions actives")
+
+        assert routed["intent"] == "promotions"
+        assert routed["selected_tool"] == "promotion_tool"
+
+
+class TestPromotionsAnswering:
+    def test_active_promotions_calls_tool_with_active_true(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        start_date = (date.today() - timedelta(days=7)).isoformat()
+        end_date = (date.today() + timedelta(days=7)).isoformat()
+        mock_promotion_tool.list_promotions.return_value = [
+            {
+                "product_id": 5,
+                "discount_type": "PERCENTAGE",
+                "discount_value": "20.00",
+                "start_date": start_date,
+                "end_date": end_date,
+                "active": True,
+            }
+        ]
+
+        result = orchestrator.answer_question("List active promotions")
+
+        mock_promotion_tool.list_promotions.assert_called_once_with(
+            active=True, product_id=None, store_id=None, user_email=None
+        )
+        assert result["status"] == "answered"
+        assert result["source"] == "promotion_tool"
+        assert "20.00% discount" in result["answer"]
+        assert start_date in result["answer"]
+
+    def test_fixed_price_promotion_formatted_correctly(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        mock_promotion_tool.list_promotions.return_value = [
+            {
+                "product_id": 9,
+                "discount_type": "FIXED_PRICE",
+                "discount_value": "14.99",
+                "start_date": (date.today() - timedelta(days=3)).isoformat(),
+                "end_date": (date.today() + timedelta(days=10)).isoformat(),
+                "active": True,
+            }
+        ]
+
+        result = orchestrator.answer_question("List active promotions")
+
+        assert "fixed price 14.99" in result["answer"]
+
+    def test_empty_result_returns_no_data_message(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        mock_promotion_tool.list_promotions.return_value = []
+
+        result = orchestrator.answer_question("Liste les promotions actives")
+
+        assert result["answer"] == "Aucune promotion trouvée."
+
+    def test_exception_returns_error_response(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        mock_promotion_tool.list_promotions.side_effect = RuntimeError("Backend error")
+
+        result = orchestrator.answer_question("List active promotions")
+
+        assert result["status"] == "error"
+
+
+class TestPricesRouting:
+    def test_list_prices_for_product_routes_to_price_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List prices for product 3")
+
+        assert routed["intent"] == "prices"
+        assert routed["selected_tool"] == "price_tool"
+
+    def test_show_prices_for_product_routes_correctly(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Show prices for product 3")
+
+        assert routed["intent"] == "prices"
+        assert routed["selected_tool"] == "price_tool"
+
+    def test_french_prices_question_routes_correctly(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Liste des prix du magasin 2")
+
+        assert routed["intent"] == "prices"
+        assert routed["selected_tool"] == "price_tool"
+
+
+class TestPricesAnswering:
+    def test_prices_for_product_calls_price_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        mock_price_tool.list_prices.return_value = [
+            {
+                "product_id": 3,
+                "product_code": "RUN-001",
+                "product_name": "Running Shoes",
+                "amount": "29.99",
+                "currency_code": "EUR",
+            }
+        ]
+
+        result = orchestrator.answer_question("List prices for product 3")
+
+        mock_price_tool.list_prices.assert_called_once_with(
+            product_id=3, store_id=None, user_email=None
+        )
+        assert result["status"] == "answered"
+        assert result["source"] == "price_tool"
+        assert "RUN-001" in result["answer"]
+        assert "Running Shoes" in result["answer"]
+        assert "29.99" in result["answer"]
+
+    def test_empty_result_returns_no_data_message(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        mock_price_tool.list_prices.return_value = []
+
+        result = orchestrator.answer_question("List prices for product 3")
+
+        assert result["answer"] == "Aucun prix trouvé."
+
+    def test_exception_returns_error_response(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        mock_price_tool.list_prices.side_effect = RuntimeError("Backend error")
+
+        result = orchestrator.answer_question("List prices for product 3")
+
+        assert result["status"] == "error"
+
+
+class TestT200NonRegression:
+    def test_documentary_question_still_routes_to_rag(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("How does the price change workflow work?")
+
+        assert routed["intent"] == "documentary_knowledge"
+        assert routed["selected_tool"] == "rag_retriever"
+
+    def test_anomaly_question_still_routes_to_anomaly_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Explique-moi les anomalies de prix.")
+
+        assert routed["intent"] == "list_anomalies"
+        assert routed["selected_tool"] == "anomaly_tool"
+
+    def test_reference_data_question_still_routes_to_reference_data_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List countries")
+
+        assert routed["intent"] == "reference_data"
+        assert routed["selected_tool"] == "reference_data_tool"
+
+    def test_direct_action_request_still_blocked(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+        mock_promotion_tool: MagicMock,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        result = orchestrator.answer_question("Approuve cette demande de changement de prix")
+
+        assert result["status"] == "guardrail"
+        mock_price_change_request_tool.list_price_change_requests.assert_not_called()
+        mock_promotion_tool.list_promotions.assert_not_called()
+        mock_price_tool.list_prices.assert_not_called()
+
+    def test_price_change_requests_do_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.return_value = []
+
+        orchestrator.answer_question("List pending price change requests")
+
+        mock_document_retriever.search.assert_not_called()
+
+    def test_promotions_do_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_promotion_tool: MagicMock,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        mock_promotion_tool.list_promotions.return_value = []
+
+        orchestrator.answer_question("List active promotions")
+
+        mock_document_retriever.search.assert_not_called()
+
+    def test_prices_do_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_tool: MagicMock,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        mock_price_tool.list_prices.return_value = []
+
+        orchestrator.answer_question("List prices for product 3")
+
+        mock_document_retriever.search.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# T201 — Intent routing and fallback improvements
+# ---------------------------------------------------------------------------
+
+
+class TestGuardrailRouting:
+    def test_french_imperative_approve_routes_to_guardrail(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Approuve cette demande de changement de prix")
+
+        assert routed["intent"] == "guardrail_action_request"
+        assert routed["selected_tool"] is None
+
+    def test_english_approve_request_routes_to_guardrail(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Approve request 12")
+
+        assert routed["intent"] == "guardrail_action_request"
+        assert routed["selected_tool"] is None
+
+    def test_can_you_approve_routes_to_guardrail(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Can you approve request 12?")
+
+        assert routed["intent"] == "guardrail_action_request"
+        assert routed["selected_tool"] is None
+
+    def test_reject_request_routes_to_guardrail(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Reject request 5")
+
+        assert routed["intent"] == "guardrail_action_request"
+        assert routed["selected_tool"] is None
+
+    def test_french_reject_routes_to_guardrail(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Rejette la demande numéro 3")
+
+        assert routed["intent"] == "guardrail_action_request"
+        assert routed["selected_tool"] is None
+
+    def test_meta_chatbot_question_does_not_route_to_guardrail(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "Can the chatbot approve a price change request?"
+        )
+
+        assert routed["intent"] == "explain_business_rule"
+
+    def test_french_meta_chatbot_question_does_not_route_to_guardrail(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "Le chatbot peut-il approuver une demande de changement de prix ?"
+        )
+
+        assert routed["intent"] == "explain_business_rule"
+
+
+class TestGuardrailAnswering:
+    def test_guardrail_returns_guardrail_status(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Approve request 12")
+
+        assert result["status"] == "guardrail"
+        assert result["intent"] == "guardrail_action_request"
+
+    def test_guardrail_returns_dedicated_message(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Approve request 12")
+
+        assert result["answer"] == CHATBOT_GUARDRAIL_ACTION_MESSAGE
+
+    def test_guardrail_does_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Approve request 12")
+
+        mock_document_retriever.search.assert_not_called()
+
+    def test_guardrail_does_not_call_price_change_request_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Can you reject request 7?")
+
+        mock_price_change_request_tool.list_price_change_requests.assert_not_called()
+
+
+class TestAmbiguousQuestionRouting:
+    def test_tell_me_about_store_routes_to_clarify_store(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Tell me about store 1")
+
+        assert routed["intent"] == "clarify_store"
+        assert routed["selected_tool"] is None
+
+    def test_explain_price_routes_to_clarify_prices(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Explain price")
+
+        assert routed["intent"] == "clarify_prices"
+
+    def test_tell_me_about_product_routes_to_clarify_product(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Tell me about product 42")
+
+        assert routed["intent"] == "clarify_product"
+
+    def test_scoped_price_question_does_not_route_to_clarification(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List prices for product 3")
+
+        assert routed["intent"] == "prices"
+
+    def test_specific_store_list_does_not_route_to_clarification(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List stores")
+
+        assert routed["intent"] == "reference_data"
+
+
+class TestAmbiguousQuestionAnswering:
+    def test_clarify_store_returns_clarification_status(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Tell me about store 1")
+
+        assert result["status"] == "clarification"
+        assert result["intent"] == "clarify_store"
+
+    def test_clarify_store_returns_targeted_message(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Tell me about store 1")
+
+        assert result["answer"] == CHATBOT_STORE_CLARIFICATION_MESSAGE
+
+    def test_clarification_does_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Explain price")
+
+        mock_document_retriever.search.assert_not_called()
+
+    def test_clarification_does_not_call_reference_data_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Tell me about store 1")
+
+        mock_reference_data_tool.list_stores.assert_not_called()
+
+
+class TestImprovedFallback:
+    def test_out_of_scope_question_returns_improved_message(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Raconte-moi une blague.")
+
+        assert result["status"] == "unsupported"
+        assert result["answer"] == CHATBOT_OUT_OF_SCOPE_MESSAGE_FR
+
+    def test_out_of_scope_message_mentions_supported_topics(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Tell me something about suppliers.")
+
+        assert result["status"] == "unsupported"
+        assert "prices" in result["answer"] or "promotions" in result["answer"]
+
+
+class TestT201ToolVsRAGNonRegression:
+    def test_active_promotions_routes_to_tool_not_rag(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("What are active promotions?")
+
+        assert routed["intent"] == "promotions"
+        assert routed["selected_tool"] == "promotion_tool"
+
+    def test_documentary_promotions_routes_to_rag(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("How are promotions documented?")
+
+        assert routed["intent"] == "documentary_knowledge"
+        assert routed["selected_tool"] == "rag_retriever"
+
+    def test_list_stores_routes_to_tool_not_rag(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List stores")
+
+        assert routed["intent"] == "reference_data"
+        assert routed["selected_tool"] == "reference_data_tool"
+
+    def test_price_change_workflow_documentation_routes_to_rag_not_price_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("How does the price change workflow work?")
+
+        assert routed["intent"] == "documentary_knowledge"
+        assert routed["selected_tool"] == "rag_retriever"
+
+    def test_guardrail_blocks_before_price_change_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        result = orchestrator.answer_question("Valide cette demande")
+
+        assert result["status"] == "guardrail"
+        mock_price_change_request_tool.list_price_change_requests.assert_not_called()
+        mock_document_retriever.search.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# T202 — Structured response generation
+# ---------------------------------------------------------------------------
+
+
+class TestT202ToolResponseStructure:
+    def test_price_change_request_response_has_summary(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.return_value = [
+            {"id": 12, "product_id": 4, "status": "PENDING", "requested_price_amount": "19.99"}
+        ]
+
+        result = orchestrator.answer_question("List pending price change requests")
+
+        assert "Résumé :" in result["answer"]
+        assert "Détails :" in result["answer"]
+
+    def test_price_change_request_includes_suggested_next_step_for_pending(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.return_value = [
+            {"id": 5, "product_id": 2, "status": "PENDING", "requested_price_amount": "9.99"}
+        ]
+
+        result = orchestrator.answer_question("List pending price change requests")
+
+        assert "Prochaine étape suggérée :" in result["answer"]
+
+    def test_approved_price_change_has_no_suggested_next_step(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.return_value = [
+            {"id": 7, "product_id": 3, "status": "APPROVED", "requested_price_amount": "5.00"}
+        ]
+
+        result = orchestrator.answer_question("Show approved price requests")
+
+        assert "Prochaine étape suggérée :" not in result["answer"]
+
+    def test_promotions_response_has_summary_and_details(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        mock_promotion_tool.list_promotions.return_value = [
+            {
+                "product_id": 5,
+                "discount_type": "PERCENTAGE",
+                "discount_value": "20.00",
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-15",
+            }
+        ]
+
+        result = orchestrator.answer_question("List active promotions")
+
+        assert "Résumé :" in result["answer"]
+        assert "Détails :" in result["answer"]
+        assert "Prochaine étape suggérée :" in result["answer"]
+
+    def test_prices_response_has_summary_and_suggested_next_step(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        mock_price_tool.list_prices.return_value = [
+            {
+                "product_id": 3,
+                "product_code": "RUN-001",
+                "product_name": "Running Shoes",
+                "amount": "29.99",
+                "currency_code": "EUR",
+            }
+        ]
+
+        result = orchestrator.answer_question("List prices for product 3")
+
+        assert "Résumé :" in result["answer"]
+        assert "Détails :" in result["answer"]
+        assert "Prochaine étape suggérée :" in result["answer"]
+
+    def test_countries_response_has_summary(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.list_countries.return_value = [
+            {"id": 1, "code": "FR", "name": "France"},
+            {"id": 2, "code": "DE", "name": "Germany"},
+        ]
+
+        result = orchestrator.answer_question("List countries")
+
+        assert "Résumé :" in result["answer"]
+        assert "Détails :" in result["answer"]
+
+    def test_stores_response_has_summary(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.list_stores.return_value = [
+            {"id": 1, "code": "LIL", "name": "Lille Centre"}
+        ]
+
+        result = orchestrator.answer_question("What stores are available?")
+
+        assert "Résumé :" in result["answer"]
+        assert "Lille Centre" in result["answer"]
+
+    def test_products_response_has_summary(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.list_products.return_value = [
+            {"id": 1, "code": "RUN-001", "name": "Running Shoes", "active": True}
+        ]
+
+        result = orchestrator.answer_question("List active products")
+
+        assert "Résumé :" in result["answer"]
+        assert "RUN-001" in result["answer"]
+
+
+class TestT202StaticResponseStructure:
+    def test_guardrail_response_is_structured(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Approve request 12")
+
+        assert "cannot" in result["answer"].lower()
+        assert "workflow" in result["answer"].lower() or "explain" in result["answer"].lower()
+
+    def test_guardrail_response_offers_alternatives(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Approve request 12")
+
+        answer = result["answer"]
+        assert "explain" in answer.lower() or "identify" in answer.lower()
+
+    def test_clarification_response_is_structured(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Tell me about store 1")
+
+        assert "detail" in result["answer"].lower() or "asking about" in result["answer"].lower()
+
+    def test_clarification_mentions_multiple_options(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Tell me about store 1")
+
+        answer = result["answer"]
+        assert "operational" in answer.lower() or "reference" in answer.lower()
+
+    def test_fallback_response_lists_supported_topics(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Raconte-moi une blague.")
+
+        # FR question → FR response: "prix" instead of "prices"
+        assert "prix" in result["answer"].lower() or "prices" in result["answer"].lower()
+        assert "promotions" in result["answer"].lower()
+
+    def test_no_response_contains_forbidden_write_action(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        mock_promotion_tool.list_promotions.return_value = [
+            {
+                "product_id": 5,
+                "discount_type": "PERCENTAGE",
+                "discount_value": "20.00",
+                "start_date": "2026-06-01",
+                "end_date": "2026-06-15",
+            }
+        ]
+
+        result = orchestrator.answer_question("List active promotions")
+
+        forbidden = ["apply now", "approve now", "reject now", "delete now"]
+        for phrase in forbidden:
+            assert phrase not in result["answer"].lower()
+
+
+# ---------------------------------------------------------------------------
+# T203 — Granular ambiguity handling
+# ---------------------------------------------------------------------------
+
+
+class TestT203ClarificationRouting:
+    def test_show_prices_routes_to_clarify_prices(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Show prices")
+
+        assert routed["intent"] == "clarify_prices"
+        assert routed["selected_tool"] is None
+
+    def test_list_prices_routes_to_clarify_prices(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List prices")
+
+        assert routed["intent"] == "clarify_prices"
+        assert routed["selected_tool"] is None
+
+    def test_explain_price_routes_to_clarify_prices(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Explain price")
+
+        assert routed["intent"] == "clarify_prices"
+
+    def test_show_promotions_routes_to_clarify_promotions(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Show promotions")
+
+        assert routed["intent"] == "clarify_promotions"
+        assert routed["selected_tool"] is None
+
+    def test_tell_me_about_store_routes_to_clarify_store(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Tell me about store 1")
+
+        assert routed["intent"] == "clarify_store"
+        assert routed["selected_tool"] is None
+
+    def test_what_about_product_routes_to_clarify_product(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("What about product 3?")
+
+        assert routed["intent"] == "clarify_product"
+        assert routed["selected_tool"] is None
+
+    def test_show_requests_routes_to_clarify_price_requests(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Show requests")
+
+        assert routed["intent"] == "clarify_price_requests"
+        assert routed["selected_tool"] is None
+
+    def test_list_requests_routes_to_clarify_price_requests(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List requests")
+
+        assert routed["intent"] == "clarify_price_requests"
+
+    # Non-regression: clear questions must still route to their tool.
+
+    def test_list_active_promotions_routes_to_promotion_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List active promotions")
+
+        assert routed["intent"] == "promotions"
+        assert routed["selected_tool"] == "promotion_tool"
+
+    def test_list_prices_for_product_routes_to_price_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List prices for product 3")
+
+        assert routed["intent"] == "prices"
+        assert routed["selected_tool"] == "price_tool"
+
+    def test_list_stores_routes_to_reference_data_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List stores")
+
+        assert routed["intent"] == "reference_data"
+        assert routed["selected_tool"] == "reference_data_tool"
+
+    def test_list_pending_price_change_requests_routes_to_price_change_request_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("List pending price change requests")
+
+        assert routed["intent"] == "list_store_price_changes"
+        assert routed["selected_tool"] == "price_change_request_tool"
+
+    def test_price_change_workflow_documentation_routes_to_documentary_knowledge(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("How does the price change workflow work?")
+
+        assert routed["intent"] == "documentary_knowledge"
+        assert routed["selected_tool"] == "rag_retriever"
+
+
+class TestT203ClarificationAnswering:
+    def test_clarify_prices_returns_clarification_status(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Show prices")
+
+        assert result["status"] == "clarification"
+        assert result["intent"] == "clarify_prices"
+
+    def test_clarify_prices_returns_targeted_message(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Show prices")
+
+        assert result["answer"] == CHATBOT_PRICE_CLARIFICATION_MESSAGE
+
+    def test_clarify_promotions_returns_targeted_message(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Show promotions")
+
+        assert result["answer"] == CHATBOT_PROMOTION_CLARIFICATION_MESSAGE_EN
+
+    def test_clarify_store_returns_targeted_message(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Tell me about store 1")
+
+        assert result["answer"] == CHATBOT_STORE_CLARIFICATION_MESSAGE
+
+    def test_clarify_product_returns_targeted_message(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("What about product 3?")
+
+        assert result["answer"] == CHATBOT_PRODUCT_CLARIFICATION_MESSAGE_EN
+
+    def test_clarify_price_requests_returns_targeted_message(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Show requests")
+
+        assert result["answer"] == CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE_EN
+
+    def test_clarification_does_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Show prices")
+
+        mock_document_retriever.search.assert_not_called()
+
+    def test_clarification_does_not_call_promotion_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Show promotions")
+
+        mock_promotion_tool.list_promotions.assert_not_called()
+
+    def test_clarification_does_not_call_price_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Show prices")
+
+        mock_price_tool.list_prices.assert_not_called()
+
+    def test_clarification_does_not_call_reference_data_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Tell me about store 1")
+
+        mock_reference_data_tool.list_stores.assert_not_called()
+
+    def test_clarification_does_not_call_price_change_request_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Show requests")
+
+        mock_price_change_request_tool.list_price_change_requests.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# T204 — Non-regression: French business questions must not return unsupported
+# ---------------------------------------------------------------------------
+
+
+class TestT204FrenchRoutingNonRegression:
+    """Ensure French-phrased business questions are routed to the correct tool
+    and never return status='unsupported'."""
+
+    def test_ineffective_promotion_question_routes_to_business_rules(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "comment gérer une promotion qui ne fonctionne pas ?"
+        )
+
+        assert routed["intent"] == "explain_business_rule"
+        assert routed["selected_tool"] == "business_rules_tool"
+
+    def test_ineffective_promotion_question_does_not_return_unsupported(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_business_rules_service: MagicMock,
+    ) -> None:
+        mock_business_rules_service.explain.return_value = {
+            "answer": (
+                "Une promotion inefficace doit être désactivée"
+                " via le workflow de validation."
+            ),
+            "source": "business_rules_tool + llm",
+            "rules_used": [],
+            "llm_used": True,
+        }
+
+        result = orchestrator.answer_question(
+            "comment gérer une promotion qui ne fonctionne pas ?"
+        )
+
+        assert result["status"] != "unsupported"
+        assert result["intent"] == "explain_business_rule"
+
+    def test_who_has_right_to_change_price_routes_to_rbac(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("qui a droit de changer un prix ?")
+
+        assert routed["intent"] == "explain_rbac"
+        assert routed["selected_tool"] == "rbac_tool"
+
+    def test_who_has_right_to_change_price_does_not_return_unsupported(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_rbac_service: MagicMock,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": (
+                "Seuls les Store Managers et Country Directors"
+                " peuvent proposer un changement de prix."
+            ),
+            "source": "rbac_tool + llm",
+            "roles_used": [],
+            "llm_used": True,
+        }
+
+        result = orchestrator.answer_question("qui a droit de changer un prix ?")
+
+        assert result["status"] != "unsupported"
+        assert result["intent"] == "explain_rbac"
+
+    def test_ne_fonctionne_pas_phrase_routes_to_business_rules(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "La promotion ne fonctionne pas, que faire ?"
+        )
+
+        assert routed["intent"] == "explain_business_rule"
+
+    def test_droit_de_modifier_routes_to_rbac(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "Qui a le droit de modifier un prix dans le système ?"
+        )
+
+        assert routed["intent"] == "explain_rbac"
+
+    def test_ineffective_promotion_does_not_call_promotion_tool(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_business_rules_service: MagicMock,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        mock_business_rules_service.explain.return_value = {
+            "answer": "Désactivez la promotion via le workflow.",
+            "source": "business_rules_tool + llm",
+            "rules_used": [],
+            "llm_used": True,
+        }
+
+        orchestrator.answer_question(
+            "comment gérer une promotion qui ne fonctionne pas ?"
+        )
+
+        mock_promotion_tool.list_promotions.assert_not_called()
+
+    def test_rbac_french_question_does_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_rbac_service: MagicMock,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": "Les Store Managers peuvent proposer des changements de prix.",
+            "source": "rbac_tool + llm",
+            "roles_used": [],
+            "llm_used": True,
+        }
+
+        orchestrator.answer_question("qui a droit de changer un prix ?")
+
+
+# ---------------------------------------------------------------------------
+# Frontend validation — routing non-regression (questions observed on front)
+# ---------------------------------------------------------------------------
+
+
+class TestFrontendValidationRoutingNonRegression:
+    """Ensure that every question that triggered an unwarranted 'unsupported'
+    response during frontend demos routes to the correct tool."""
+
+    # RBAC questions
+
+    def test_quels_sont_les_differents_roles_routes_to_rbac(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("quels sont les différents rôles ?")
+
+        assert routed["intent"] == "explain_rbac"
+        assert routed["status"] != "unsupported"
+
+    def test_quels_sont_les_differents_roles_no_accent_routes_to_rbac(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("quels sont les differents roles ?")
+
+        assert routed["intent"] == "explain_rbac"
+
+    def test_mes_droits_sur_pricing_workflow_routes_to_rbac(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "Quels sont mes droits sur le pricing workflow ?"
+        )
+
+        assert routed["intent"] == "explain_rbac"
+        assert routed["status"] != "unsupported"
+
+    def test_mes_droits_routes_to_rbac(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Quels sont mes droits ?")
+
+        assert routed["intent"] == "explain_rbac"
+        assert routed["status"] != "unsupported"
+
+    def test_mes_permissions_routes_to_rbac(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Explique mes permissions ?")
+
+        assert routed["intent"] == "explain_rbac"
+        assert routed["status"] != "unsupported"
+
+    # Business rules — ineffective promotions
+
+    def test_comment_gerer_promotion_ne_fonctionne_pas_routes_to_business_rules(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "comment gérer une promotion qui ne fonctionne pas ?"
+        )
+
+        assert routed["intent"] == "explain_business_rule"
+        assert routed["status"] != "unsupported"
+
+    # Answer-level checks — status is never unsupported
+
+    def test_quels_sont_les_differents_roles_answer_is_not_unsupported(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_rbac_service: MagicMock,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": (
+                "Les rôles définis dans le MVP sont :"
+                " STORE_MANAGER, STORE_DIRECTOR, COUNTRY_DIRECTOR, PRICING_ANALYST."
+            ),
+            "source": "rbac_tool + llm",
+            "roles_used": [],
+            "llm_used": True,
+        }
+
+        result = orchestrator.answer_question("quels sont les différents rôles ?")
+
+        assert result["status"] != "unsupported"
+        assert result["intent"] == "explain_rbac"
+
+    def test_mes_droits_answer_is_not_unsupported(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_rbac_service: MagicMock,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": (
+                "Je peux expliquer les permissions par rôle,"
+                " mais je n'ai pas accès à votre rôle actuel."
+            ),
+            "source": "rbac_tool + llm",
+            "roles_used": [],
+            "llm_used": True,
+        }
+
+        result = orchestrator.answer_question("Quels sont mes droits ?")
+
+        assert result["status"] != "unsupported"
+        assert result["intent"] == "explain_rbac"
+
+    def test_pricing_workflow_rights_answer_is_not_unsupported(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_rbac_service: MagicMock,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": (
+                "Les Store Managers peuvent créer des demandes."
+                " Les Store Directors et Country Directors peuvent les approuver."
+            ),
+            "source": "rbac_tool + llm",
+            "roles_used": [],
+            "llm_used": True,
+        }
+
+        result = orchestrator.answer_question(
+            "Quels sont mes droits sur le pricing workflow ?"
+        )
+
+        assert result["status"] != "unsupported"
+        assert result["intent"] == "explain_rbac"
+        mock_document_retriever.search.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# T205 — Price-review anomaly filtering
+# ---------------------------------------------------------------------------
+
+
+class TestPriceReviewAnomalyFiltering:
+    """When the question asks which price to review first, only price-type
+    anomalies (PRICE_ABOVE_REFERENCE, INTER_STORE_PRICE_GAP) should appear
+    in the answer — promotional anomalies must be excluded."""
+
+    def _fake_explain(self, anomalies: list[dict]) -> list[dict]:
+        """Minimal explain stub: wraps each raw anomaly in the standard envelope."""
+        return [
+            {"anomaly": a, "explanation": {"label": a.get("anomaly_type", "Anomalie")}}
+            for a in anomalies
+        ]
+
+    def test_price_review_question_keeps_price_above_reference(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_anomaly_tool: MagicMock,
+    ) -> None:
+        mock_anomaly_tool.list_anomalies.return_value = [
+            {"anomaly_type": "PRICE_ABOVE_REFERENCE", "product_id": 12, "store_id": 1},
+            {"anomaly_type": "UNDERPERFORMING_PROMO", "product_id": 5, "store_id": 2},
+        ]
+        mock_anomaly_tool.explain_anomalies.side_effect = self._fake_explain
+
+        result = orchestrator.answer_question(
+            "Quel prix devrais-je revoir en priorité ?",
+            user_email="user@example.com",
+        )
+
+        assert result["status"] == "answered"
+        assert "PRICE_ABOVE_REFERENCE" in result["answer"]
+        assert "anomalie(s) prix" in result["answer"]
+
+    def test_price_review_question_excludes_underperforming_promo(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_anomaly_tool: MagicMock,
+    ) -> None:
+        mock_anomaly_tool.list_anomalies.return_value = [
+            {"anomaly_type": "PRICE_ABOVE_REFERENCE", "product_id": 12, "store_id": 1},
+            {"anomaly_type": "UNDERPERFORMING_PROMO", "product_id": 5, "store_id": 2},
+        ]
+        mock_anomaly_tool.explain_anomalies.side_effect = self._fake_explain
+
+        orchestrator.answer_question(
+            "Quel prix devrais-je revoir en priorité ?",
+            user_email="user@example.com",
+        )
+
+        # explain_anomalies must have been called with the filtered list only
+        called_with = mock_anomaly_tool.explain_anomalies.call_args[0][0]
+        types_passed = {a["anomaly_type"] for a in called_with}
+        assert "UNDERPERFORMING_PROMO" not in types_passed
+        assert "PRICE_ABOVE_REFERENCE" in types_passed
+
+    def test_price_review_with_no_price_anomaly_does_not_list_promo_anomalies(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_anomaly_tool: MagicMock,
+    ) -> None:
+        mock_anomaly_tool.list_anomalies.return_value = [
+            {"anomaly_type": "UNDERPERFORMING_PROMO", "product_id": 5, "store_id": 2},
+        ]
+        mock_anomaly_tool.explain_anomalies.side_effect = self._fake_explain
+
+        result = orchestrator.answer_question(
+            "Quel prix devrais-je revoir en priorité ?",
+            user_email="user@example.com",
+        )
+
+        assert result["status"] == "answered"
+        assert "UNDERPERFORMING_PROMO" not in result["answer"]
+        assert "Aucune anomalie prix prioritaire" in result["answer"]
+        assert "PRICE_ABOVE_REFERENCE" in result["answer"]
+
+
+# ---------------------------------------------------------------------------
+# Text-based product / store resolution and promo routing fixes
+# ---------------------------------------------------------------------------
+
+
+class TestPriceByNameOrSKURouting:
+    """Questions naming a product by text (name or SKU) must route to price_tool."""
+
+    def test_price_of_product_by_name_routes_to_price_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("quel est le prix de Ceinture cuir à boucle")
+
+        assert routed["intent"] == "prices"
+        assert routed["selected_tool"] == "price_tool"
+
+    def test_price_of_product_by_sku_routes_to_price_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("quel est le prix de FB_14910562664828")
+
+        assert routed["intent"] == "prices"
+        assert routed["selected_tool"] == "price_tool"
+
+    def test_price_of_product_by_sku_with_city_routes_to_price_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("quel est le prix de FB_14910562664828 à Lille")
+
+        assert routed["intent"] == "prices"
+        assert routed["selected_tool"] == "price_tool"
+
+    def test_liste_les_produits_en_promo_routes_to_promotion_tool_not_reference_data(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("liste les produits en promo à lille")
+
+        assert routed["intent"] == "promotions"
+        assert routed["selected_tool"] == "promotion_tool"
+
+    def test_produits_en_promotion_routes_to_promotion_tool_not_reference_data(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("produits en promotion")
+
+        assert routed["intent"] == "promotions"
+        assert routed["selected_tool"] == "promotion_tool"
+
+
+class TestPriceByNameOrSKUResolution:
+    """When a price question names a product by text, the orchestrator must
+    resolve the product_id via ReferenceDataTool before calling PriceTool."""
+
+    def test_price_question_with_product_name_resolves_product_id(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.find_product_by_text.return_value = {
+            "id": 7, "code": "FB_14910562664828", "name": "Ceinture cuir à boucle"
+        }
+        mock_reference_data_tool.find_store_by_text.return_value = None
+        mock_price_tool.list_prices.return_value = []
+
+        orchestrator.answer_question(
+            "quel est le prix de Ceinture cuir à boucle",
+            user_email="user@example.com",
+        )
+
+        mock_reference_data_tool.find_product_by_text.assert_called_once()
+        mock_price_tool.list_prices.assert_called_once_with(
+            product_id=7, store_id=None, user_email="user@example.com"
+        )
+
+    def test_price_question_with_sku_resolves_product_id(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.find_product_by_text.return_value = {
+            "id": 7, "code": "FB_14910562664828", "sku": "FB_14910562664828",
+            "name": "Ceinture cuir à boucle"
+        }
+        mock_price_tool.list_prices.return_value = []
+
+        orchestrator.answer_question(
+            "quel est le prix de FB_14910562664828",
+            user_email="user@example.com",
+        )
+
+        mock_reference_data_tool.find_product_by_text.assert_called_once()
+        mock_price_tool.list_prices.assert_called_once_with(
+            product_id=7, store_id=None, user_email="user@example.com"
+        )
+
+    def test_price_question_with_city_resolves_store_id(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.find_product_by_text.return_value = {
+            "id": 7, "code": "FB_14910562664828", "name": "Ceinture cuir à boucle"
+        }
+        mock_reference_data_tool.find_store_by_text.return_value = {
+            "id": 3, "name": "Lille Centre", "city": "Lille"
+        }
+        mock_price_tool.list_prices.return_value = []
+
+        orchestrator.answer_question(
+            "quel est le prix de FB_14910562664828 à Lille",
+            user_email="user@example.com",
+        )
+
+        mock_reference_data_tool.find_store_by_text.assert_called_once()
+        mock_price_tool.list_prices.assert_called_once_with(
+            product_id=7, store_id=3, user_email="user@example.com"
+        )
+
+    def test_price_question_when_product_not_found_calls_price_tool_without_product_id(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.find_product_by_text.return_value = None
+        mock_price_tool.list_prices.return_value = []
+
+        orchestrator.answer_question(
+            "quel est le prix de produit inconnu",
+            user_email="user@example.com",
+        )
+
+        mock_price_tool.list_prices.assert_called_once_with(
+            product_id=None, store_id=None, user_email="user@example.com"
+        )
+
+    def test_price_question_full_format_sku_and_city_resolves_both(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+        mock_price_tool: MagicMock,
+    ) -> None:
+        """Exact case: 'quel est le prix de FB_14910562664828 — Ceinture cuir à boucle à lille'
+        SKU is extracted first (product_id=1); city after the LAST 'à' yields store_id=1."""
+        mock_reference_data_tool.find_product_by_text.return_value = {
+            "id": 1, "code": "FB_14910562664828", "sku": "FB_14910562664828",
+            "name": "Ceinture cuir à boucle",
+        }
+        mock_reference_data_tool.find_store_by_text.return_value = {
+            "id": 1, "name": "Lille Centre", "city": "Lille",
+        }
+        mock_price_tool.list_prices.return_value = [
+            {
+                "product_id": 1,
+                "product_code": "FB_14910562664828",
+                "product_name": "Ceinture cuir à boucle",
+                "amount": "29.99",
+                "currency_code": "EUR",
+                "store_id": 1,
+            }
+        ]
+
+        result = orchestrator.answer_question(
+            "quel est le prix de FB_14910562664828 — Ceinture cuir à boucle à lille",
+            user_email="user@example.com",
+        )
+
+        mock_price_tool.list_prices.assert_called_once_with(
+            product_id=1, store_id=1, user_email="user@example.com"
+        )
+        assert result["status"] == "answered"
+        assert "produit 1" in result["answer"].lower()
+        assert "magasin 1" in result["answer"].lower()
+
+
+class TestPromoWithCityResolution:
+    """When a promotions question names a city, the orchestrator must resolve
+    the store_id via ReferenceDataTool before calling PromotionTool."""
+
+    def test_promo_question_with_city_resolves_store_id(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.find_store_by_text.return_value = {
+            "id": 3, "name": "Lille Centre", "city": "Lille"
+        }
+        mock_promotion_tool.list_promotions.return_value = []
+
+        orchestrator.answer_question(
+            "liste les produits en promo à lille",
+            user_email="user@example.com",
+        )
+
+        mock_reference_data_tool.find_store_by_text.assert_called_once()
+        mock_promotion_tool.list_promotions.assert_called_once_with(
+            active=None, product_id=None, store_id=3, user_email="user@example.com"
+        )
+
+    def test_promo_results_are_enriched_with_product_names(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_reference_data_tool: MagicMock,
+        mock_promotion_tool: MagicMock,
+    ) -> None:
+        mock_reference_data_tool.find_store_by_text.return_value = None
+        mock_promotion_tool.list_promotions.return_value = [
+            {
+                "id": 1,
+                "product_id": 7,
+                "discount_type": "PERCENTAGE",
+                "discount_value": "15.00",
+                "start_date": (date.today() - timedelta(days=7)).isoformat(),
+                "end_date": (date.today() + timedelta(days=14)).isoformat(),
+                "store_id": 3,
+            }
+        ]
+        mock_reference_data_tool.list_products.return_value = [
+            {"id": 7, "code": "FB_14910562664828", "name": "Ceinture cuir à boucle"}
+        ]
+
+        result = orchestrator.answer_question(
+            "liste les promotions actives",
+            user_email="user@example.com",
+        )
+
+        assert "Ceinture cuir à boucle" in result["answer"]
+        assert "FB_14910562664828" in result["answer"]
+
+
+# ---------------------------------------------------------------------------
+# T210 — Anomaly definition, critical prioritization, price-type filter,
+#         approved/rejected routing, RBAC static responses, display limit
+# ---------------------------------------------------------------------------
+
+
+class TestT210ExplainAnomalyDefinition:
+    """'Explique PRICE_ABOVE_REFERENCE' must return a static definition,
+    not list anomalies and not ask for store_id."""
+
+    def test_explique_price_above_reference_routes_to_anomaly_definition(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Explique price_above_reference")
+
+        assert routed["intent"] == "explain_anomaly_definition"
+        assert routed["selected_tool"] == "anomaly_tool"
+
+    def test_explique_underperforming_promo_routes_to_anomaly_definition(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Explique underperforming_promo")
+
+        assert routed["intent"] == "explain_anomaly_definition"
+
+    def test_explain_ineffective_discount_routes_to_anomaly_definition(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Explain ineffective_discount")
+
+        assert routed["intent"] == "explain_anomaly_definition"
+
+    def test_explique_inter_store_price_gap_routes_to_anomaly_definition(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Explique inter_store_price_gap")
+
+        assert routed["intent"] == "explain_anomaly_definition"
+
+    def test_anomaly_definition_does_not_call_anomaly_tool_list(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_anomaly_tool: MagicMock,
+    ) -> None:
+        result = orchestrator.answer_question("Explique price_above_reference")
+
+        mock_anomaly_tool.list_anomalies.assert_not_called()
+        mock_anomaly_tool.list_store_country_price_mismatches.assert_not_called()
+        assert result["status"] == "answered"
+
+    def test_anomaly_definition_does_not_require_user_email(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Explique price_above_reference")
+
+        assert result["status"] == "answered"
+        assert result.get("answer") is not None
+
+    def test_anomaly_definition_does_not_require_store_id(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Explique underperforming_promo")
+
+        assert result["status"] != "missing_context"
+
+    def test_price_above_reference_definition_mentions_type_name(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Explique price_above_reference")
+
+        assert "PRICE_ABOVE_REFERENCE" in result["answer"]
+
+    def test_price_above_reference_definition_has_summary(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        result = orchestrator.answer_question("Explique price_above_reference")
+
+        assert "Résumé :" in result["answer"] or "Summary:" in result["answer"]
+
+    def test_anomaly_definition_does_not_call_document_retriever(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_document_retriever: MagicMock,
+    ) -> None:
+        orchestrator.answer_question("Explique price_above_reference")
+
+        mock_document_retriever.search.assert_not_called()
+
+
+class TestT210CriticalAnomalies:
+    """'Anomalies critiques' must sort by business priority and warn when
+    only promo anomalies are available."""
+
+    def _fake_explain(self, anomalies: list[dict]) -> list[dict]:
+        return [
+            {"anomaly": a, "explanation": {"label": a.get("anomaly_type", "Anomalie")}}
+            for a in anomalies
+        ]
+
+    def test_critical_anomalies_routes_to_list_anomalies(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Quelles sont les anomalies critiques ?")
+
+        assert routed["intent"] == "list_anomalies"
+
+    def test_critical_anomalies_answer_contains_price_above_reference_first(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_anomaly_tool: MagicMock,
+    ) -> None:
+        mock_anomaly_tool.list_anomalies.return_value = [
+            {"anomaly_type": "UNDERPERFORMING_PROMO", "product_id": 1},
+            {"anomaly_type": "PRICE_ABOVE_REFERENCE", "product_id": 2},
+            {"anomaly_type": "INEFFECTIVE_DISCOUNT", "product_id": 3},
+        ]
+        mock_anomaly_tool.explain_anomalies.side_effect = self._fake_explain
+
+        orchestrator.answer_question(
+            "Quelles sont les anomalies critiques ?",
+            user_email="user@example.com",
+        )
+
+        sorted_anomalies = mock_anomaly_tool.explain_anomalies.call_args[0][0]
+        assert sorted_anomalies[0]["anomaly_type"] == "PRICE_ABOVE_REFERENCE"
+
+    def test_critical_anomalies_only_promo_warns_no_price_critical(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_anomaly_tool: MagicMock,
+    ) -> None:
+        mock_anomaly_tool.list_anomalies.return_value = [
+            {"anomaly_type": "UNDERPERFORMING_PROMO", "product_id": 1},
+            {"anomaly_type": "UNDERPERFORMING_PROMO", "product_id": 2},
+        ]
+        mock_anomaly_tool.explain_anomalies.side_effect = self._fake_explain
+
+        result = orchestrator.answer_question(
+            "Quelles sont les anomalies critiques ?",
+            user_email="user@example.com",
+        )
+
+        assert result["status"] == "answered"
+        assert "Aucune anomalie prix critique" in result["answer"]
+
+    def test_priority_anomalies_en_routes_to_list_anomalies(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Show me the priority anomalies")
+
+        assert routed["intent"] == "list_anomalies"
+
+
+class TestT210PriceTypeAnomalyFilter:
+    """Questions about products above reference price or inter-store gap
+    must route to list_anomalies without requiring store_id."""
+
+    def _fake_explain(self, anomalies: list[dict]) -> list[dict]:
+        return [
+            {"anomaly": a, "explanation": {"label": a.get("anomaly_type", "Anomalie")}}
+            for a in anomalies
+        ]
+
+    def test_products_above_reference_price_routes_to_list_anomalies(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "Quels produits sont au-dessus du prix conseille ?"
+        )
+
+        assert routed["intent"] == "list_anomalies"
+        assert routed["selected_tool"] == "anomaly_tool"
+
+    def test_stores_with_price_gap_routes_to_list_anomalies(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "Quels magasins ont un ecart de prix ?"
+        )
+
+        assert routed["intent"] == "list_anomalies"
+        assert routed["selected_tool"] == "anomaly_tool"
+
+    def test_products_above_reference_does_not_require_store_id(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_anomaly_tool: MagicMock,
+    ) -> None:
+        mock_anomaly_tool.list_anomalies.return_value = []
+        mock_anomaly_tool.explain_anomalies.side_effect = self._fake_explain
+
+        result = orchestrator.answer_question(
+            "Quels produits sont au-dessus du prix conseille ?",
+            user_email="user@example.com",
+        )
+
+        assert result["status"] == "answered"
+        assert result.get("status") != "missing_context"
+
+    def test_inter_store_gap_question_does_not_route_to_mismatch(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Quels magasins ont un ecart de prix entre magasins ?")
+
+        assert routed["intent"] != "list_store_country_price_mismatches"
+
+    def test_que_faire_avec_anomalie_prix_routes_to_documentary(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "Que dois-je faire avec une anomalie prix ?"
+        )
+
+        assert routed["intent"] == "documentary_knowledge"
+        assert routed["selected_tool"] == "rag_retriever"
+
+
+class TestT210ApprovedRejectedRequests:
+    """French approved / rejected / refused variants must route to
+    price_change_request_tool with the correct status filter."""
+
+    def test_demandes_approved_routes_to_price_change_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Liste les demandes approved")
+
+        assert routed["intent"] == "list_store_price_changes"
+        assert routed["selected_tool"] == "price_change_request_tool"
+
+    def test_demandes_approuvees_no_accent_routes_correctly(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Liste les demandes approuvees")
+
+        assert routed["intent"] == "list_store_price_changes"
+
+    def test_demandes_rejected_routes_to_price_change_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Liste les demandes rejected")
+
+        assert routed["intent"] == "list_store_price_changes"
+
+    def test_demandes_refusees_routes_to_price_change_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Liste les demandes refusees")
+
+        assert routed["intent"] == "list_store_price_changes"
+
+    def test_approved_requests_en_routes_to_price_change_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Show approved requests")
+
+        assert routed["intent"] == "list_store_price_changes"
+
+    def test_rejected_requests_en_routes_to_price_change_tool(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Show rejected requests")
+
+        assert routed["intent"] == "list_store_price_changes"
+
+    def test_approved_status_filter_is_applied(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.return_value = []
+
+        orchestrator.answer_question("Liste les demandes approved")
+
+        mock_price_change_request_tool.list_price_change_requests.assert_called_once_with(
+            status="APPROVED",
+            user_email=None,
+        )
+
+    def test_rejected_status_filter_is_applied(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.return_value = []
+
+        orchestrator.answer_question("Liste les demandes rejetees")
+
+        mock_price_change_request_tool.list_price_change_requests.assert_called_once_with(
+            status="REJECTED",
+            user_email=None,
+        )
+
+    def test_demandes_validees_maps_to_approved_status(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_price_change_request_tool: MagicMock,
+    ) -> None:
+        mock_price_change_request_tool.list_price_change_requests.return_value = []
+
+        orchestrator.answer_question("Liste les demandes validees")
+
+        mock_price_change_request_tool.list_price_change_requests.assert_called_once_with(
+            status="APPROVED",
+            user_email=None,
+        )
+
+
+class TestT210AnomalyDisplayLimit:
+    """General anomaly listing must always cap display at 5 results."""
+
+    def _fake_explain(self, anomalies: list[dict]) -> list[dict]:
+        return [
+            {"anomaly": a, "explanation": {"label": a.get("anomaly_type", "Anomalie")}}
+            for a in anomalies
+        ]
+
+    def test_more_than_5_anomalies_shows_only_5_in_details(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_anomaly_tool: MagicMock,
+    ) -> None:
+        raw = [
+            {"anomaly_type": "UNDERPERFORMING_PROMO", "product_id": i}
+            for i in range(1, 11)
+        ]
+        mock_anomaly_tool.list_anomalies.return_value = raw
+        mock_anomaly_tool.explain_anomalies.side_effect = self._fake_explain
+
+        result = orchestrator.answer_question(
+            "Explique-moi les anomalies de prix.",
+            user_email="user@example.com",
+        )
+
+        assert "Affichage des 5 premières" in result["answer"]
+
+    def test_exactly_5_anomalies_does_not_show_truncation_message(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_anomaly_tool: MagicMock,
+    ) -> None:
+        raw = [
+            {"anomaly_type": "UNDERPERFORMING_PROMO", "product_id": i}
+            for i in range(1, 6)
+        ]
+        mock_anomaly_tool.list_anomalies.return_value = raw
+        mock_anomaly_tool.explain_anomalies.side_effect = self._fake_explain
+
+        result = orchestrator.answer_question(
+            "Explique-moi les anomalies de prix.",
+            user_email="user@example.com",
+        )
+
+        assert "Affichage des" not in result["answer"]
+
+    def test_total_count_still_shown_in_summary(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_anomaly_tool: MagicMock,
+    ) -> None:
+        raw = [
+            {"anomaly_type": "UNDERPERFORMING_PROMO", "product_id": i}
+            for i in range(1, 21)
+        ]
+        mock_anomaly_tool.list_anomalies.return_value = raw
+        mock_anomaly_tool.explain_anomalies.side_effect = self._fake_explain
+
+        result = orchestrator.answer_question(
+            "Explique-moi les anomalies de prix.",
+            user_email="user@example.com",
+        )
+
+        assert "20" in result["answer"]
+
+
+class TestT210RBACStaticResponses:
+    """Questions about who can change/approve/create must return static RBAC
+    responses without calling the LLM."""
+
+    def test_qui_peut_changer_un_prix_routes_to_rbac(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Qui peut changer un prix ?")
+
+        assert routed["intent"] == "explain_rbac"
+
+    def test_qui_peut_approuver_routes_to_rbac(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Qui peut approuver une demande ?")
+
+        assert routed["intent"] == "explain_rbac"
+
+    def test_qui_peut_creer_promotion_routes_to_rbac(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question("Qui peut créer une promotion ?")
+
+        assert routed["intent"] == "explain_rbac"
+
+    def test_pourquoi_je_ne_peux_pas_voir_routes_to_rbac(
+        self, orchestrator: ChatbotOrchestrator
+    ) -> None:
+        routed = orchestrator.route_question(
+            "Pourquoi je ne peux pas voir ce magasin ?"
+        )
+
+        assert routed["intent"] == "explain_rbac"
+
+    def test_qui_peut_changer_prix_answer_does_not_call_llm(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_rbac_service: MagicMock,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": "...",
+            "source": "rbac_tool",
+            "roles_used": [],
+            "llm_used": False,
+        }
+
+        orchestrator.answer_question("Qui peut changer un prix ?")
+
+        call_args = mock_rbac_service.explain.call_args
+        assert call_args is not None
+
+    def test_qui_peut_approuver_answer_mentions_workflow(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_rbac_service: MagicMock,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": "Seuls les utilisateurs autorisés peuvent approuver.",
+            "source": "rbac_tool",
+            "roles_used": [],
+            "llm_used": False,
+        }
+
+        result = orchestrator.answer_question("Qui peut approuver une demande ?")
+
+        assert result["answer"] == "Seuls les utilisateurs autorisés peuvent approuver."
+        assert result["intent"] == "explain_rbac"
+
+    def test_pourquoi_je_ne_vois_pas_does_not_return_unsupported(
+        self,
+        orchestrator: ChatbotOrchestrator,
+        mock_rbac_service: MagicMock,
+    ) -> None:
+        mock_rbac_service.explain.return_value = {
+            "answer": "L'accès dépend de votre rôle.",
+            "source": "rbac_tool",
+            "roles_used": [],
+            "llm_used": False,
+        }
+
+        result = orchestrator.answer_question(
+            "Pourquoi je ne peux pas voir ce magasin ?"
+        )
+
+        assert result["status"] != "unsupported"
+        assert result["intent"] == "explain_rbac"

@@ -1,49 +1,166 @@
-import re
+"""Lightweight chatbot orchestrator.
+
+Responsibilities:
+  1. Build a ChatContext from the raw request parameters.
+  2. Call IntentRouter to obtain a deterministic IntentMatch.
+  3. Call ResponseDispatcher to route the match to the correct handler.
+  4. Return a uniform response dict.
+
+The orchestrator no longer contains phrase lists, routing if/elif chains,
+response formatting logic, or tool invocation code.  All of those concerns
+live in the specialized modules:
+
+  app/orchestrator/intent_router.py   — deterministic intent detection
+  app/orchestrator/intent_registry.py — declarative routing rules
+  app/orchestrator/response_dispatcher.py — handler dispatch
+  app/handlers/*                      — specialized response handlers
+  app/intents/*                       — intent phrase constants
+"""
+
 from typing import Any
 
-from app.core.chatbot_messages import (
-    CHATBOT_MISSING_STORE_ID_MESSAGE,
-    CHATBOT_MISSING_USER_EMAIL_MESSAGE,
-    CHATBOT_NOT_IMPLEMENTED_MESSAGE,
-    CHATBOT_SUPPORTED_SCOPE_MESSAGE,
-    CHATBOT_TECHNICAL_ERROR_MESSAGE,
-    CHATBOT_UNSUPPORTED_USE_CASE_MESSAGE,
-)
+from app.core.chatbot_messages import CHATBOT_UNSUPPORTED_USE_CASE_MESSAGE
+from app.core.language_detector import detect_language
 from app.core.logging_config import get_logger, log_event
 from app.core.metrics import increment_chat_tool_usage_total
-from app.services.business_rules_explanation_service import (
-    BusinessRulesExplanationService,
-)
+from app.handlers.clarification_handler import ClarificationHandler
+from app.handlers.guardrail_handler import GuardrailHandler
+from app.handlers.rag_response_handler import RAG_FALLBACK_ANSWER, RAGResponseHandler
+from app.handlers.static_response_handler import StaticResponseHandler
+from app.handlers.tool_response_handler import ToolResponseHandler
+from app.llm.base import BaseLLMProvider
+from app.llm.factory import get_llm_provider
+from app.orchestrator.chat_context import ChatContext
+from app.orchestrator.intent_router import IntentRouter
+from app.orchestrator.intent_types import Intent, RouteType
+from app.orchestrator.normalization import normalize
+from app.orchestrator.response_dispatcher import ResponseDispatcher
+from app.rag.prompt_builder import RAGPromptBuilder
+from app.rag.retriever import DocumentRetriever
+from app.services.business_rules_explanation_service import BusinessRulesExplanationService
 from app.services.kpi_explanation_service import KPIExplanationService
 from app.services.rbac_explanation_service import RBACExplanationService
+from app.services.response_generation_service import ResponseGenerationService
 from app.tools.anomaly_tool import AnomalyTool
+from app.tools.kpi_data_tool import KPIDataTool
+from app.tools.price_change_request_tool import PriceChangeRequestTool
+from app.tools.price_tool import PriceTool
+from app.tools.promotion_tool import PromotionTool
+from app.tools.reference_data_tool import ReferenceDataTool
 
 logger = get_logger("ai_service.orchestrator")
 
+# Re-exported for backward compatibility with existing tests and code that
+# import _RAG_FALLBACK_ANSWER directly from this module.
+_RAG_FALLBACK_ANSWER = RAG_FALLBACK_ANSWER
+
+# Maps intent → selected_tool name returned in route_question() response.
+# "none" is expressed as None; RAG and static responses have no selected_tool.
+_TOOL_BY_INTENT: dict[str, str | None] = {
+    Intent.GET_KPI_DATA: "kpi_data_tool",
+    Intent.LIST_ANOMALIES: "anomaly_tool",
+    Intent.EXPLAIN_ANOMALY_DEFINITION: "anomaly_tool",
+    Intent.LIST_STORE_PRICE_CHANGES: "price_change_request_tool",
+    Intent.LIST_STORE_COUNTRY_PRICE_MISMATCHES: "anomaly_tool",
+    Intent.EXPLAIN_KPI: "kpi_explanation_tool",
+    Intent.EXPLAIN_BUSINESS_RULE: "business_rules_tool",
+    Intent.EXPLAIN_RBAC: "rbac_tool",
+    Intent.PROMOTIONS: "promotion_tool",
+    Intent.PRICES: "price_tool",
+    Intent.REFERENCE_DATA: "reference_data_tool",
+    Intent.DOCUMENTARY_KNOWLEDGE: "rag_retriever",
+    Intent.GUARDRAIL: None,
+    Intent.CHATBOT_LIMITS: None,
+    Intent.CHATBOT_CAPABILITIES: None,
+    Intent.DECISION_KPI_GUIDANCE: None,
+    Intent.AMBIGUOUS_QUESTION: None,
+    Intent.CLARIFY_PRICES: None,
+    Intent.CLARIFY_PROMOTIONS: None,
+    Intent.CLARIFY_PROMOTION_CONTEXT: None,
+    Intent.CLARIFY_STORE: None,
+    Intent.CLARIFY_PRODUCT: None,
+    Intent.CLARIFY_PRICE_REQUESTS: None,
+    Intent.GENERIC_RECOMMENDATION_CLARIFICATION: None,
+}
+
 
 class ChatbotOrchestrator:
+    """Lightweight orchestrator: context → router → dispatcher → response."""
+
     def __init__(
         self,
         business_rules_service: BusinessRulesExplanationService | None = None,
         rbac_service: RBACExplanationService | None = None,
         anomaly_tool: AnomalyTool | None = None,
         kpi_service: KPIExplanationService | None = None,
+        kpi_data_tool: KPIDataTool | None = None,
+        price_change_request_tool: PriceChangeRequestTool | None = None,
+        promotion_tool: PromotionTool | None = None,
+        price_tool: PriceTool | None = None,
+        reference_data_tool: ReferenceDataTool | None = None,
+        document_retriever: DocumentRetriever | None = None,
+        llm_provider: BaseLLMProvider | None = None,
+        response_service: ResponseGenerationService | None = None,
     ) -> None:
-        self.business_rules_service = (
-            business_rules_service or BusinessRulesExplanationService()
+        _business_rules_service = business_rules_service or BusinessRulesExplanationService()
+        _rbac_service = rbac_service or RBACExplanationService()
+        _anomaly_tool = anomaly_tool or AnomalyTool()
+        _kpi_service = kpi_service or KPIExplanationService()
+        _kpi_data_tool = kpi_data_tool or KPIDataTool()
+        _price_change_request_tool = price_change_request_tool or PriceChangeRequestTool()
+        _promotion_tool = promotion_tool or PromotionTool()
+        _price_tool = price_tool or PriceTool()
+        _reference_data_tool = reference_data_tool or ReferenceDataTool()
+        _document_retriever = document_retriever or DocumentRetriever()
+        _llm_provider = llm_provider or get_llm_provider()
+        _response_service = response_service or ResponseGenerationService()
+        _prompt_builder = RAGPromptBuilder()
+
+        self._router = IntentRouter()
+
+        _static_handler = StaticResponseHandler(response_service=_response_service)
+        _guardrail_handler = GuardrailHandler(response_service=_response_service)
+        _clarification_handler = ClarificationHandler(response_service=_response_service)
+        _tool_handler = ToolResponseHandler(
+            business_rules_service=_business_rules_service,
+            rbac_service=_rbac_service,
+            anomaly_tool=_anomaly_tool,
+            kpi_service=_kpi_service,
+            kpi_data_tool=_kpi_data_tool,
+            price_change_request_tool=_price_change_request_tool,
+            promotion_tool=_promotion_tool,
+            price_tool=_price_tool,
+            reference_data_tool=_reference_data_tool,
+            response_service=_response_service,
         )
-        self.rbac_service = rbac_service or RBACExplanationService()
-        self.anomaly_tool = anomaly_tool or AnomalyTool()
-        self.kpi_service = kpi_service or KPIExplanationService()
+        _rag_handler = RAGResponseHandler(
+            document_retriever=_document_retriever,
+            llm_provider=_llm_provider,
+            prompt_builder=_prompt_builder,
+            response_service=_response_service,
+        )
+        self._dispatcher = ResponseDispatcher(
+            static_handler=_static_handler,
+            guardrail_handler=_guardrail_handler,
+            clarification_handler=_clarification_handler,
+            tool_handler=_tool_handler,
+            rag_handler=_rag_handler,
+            response_service=_response_service,
+        )
+
+    # ------------------------------------------------------------------
+    # Public API (preserved for backward compatibility)
+    # ------------------------------------------------------------------
 
     def route_question(self, question: str) -> dict[str, Any]:
-        intent = self._detect_intent(question)
-        selected_tool = self._select_tool(intent)
+        """Return routing metadata without executing any tool or LLM call."""
+        match = self._router.route(question)
+        selected_tool = _TOOL_BY_INTENT.get(match.intent)
 
-        if intent == "unknown":
+        if match.route_type == RouteType.UNSUPPORTED:
             return {
                 "question": question,
-                "intent": intent,
+                "intent": match.intent.value,
                 "selected_tool": None,
                 "status": "unsupported",
                 "message": CHATBOT_UNSUPPORTED_USE_CASE_MESSAGE,
@@ -51,7 +168,7 @@ class ChatbotOrchestrator:
 
         return {
             "question": question,
-            "intent": intent,
+            "intent": match.intent.value,
             "selected_tool": selected_tool,
             "status": "routed",
         }
@@ -62,246 +179,52 @@ class ChatbotOrchestrator:
         user_email: str | None = None,
         store_id: int | None = None,
     ) -> dict[str, Any]:
-        routed = self.route_question(question)
-        tool_name = routed["selected_tool"] or "none"
+        """Route and answer a question, returning a uniform response dict."""
+        lang = detect_language(question)
+        ctx = ChatContext(
+            original_question=question,
+            normalized_question=normalize(question),
+            user_email=user_email,
+            store_id=store_id,
+            lang=lang,
+        )
+
+        match = self._router.route(question)
+        tool_name = _TOOL_BY_INTENT.get(match.intent) or "none"
 
         log_event(
             logger,
             "chat_tool_selected",
-            intent=routed["intent"],
+            intent=match.intent.value,
             tool_name=tool_name,
             user_email_present=user_email is not None,
             store_id_present=store_id is not None,
         )
         increment_chat_tool_usage_total(tool_name)
 
-        if routed["status"] == "unsupported":
-            return {
-                **routed,
-                "answer": CHATBOT_SUPPORTED_SCOPE_MESSAGE,
-                "source": "orchestrator",
-            }
-
-        intent = routed["intent"]
-
-        if intent == "explain_business_rule":
-            try:
-                service_response = self.business_rules_service.explain(question)
-                return {
-                    **routed,
-                    **service_response,
-                }
-            except Exception as error:
-                return self._build_error_response(routed, error)
-
-        if intent == "explain_rbac":
-            try:
-                service_response = self.rbac_service.explain(question)
-                return {
-                    **routed,
-                    **service_response,
-                }
-            except Exception as error:
-                return self._build_error_response(routed, error)
-
-        if intent == "list_store_country_price_mismatches":
-            if not user_email:
-                return {
-                    **routed,
-                    "status": "missing_context",
-                    "answer": CHATBOT_MISSING_USER_EMAIL_MESSAGE,
-                    "source": "orchestrator",
-                }
-
-            if store_id is None:
-                return {
-                    **routed,
-                    "status": "missing_context",
-                    "answer": CHATBOT_MISSING_STORE_ID_MESSAGE,
-                    "source": "orchestrator",
-                }
-
-            try:
-                anomalies = self.anomaly_tool.list_store_country_price_mismatches(
-                    user_email=user_email,
-                    store_id=store_id,
-                )
-
-                return {
-                    **routed,
-                    "status": "answered",
-                    "answer": anomalies,
-                    "source": "anomaly_tool",
-                }
-            except Exception as error:
-                return self._build_error_response(routed, error)
-            
-        if intent == "explain_kpi":
-            try:
-                service_response = self.kpi_service.explain(question)
-                return {
-                    **routed,
-                    **service_response,
-                }
-            except Exception as error:
-                return self._build_error_response(routed, error)
+        handler_result = self._dispatcher.dispatch(ctx, match)
 
         return {
-            **routed,
-            "status": "not_implemented",
-            "answer": CHATBOT_NOT_IMPLEMENTED_MESSAGE,
-            "source": "orchestrator",
+            "question": question,
+            "intent": match.intent.value,
+            "selected_tool": _TOOL_BY_INTENT.get(match.intent),
+            **handler_result,
         }
 
-    def _detect_intent(self, question: str) -> str:
-        normalized_question = question.lower()
+    # ------------------------------------------------------------------
+    # Internal context builder (kept for potential subclass use)
+    # ------------------------------------------------------------------
 
-        # 1. RBAC questions must be detected before KPI/revenue.
-        if self._contains_any_phrase(
-            normalized_question,
-            [
-                "rbac",
-                "role",
-                "roles",
-                "permission",
-                "permissions",
-                "scope",
-                "access",
-                "rights",
-                "store manager",
-                "store director",
-                "country director",
-                "pricing analyst",
-                "another store",
-                "another country",
-            ],
-        ):
-            return "explain_rbac"
-
-        # 2. Business rules and chatbot limitations.
-        if self._contains_any_phrase(
-            normalized_question,
-            [
-                "business rule",
-                "rule",
-                "workflow",
-                "audit",
-                "traceability",
-                "approve a price change",
-                "reject a price change",
-                "apply a price change",
-                "chatbot approve",
-                "chatbot update",
-                "chatbot modify",
-                "chatbot peut-il approuver",
-                "chatbot peut approuver",
-                "chatbot peut-il rejeter",
-                "chatbot peut-il valider",
-                "chatbot peut-il modifier",
-                "règle métier",
-                "règle",
-                "traçabilité",
-            ],
-        ):
-            return "explain_business_rule"
-
-        # 3. Price mismatch / anomaly use case.
-        if self._contains_any_phrase(
-            normalized_question,
-            [
-                "mismatch",
-                "price mismatch",
-                "country price",
-                "store price",
-                "above reference",
-                "price above",
-                "prix pays",
-                "prix magasin",
-                "écart de prix",
-                "prix non aligné",
-                "anomaly",
-                "anomalies",
-            ],
-        ):
-            return "list_store_country_price_mismatches"
-
-        # 4. Price change data use case.
-        if self._contains_any_phrase(
-            normalized_question,
-            [
-                "list price changes",
-                "show price changes",
-                "price changes for store",
-                "price change history",
-                "change requests",
-                "price requests",
-                "historique prix",
-                "liste des changements de prix",
-                "demandes de changement de prix",
-            ],
-        ):
-            return "list_store_price_changes"
-
-        # 5. KPI explanation.
-        if self._contains_any_phrase(
-            normalized_question,
-            [
-                "kpi",
-                "indicator",
-                "metric",
-                "margin",
-                "volume",
-                "performance",
-                "explain kpi",
-            ],
-        ):
-            return "explain_kpi"
-
-        # 6. Revenue / sales KPI.
-        if self._contains_revenue_intent(normalized_question):
-            return "get_country_revenue"
-
-        return "unknown"
-
-    def _select_tool(self, intent: str) -> str | None:
-        tool_by_intent = {
-            "get_country_revenue": "kpi_tool",
-            "list_store_price_changes": "price_change_tool",
-            "list_store_country_price_mismatches": "anomaly_tool",
-            "explain_kpi": "kpi_explanation_tool",
-            "explain_business_rule": "business_rules_tool",
-            "explain_rbac": "rbac_tool",
-        }
-
-        return tool_by_intent.get(intent)
-
-    def _contains_any_phrase(self, text: str, keywords: list[str]) -> bool:
-        return any(keyword in text for keyword in keywords)
-
-    def _contains_revenue_intent(self, text: str) -> bool:
-        revenue_phrases = [
-            "revenue",
-            "sales amount",
-            "turnover",
-            "country revenue",
-            "chiffre d'affaires",
-        ]
-
-        if self._contains_any_phrase(text, revenue_phrases):
-            return True
-
-        # Avoid matching "ca" inside "can".
-        return bool(re.search(r"\bca\b", text))
-
-    def _build_error_response(
+    def _build_context(
         self,
-        routed: dict[str, Any],
-        error: Exception,
-    ) -> dict[str, Any]:
-        return {
-            **routed,
-            "status": "error",
-            "answer": CHATBOT_TECHNICAL_ERROR_MESSAGE,
-            "source": "orchestrator",
-            "error_type": type(error).__name__,
-        }
+        question: str,
+        user_email: str | None = None,
+        store_id: int | None = None,
+    ) -> ChatContext:
+        return ChatContext(
+            original_question=question,
+            normalized_question=normalize(question),
+            user_email=user_email,
+            store_id=store_id,
+            lang=detect_language(question),
+        )

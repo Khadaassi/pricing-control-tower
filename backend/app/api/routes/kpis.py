@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -32,6 +33,8 @@ def read_sales_kpis(
         default=None,
         description="Filter by price type, for example STANDARD or PROMO",
     ),
+    date_from: date | None = Query(default=None, description="Start date included"),
+    date_to: date | None = Query(default=None, description="End date included"),
     current_user: UserAccount = Depends(get_current_business_user),
 ) -> SalesKpiRead:
     ensure_store_filter_allowed(current_user, store_id)
@@ -49,4 +52,6 @@ def read_sales_kpis(
         allowed_store_ids=allowed_store_ids,
         is_promo=is_promo,
         price_type=price_type,
+        date_from=date_from,
+        date_to=date_to,
     )

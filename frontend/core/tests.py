@@ -86,3 +86,128 @@ class ChatbotViewTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         mock_ask_chatbot.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# T204 — Chatbot contextual suggestions
+# ---------------------------------------------------------------------------
+
+
+class ChatbotSuggestionsUnitTests(TestCase):
+    """Unit tests for the get_chatbot_suggestions helper."""
+
+    def setUp(self):
+        from core.chatbot_suggestions import (
+            CHATBOT_SUGGESTIONS_BY_PAGE,
+            get_chatbot_suggestions,
+        )
+        self.get = get_chatbot_suggestions
+        self.pages = CHATBOT_SUGGESTIONS_BY_PAGE
+
+    def test_dashboard_returns_dashboard_suggestions(self):
+        result = self.get("dashboard")
+        self.assertEqual(result, self.pages["dashboard"])
+
+    def test_prices_returns_prices_suggestions(self):
+        result = self.get("prices")
+        self.assertEqual(result, self.pages["prices"])
+
+    def test_promotions_returns_promotions_suggestions(self):
+        result = self.get("promotions")
+        self.assertEqual(result, self.pages["promotions"])
+
+    def test_price_change_requests_returns_correct_suggestions(self):
+        result = self.get("price_change_requests")
+        self.assertEqual(result, self.pages["price_change_requests"])
+
+    def test_anomalies_returns_anomalies_suggestions(self):
+        result = self.get("anomalies")
+        self.assertEqual(result, self.pages["anomalies"])
+
+    def test_unknown_page_returns_default(self):
+        result = self.get("unknown_page_xyz")
+        self.assertEqual(result, self.pages["default"])
+
+    def test_none_returns_default(self):
+        result = self.get(None)
+        self.assertEqual(result, self.pages["default"])
+
+    def test_empty_string_returns_default(self):
+        result = self.get("")
+        self.assertEqual(result, self.pages["default"])
+
+    def test_each_page_has_at_least_two_suggestions(self):
+        for page, suggestions in self.pages.items():
+            self.assertGreaterEqual(len(suggestions), 2, f"Page '{page}' has fewer than 2 suggestions")
+
+    def test_each_page_has_at_most_three_suggestions(self):
+        for page, suggestions in self.pages.items():
+            self.assertLessEqual(len(suggestions), 3, f"Page '{page}' has more than 3 suggestions")
+
+    def test_no_suggestion_is_empty(self):
+        for page, suggestions in self.pages.items():
+            for suggestion in suggestions:
+                self.assertTrue(suggestion.strip(), f"Empty suggestion found on page '{page}'")
+
+
+class ChatbotViewSuggestionsTests(TestCase):
+    """View-level tests: chatbot page injects context-aware suggestions."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="manager_t204",
+            password="Password123!",
+            email="manager.t204@pct.local",
+        )
+        self.client.force_login(self.user)
+        self.url = reverse("core:chatbot")
+
+    def test_chatbot_page_has_default_suggestions_without_page_param(self):
+        from core.chatbot_suggestions import CHATBOT_SUGGESTIONS_BY_PAGE
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["chatbot_suggestions"],
+            CHATBOT_SUGGESTIONS_BY_PAGE["default"],
+        )
+
+    def test_chatbot_page_loads_prices_suggestions_with_page_param(self):
+        from core.chatbot_suggestions import CHATBOT_SUGGESTIONS_BY_PAGE
+        response = self.client.get(self.url + "?page=prices")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["chatbot_suggestions"],
+            CHATBOT_SUGGESTIONS_BY_PAGE["prices"],
+        )
+
+    def test_chatbot_page_loads_promotions_suggestions_with_page_param(self):
+        from core.chatbot_suggestions import CHATBOT_SUGGESTIONS_BY_PAGE
+        response = self.client.get(self.url + "?page=promotions")
+        self.assertEqual(
+            response.context["chatbot_suggestions"],
+            CHATBOT_SUGGESTIONS_BY_PAGE["promotions"],
+        )
+
+    def test_chatbot_page_loads_price_change_requests_suggestions(self):
+        from core.chatbot_suggestions import CHATBOT_SUGGESTIONS_BY_PAGE
+        response = self.client.get(self.url + "?page=price_change_requests")
+        self.assertEqual(
+            response.context["chatbot_suggestions"],
+            CHATBOT_SUGGESTIONS_BY_PAGE["price_change_requests"],
+        )
+
+    def test_chatbot_page_falls_back_to_default_for_unknown_page(self):
+        from core.chatbot_suggestions import CHATBOT_SUGGESTIONS_BY_PAGE
+        response = self.client.get(self.url + "?page=nonexistent")
+        self.assertEqual(
+            response.context["chatbot_suggestions"],
+            CHATBOT_SUGGESTIONS_BY_PAGE["default"],
+        )
+
+    def test_suggestion_buttons_rendered_in_template(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, "chatbot-suggestion-btn")
+
+    def test_suggestion_buttons_have_data_question_attribute(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, "data-question=")
