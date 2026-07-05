@@ -17,20 +17,19 @@
         }
 
         :root {
-            --pct-sidebar: #071225;
-            --pct-sidebar-soft: #0b1b35;
+            --pct-sidebar: #1E3A5F;
+            --pct-sidebar-soft: #162d4a;
             --pct-sidebar-hover: rgba(255, 255, 255, 0.08);
-            --pct-purple: #5b2cff;
-            --pct-purple-dark: #3b18c9;
-            --pct-blue: #2563eb;
+            --pct-amber: #F59E0B;
+            --pct-steel: #4F83B6;
             --pct-bg: #f7f8fc;
         }
 
         .pct-sidebar {
             background:
-                radial-gradient(circle at 20% 0%, rgba(91, 44, 255, 0.26), transparent 28%),
-                radial-gradient(circle at 100% 100%, rgba(37, 99, 235, 0.18), transparent 32%),
-                linear-gradient(180deg, #081326 0%, #061021 52%, #050b18 100%);
+                radial-gradient(circle at 20% 0%, rgba(79, 131, 182, 0.18), transparent 28%),
+                radial-gradient(circle at 100% 100%, rgba(30, 58, 95, 0.45), transparent 32%),
+                linear-gradient(180deg, #1d3a5c 0%, #172e4a 52%, #122540 100%);
         }
 
         .pct-sidebar::after {
@@ -39,12 +38,12 @@
             inset: auto -40px 0 -40px;
             height: 180px;
             pointer-events: none;
-            opacity: 0.45;
+            opacity: 0.20;
             background:
                 repeating-radial-gradient(
                     ellipse at bottom,
-                    rgba(91, 44, 255, 0.35) 0,
-                    rgba(91, 44, 255, 0.35) 1px,
+                    rgba(79, 131, 182, 0.5) 0,
+                    rgba(79, 131, 182, 0.5) 1px,
                     transparent 2px,
                     transparent 10px
                 );
@@ -52,13 +51,13 @@
         }
 
         .pct-logo-mark {
-            background: conic-gradient(from 210deg, #7c3aed, #4f46e5, #2563eb, #7c3aed);
+            background: linear-gradient(135deg, #1E3A5F 0%, #4F83B6 100%);
         }
 
         .pct-nav-active {
             color: #ffffff;
-            background: linear-gradient(135deg, #5b2cff 0%, #3b82f6 100%);
-            box-shadow: 0 12px 28px rgba(91, 44, 255, 0.36);
+            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+            box-shadow: 0 12px 28px rgba(245, 158, 11, 0.28);
         }
 
         .pct-nav-link {
@@ -437,7 +436,7 @@
             <button type="button"
                     data-label="Chatbot IA"
                     class="open-chatbot-widget sidebar-ai-card mt-auto flex w-full items-center gap-3 rounded-3xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-white/20 hover:bg-white/[0.07]">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-lg shadow-violet-950/30">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#4F83B6] text-white shadow-lg shadow-blue-950/20">
                     <svg class="h-5 w-5" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846A4.5 4.5 0 005.096 12.813L2.25 12l2.846-.813A4.5 4.5 0 008.187 8.096L9 5.25l.813 2.846a4.5 4.5 0 003.091 3.091L15.75 12l-2.846.813a4.5 4.5 0 00-3.091 3.091z"/>
                     </svg>
@@ -588,19 +587,60 @@
                 </div>
 
                 <div class="hidden min-w-0 flex-1 justify-center md:flex">
-                    <label for="global-search" class="sr-only">Recherche</label>
-                    <div class="pct-search flex w-full max-w-xl items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                        <svg class="h-5 w-5 shrink-0 text-slate-400" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z"/>
-                        </svg>
-                        <input id="global-search"
-                               type="search"
-                               class="w-full border-0 bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
-                               placeholder="Rechercher produits, références..."
-                               autocomplete="off">
-                        <kbd class="hidden rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-400 sm:inline-flex">
-                            ⌘ K
-                        </kbd>
+                    <div class="relative w-full max-w-xl">
+                        <label for="global-search" class="sr-only">Recherche</label>
+                        <div id="search-box" class="pct-search flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 transition-shadow">
+                            <svg class="h-5 w-5 shrink-0 text-slate-400" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z"/>
+                            </svg>
+                            <input id="global-search"
+                                   type="search"
+                                   class="w-full border-0 bg-transparent text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
+                                   placeholder="Rechercher produits, références..."
+                                   autocomplete="off"
+                                   role="combobox"
+                                   aria-expanded="false"
+                                   aria-controls="search-dropdown"
+                                   aria-autocomplete="list">
+                            <kbd class="hidden rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-400 sm:inline-flex">
+                                ⌘ K
+                            </kbd>
+                        </div>
+
+                        {# ── Search dropdown ── #}
+                        <div id="search-dropdown"
+                             class="absolute left-0 right-0 top-full z-50 mt-2 hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl ring-1 ring-black/5"
+                             role="listbox">
+
+                            {# Loading #}
+                            <div id="search-loading" class="hidden flex items-center gap-3 px-4 py-3 text-xs text-slate-400">
+                                <svg class="h-4 w-4 animate-spin text-[#4F83B6]" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                                </svg>
+                                Recherche en cours…
+                            </div>
+
+                            {# Results list #}
+                            <ul id="search-results" class="divide-y divide-slate-50 py-1" role="group"></ul>
+
+                            {# Empty state #}
+                            <div id="search-empty" class="hidden px-4 py-6 text-center text-xs text-slate-400">
+                                Aucun produit trouvé pour cette recherche.
+                            </div>
+
+                            {# Footer — see all #}
+                            <div id="search-footer" class="hidden border-t border-slate-100 px-4 py-2.5">
+                                <a id="search-see-all"
+                                   href="/produits/"
+                                   class="flex items-center justify-between text-xs font-semibold text-[#1E3A5F] hover:text-[#4F83B6] transition-colors">
+                                    <span>Voir tous les résultats</span>
+                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/>
+                                    </svg>
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -727,14 +767,157 @@
             if (isSearch && searchInput) { e.preventDefault(); searchInput.focus(); }
         });
 
-        if (searchInput) {
-            searchInput.addEventListener("input", function () {
-                const q = this.value.toLowerCase().trim();
-                if (typeof window.handleGlobalSearch === "function") {
-                    window.handleGlobalSearch(q);
+        // ── Global search ─────────────────────────────────────────────────────
+        (function () {
+            const input      = document.getElementById("global-search");
+            const dropdown   = document.getElementById("search-dropdown");
+            const loading    = document.getElementById("search-loading");
+            const resultsList = document.getElementById("search-results");
+            const emptyEl    = document.getElementById("search-empty");
+            const footer     = document.getElementById("search-footer");
+            const seeAll     = document.getElementById("search-see-all");
+            if (!input || !dropdown) return;
+
+            let _debounceTimer = null;
+            let _activeIndex   = -1;
+            let _results       = [];
+
+            function openDropdown() {
+                dropdown.classList.remove("hidden");
+                input.setAttribute("aria-expanded", "true");
+            }
+
+            function closeDropdown() {
+                dropdown.classList.add("hidden");
+                input.setAttribute("aria-expanded", "false");
+                _activeIndex = -1;
+            }
+
+            function setLoading(on) {
+                loading.classList.toggle("hidden", !on);
+                if (on) {
+                    resultsList.innerHTML = "";
+                    emptyEl.classList.add("hidden");
+                    footer.classList.add("hidden");
+                }
+            }
+
+            function escHtml(s) {
+                const d = document.createElement("div");
+                d.textContent = String(s);
+                return d.innerHTML;
+            }
+
+            function highlightMatch(text, q) {
+                const idx = text.toLowerCase().indexOf(q.toLowerCase());
+                if (idx === -1) return escHtml(text);
+                return escHtml(text.slice(0, idx)) +
+                    '<mark class="bg-amber-100 text-amber-800 rounded font-semibold not-italic">' +
+                    escHtml(text.slice(idx, idx + q.length)) +
+                    '</mark>' +
+                    escHtml(text.slice(idx + q.length));
+            }
+
+            function renderResults(results, q) {
+                _results = results;
+                resultsList.innerHTML = "";
+                setLoading(false);
+
+                if (!results.length) {
+                    emptyEl.classList.remove("hidden");
+                    footer.classList.add("hidden");
+                    return;
+                }
+
+                emptyEl.classList.add("hidden");
+                footer.classList.remove("hidden");
+                seeAll.href = "/produits/?search=" + encodeURIComponent(q);
+
+                results.forEach(function (p, i) {
+                    const li = document.createElement("li");
+                    li.setAttribute("role", "option");
+                    li.dataset.index = i;
+                    li.className = "flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[#EBF2F9]/60";
+                    li.innerHTML =
+                        '<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-100 bg-slate-50 overflow-hidden">' +
+                        (p.image_url
+                            ? '<img src="' + escHtml(p.image_url) + '" alt="' + escHtml(p.name) + '" class="h-full w-full object-contain p-1" onerror="this.style.display=\'none\'">'
+                            : '<svg class="h-5 w-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>'
+                        ) +
+                        '</div>' +
+                        '<div class="min-w-0 flex-1">' +
+                        '<p class="truncate text-sm font-semibold text-slate-800">' + highlightMatch(p.name, q) + '</p>' +
+                        '<p class="text-[11px] font-mono text-slate-400">' + escHtml(p.code) + (p.brand ? ' · ' + escHtml(p.brand) : '') + '</p>' +
+                        '</div>' +
+                        '<svg class="h-4 w-4 shrink-0 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>';
+
+                    li.addEventListener("click", function () {
+                        window.location.href = "/produits/?search=" + encodeURIComponent(p.code || p.name);
+                    });
+
+                    li.addEventListener("mouseenter", function () {
+                        setActive(i);
+                    });
+
+                    resultsList.appendChild(li);
+                });
+            }
+
+            function setActive(index) {
+                const items = resultsList.querySelectorAll("li");
+                items.forEach(function (el, i) {
+                    el.classList.toggle("bg-[#EBF2F9]/60", i === index);
+                });
+                _activeIndex = index;
+            }
+
+            function fetchResults(q) {
+                openDropdown();
+                setLoading(true);
+                fetch("/recherche/?q=" + encodeURIComponent(q), {
+                    headers: { "X-Requested-With": "XMLHttpRequest" }
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) { renderResults(data.results || [], q); })
+                .catch(function () { setLoading(false); emptyEl.classList.remove("hidden"); });
+            }
+
+            input.addEventListener("input", function () {
+                const q = this.value.trim();
+                clearTimeout(_debounceTimer);
+                _activeIndex = -1;
+                if (q.length < 2) { closeDropdown(); return; }
+                _debounceTimer = setTimeout(function () { fetchResults(q); }, 300);
+            });
+
+            input.addEventListener("keydown", function (e) {
+                const items = resultsList.querySelectorAll("li");
+                if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setActive(Math.min(_activeIndex + 1, items.length - 1));
+                } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setActive(Math.max(_activeIndex - 1, 0));
+                } else if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (_activeIndex >= 0 && _results[_activeIndex]) {
+                        const p = _results[_activeIndex];
+                        window.location.href = "/produits/?search=" + encodeURIComponent(p.code || p.name);
+                    } else if (this.value.trim()) {
+                        window.location.href = "/produits/?search=" + encodeURIComponent(this.value.trim());
+                    }
+                } else if (e.key === "Escape") {
+                    closeDropdown();
+                    this.blur();
                 }
             });
-        }
+
+            document.addEventListener("click", function (e) {
+                if (!dropdown.contains(e.target) && e.target !== input) {
+                    closeDropdown();
+                }
+            });
+        })();
 
         // ── Desktop sidebar collapse ──────────────────────────────────────────
         const desktopSidebar = document.getElementById("desktop-sidebar");
@@ -773,8 +956,8 @@
 
     <!-- Header -->
     <div class="relative flex items-center gap-3 border-b border-gray-100 bg-white px-5 py-4">
-        <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-violet-500 via-violet-400 to-purple-300"></div>
-        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+        <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300"></div>
+        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#EBF2F9] text-[#1E3A5F]">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846A4.5 4.5 0 005.096 12.813L2.25 12l2.846-.813A4.5 4.5 0 008.187 8.096L9 5.25l.813 2.846a4.5 4.5 0 003.091 3.091L15.75 12l-2.846.813a4.5 4.5 0 00-3.091 3.091z"/>
             </svg>
@@ -803,7 +986,7 @@
     <div id="chatbot-messages" class="space-y-3 overflow-y-auto px-5 py-4" style="max-height: 380px; min-height: 200px;">
         <div id="chatbot-widget-empty" class="flex min-h-[160px] items-center justify-center py-6 text-center">
             <div>
-                <div class="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-violet-50 text-violet-400">
+                <div class="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#EBF2F9] text-[#4F83B6]">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/>
                     </svg>
@@ -822,10 +1005,10 @@
                name="message"
                autocomplete="off"
                placeholder="Votre question…"
-               class="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100">
+               class="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100">
         <button type="submit"
                 id="chatbot-widget-send"
-                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50">
+                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/>
             </svg>
@@ -877,8 +1060,8 @@
         hideEmpty();
         var el = document.createElement("div");
         el.className = "flex justify-end";
-        el.innerHTML = '<div class="max-w-[85%] rounded-2xl bg-violet-600 px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">' +
-            '<p class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-violet-200">Vous</p>' +
+        el.innerHTML = '<div class="max-w-[85%] rounded-2xl bg-[#1E3A5F] px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">' +
+            '<p class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-blue-200">Vous</p>' +
             escHtml(text) + '</div>';
         messagesEl.appendChild(el);
         scrollToBottom();

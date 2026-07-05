@@ -322,6 +322,7 @@ class ProductsView(LoginRequiredMixin, TemplateView):
         PER_PAGE = 25
         active_val = self.request.GET.get("active", "").strip()
         family_val = self.request.GET.get("product_family_id", "").strip()
+        search_val = self.request.GET.get("search", "").strip()
         page = int(self.request.GET.get("page", 1) or 1)
         offset = (page - 1) * PER_PAGE
 
@@ -330,7 +331,10 @@ class ProductsView(LoginRequiredMixin, TemplateView):
             raw_filters["active"] = active_val
         if family_val.isdigit():
             raw_filters["product_family_id"] = family_val
+        if search_val:
+            raw_filters["search"] = search_val
         context["active_filters"] = raw_filters
+        context["search_query"] = search_val
 
         api_params = {**raw_filters, "limit": PER_PAGE, "offset": offset}
 
@@ -1333,3 +1337,29 @@ class ProductPromotionsView(LoginRequiredMixin, View):
             })
 
         return JsonResponse({"promotions": result})
+
+
+class GlobalSearchView(LoginRequiredMixin, View):
+    def get(self, request):
+        q = request.GET.get("q", "").strip()
+        if len(q) < 2:
+            return JsonResponse({"results": []})
+
+        try:
+            data = api_get("/products", {"search": q, "limit": 8}, user_email=request.user.email)
+            items = data.get("items", []) if isinstance(data, dict) else data
+        except ApiClientError:
+            return JsonResponse({"results": [], "error": True})
+
+        results = [
+            {
+                "id": p.get("id"),
+                "code": p.get("code") or "",
+                "name": p.get("name") or f"Produit #{p.get('id')}",
+                "brand": p.get("brand") or "",
+                "image_url": p.get("image_url") or "",
+            }
+            for p in items[:8]
+            if p.get("id") is not None
+        ]
+        return JsonResponse({"results": results})

@@ -24,8 +24,8 @@
 
     {# ── Header (identique au popup) ── #}
     <div class="relative flex items-center gap-3 border-b border-gray-100 bg-white px-5 py-4 shrink-0">
-        <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-violet-500 via-violet-400 to-purple-300"></div>
-        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+        <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#1E3A5F] via-[#4F83B6] to-sky-300"></div>
+        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#EBF2F9] text-[#4F83B6]">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846A4.5 4.5 0 005.096 12.813L2.25 12l2.846-.813A4.5 4.5 0 008.187 8.096L9 5.25l.813 2.846a4.5 4.5 0 003.091 3.091L15.75 12l-2.846.813a4.5 4.5 0 00-3.091 3.091z"/>
             </svg>
@@ -48,7 +48,7 @@
         {% if not chatbot_history %}
             <div id="chatbot-empty-state" class="flex h-full min-h-[160px] items-center justify-center py-6 text-center">
                 <div>
-                    <div class="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-violet-50 text-violet-400">
+                    <div class="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#EBF2F9] text-[#4F83B6]">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/>
                         </svg>
@@ -61,8 +61,8 @@
             {% for entry in chatbot_history %}
                 {% if entry.role == "user" %}
                     <div class="flex justify-end">
-                        <div class="max-w-[85%] rounded-2xl bg-violet-600 px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">
-                            <p class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-violet-200">Vous</p>
+                        <div class="max-w-[85%] rounded-2xl bg-[#1E3A5F] px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">
+                            <p class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-blue-200">Vous</p>
                             {{ entry.content|linebreaksbr }}
                         </div>
                     </div>
@@ -91,7 +91,7 @@
         <div class="flex flex-wrap gap-2">
             {% for suggestion in chatbot_suggestions %}
                 <button type="button"
-                        class="chatbot-suggestion-btn rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-[11px] text-gray-600 transition-colors hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700">
+                        class="chatbot-suggestion-btn rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-[11px] text-gray-600 transition-colors hover:border-[#4F83B6]/40 hover:bg-[#EBF2F9] hover:text-[#1E3A5F]">
                     {{ suggestion }}
                 </button>
             {% endfor %}
@@ -109,10 +109,10 @@
                required
                autocomplete="off"
                placeholder="Votre question…"
-               class="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100">
+               class="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100">
         <button type="submit"
                 id="chatbot-send"
-                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50">
+                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/>
             </svg>
@@ -151,8 +151,8 @@ document.addEventListener("DOMContentLoaded", function () {
         var el = document.createElement("div");
         el.className = "flex justify-end";
         el.innerHTML =
-            '<div class="max-w-[85%] rounded-2xl bg-violet-600 px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">' +
-            '<p class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-violet-200">Vous</p>' +
+            '<div class="max-w-[85%] rounded-2xl bg-[#1E3A5F] px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">' +
+            '<p class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-blue-200">Vous</p>' +
             escHtml(text) + '</div>';
         historyEl.appendChild(el);
         scrollToBottom();
@@ -244,7 +244,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 es.className = "flex h-full min-h-[160px] items-center justify-center py-6 text-center";
                 es.innerHTML =
                     '<div>' +
-                    '<div class="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-violet-50 text-violet-400">' +
+                    '<div class="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#EBF2F9] text-[#4F83B6]">' +
                     '<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">' +
                     '<path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/>' +
                     '</svg></div>' +

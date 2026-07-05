@@ -10,12 +10,12 @@
     <div class="relative overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm ring-1 ring-gray-100">
 
         {# Accent stripe #}
-        <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-violet-500 via-violet-400 to-purple-300"></div>
+        <div class="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#1E3A5F] via-[#4F83B6] to-sky-300"></div>
 
         {# Card header #}
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 pt-5">
             <div class="flex items-center gap-3">
-                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#EBF2F9] text-[#4F83B6]">
                     <svg class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/>
                     </svg>
@@ -24,7 +24,7 @@
                     <p class="text-sm font-semibold text-gray-900">
                         Tous les produits
                         {% if active_filters %}
-                            <span class="ml-2 inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+                            <span class="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
                                 {{ active_filters|length }} filtre{% if active_filters|length > 1 %}s{% endif %}
                             </span>
                         {% endif %}
@@ -51,13 +51,13 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0016.803 15.803z"/>
                     </svg>
                     <input id="product-search" type="text" placeholder="Nom ou code…"
-                           class="w-44 rounded-lg border border-gray-200 bg-white pl-7 pr-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400">
+                           class="w-44 rounded-lg border border-gray-200 bg-white pl-7 pr-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-100">
                 </div>
 
                 {# Famille (serveur) #}
                 <div class="flex items-center gap-2">
                     <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Famille</label>
-                    <select name="product_family_id" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400">
+                    <select name="product_family_id" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-100">
                         <option value="">Toutes</option>
                         {% for fid, fname in families %}
                             <option value="{{ fid }}" {% if active_filters.product_family_id == fid %}selected{% endif %}>{{ fname }}</option>
@@ -68,7 +68,7 @@
                 {# Marque (côté client) #}
                 <div class="flex items-center gap-2">
                     <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Marque</label>
-                    <select id="brand-filter" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400">
+                    <select id="brand-filter" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-100">
                         <option value="">Toutes</option>
                         {% for brand in brands %}
                             <option value="{{ brand }}">{{ brand }}</option>
@@ -79,7 +79,7 @@
                 {# Statut (serveur) #}
                 <div class="flex items-center gap-2">
                     <label class="text-[10px] font-semibold uppercase tracking-wider text-gray-400 shrink-0">Statut</label>
-                    <select name="active" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-400">
+                    <select name="active" class="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 shadow-sm transition-colors hover:border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-100">
                         <option value="">Tous</option>
                         <option value="true" {% if active_filters.active == "true" %}selected{% endif %}>Actif</option>
                         <option value="false" {% if active_filters.active == "false" %}selected{% endif %}>Inactif</option>
@@ -87,7 +87,7 @@
                 </div>
 
                 <div class="flex items-center gap-2 ml-auto">
-                    <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-violet-700 active:scale-95">
+                    <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-amber-600 active:scale-95">
                         Appliquer
                     </button>
                     {% if active_filters %}
@@ -105,7 +105,7 @@
         {# Product grid #}
         <div id="product-grid" class="p-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {% for product in products %}
-            <div class="product-card group relative flex flex-col rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-lg hover:border-violet-200 transition-all duration-200 overflow-hidden cursor-pointer"
+            <div class="product-card group relative flex flex-col rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-lg hover:border-[#4F83B6]/40 transition-all duration-200 overflow-hidden cursor-pointer"
                  data-name="{{ product.name|lower }}"
                  data-code="{{ product.code|lower }}"
                  data-brand="{{ product.brand|lower }}"
@@ -124,7 +124,7 @@
                  onkeydown="if(event.key==='Enter')openProductModal(this)">
 
                 {# Image area #}
-                <div class="relative aspect-square bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
+                <div class="relative aspect-square bg-gradient-to-br from-gray-50 to-slate-100 overflow-hidden">
                     {% if product.image_url %}
                         <img
                             src="{{ product.image_url }}"
@@ -154,11 +154,11 @@
 
                 {# Product info #}
                 <div class="flex flex-col gap-1 p-3 flex-1">
-                    <p class="text-sm font-semibold text-gray-900 group-hover:text-violet-700 transition-colors duration-150 line-clamp-2 leading-snug">{{ product.name }}</p>
+                    <p class="text-sm font-semibold text-gray-900 group-hover:text-[#1E3A5F] transition-colors duration-150 line-clamp-2 leading-snug">{{ product.name }}</p>
                     <p class="text-[10px] font-mono text-gray-400 truncate">{{ product.code }}</p>
                     <div class="mt-auto pt-2 flex flex-wrap items-center gap-1.5">
                         {% if product.brand %}
-                            <span class="inline-flex items-center rounded-md bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-600">{{ product.brand }}</span>
+                            <span class="inline-flex items-center rounded-md bg-[#EBF2F9] px-2 py-0.5 text-[10px] font-semibold text-[#4F83B6]">{{ product.brand }}</span>
                         {% endif %}
                         {% if product.family_name %}
                             <span class="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500 truncate max-w-full">{{ product.family_name }}</span>
@@ -236,13 +236,13 @@
                     {# Analytics section #}
                     <div class="px-6 py-5 border-b border-gray-100">
                         <div class="flex items-center gap-2 mb-4">
-                            <svg class="h-4 w-4 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <svg class="h-4 w-4 text-[#4F83B6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/>
                             </svg>
                             <p class="text-sm font-semibold text-gray-900">Performances analytiques</p>
                         </div>
                         <div id="analytics-loading" class="flex items-center gap-2 text-xs text-gray-400 py-2">
-                            <svg class="h-4 w-4 animate-spin text-violet-400" fill="none" viewBox="0 0 24 24">
+                            <svg class="h-4 w-4 animate-spin text-[#4F83B6]" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
                             </svg>
@@ -289,7 +289,7 @@
                     {# Prix actuels section #}
                     <div class="px-6 py-5">
                         <div class="flex items-center gap-2 mb-4">
-                            <svg class="h-4 w-4 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <svg class="h-4 w-4 text-[#4F83B6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
                             <p class="text-sm font-semibold text-gray-900">Prix actuels</p>
@@ -297,7 +297,7 @@
 
                         {# Loading state #}
                         <div id="prices-loading" class="flex items-center gap-2 text-xs text-gray-400 py-4">
-                            <svg class="h-4 w-4 animate-spin text-violet-400" fill="none" viewBox="0 0 24 24">
+                            <svg class="h-4 w-4 animate-spin text-[#4F83B6]" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
                             </svg>
@@ -488,9 +488,9 @@
                     const grid = document.getElementById('analytics-kpis');
                     kpis.forEach(k => {
                         grid.insertAdjacentHTML('beforeend', `
-                            <div class="rounded-xl bg-violet-50 px-3 py-2.5">
-                                <p class="text-[10px] font-semibold uppercase tracking-wider text-violet-400">${k.label}</p>
-                                <p class="mt-1 text-sm font-bold text-violet-800">${k.value}</p>
+                            <div class="rounded-xl bg-[#EBF2F9] px-3 py-2.5">
+                                <p class="text-[10px] font-semibold uppercase tracking-wider text-[#4F83B6]">${k.label}</p>
+                                <p class="mt-1 text-sm font-bold text-[#1E3A5F]">${k.value}</p>
                             </div>`);
                     });
                     if (data.last_sale_date) {
@@ -607,7 +607,7 @@
                             ? `<svg class="h-3 w-3 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a48.667 48.667 0 0 1 3-.349"/></svg>`
                             : `<svg class="h-3 w-3 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 9m0 6v1.5"/></svg>`;
                         tbody.insertAdjacentHTML('beforeend', `
-                            <tr class="hover:bg-violet-50/20 transition-colors">
+                            <tr class="hover:bg-[#EBF2F9]/20 transition-colors">
                                 <td class="px-3 py-2.5">
                                     <div class="flex items-center gap-1.5">${scopeIcon}<span class="text-gray-700">${escHtml(p.price_scope)}</span></div>
                                 </td>

@@ -33,7 +33,7 @@
         {% for i in page_obj.paginator.page_range %}
             {% if i >= current|add:"-2" and i <= current|add:"2" %}
                 {% if i == current %}
-                    <span class="inline-flex items-center justify-center h-8 min-w-[2rem] px-2 rounded-lg bg-violet-600 text-xs font-semibold text-white shadow-sm">{{ i }}</span>
+                    <span class="inline-flex items-center justify-center h-8 min-w-[2rem] px-2 rounded-lg bg-[#1E3A5F] text-xs font-semibold text-white shadow-sm">{{ i }}</span>
                 {% else %}
                     <a href="{% querystring page=i %}"
                        class="inline-flex items-center justify-center h-8 min-w-[2rem] px-2 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-600 shadow-sm hover:bg-gray-50 transition-colors">{{ i }}</a>
