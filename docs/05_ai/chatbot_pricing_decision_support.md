@@ -123,3 +123,41 @@ Le chatbot peut recommander une analyse ou suggérer de créer une demande de ch
 
 Prochaine étape recommandée :
 Consulter les anomalies prix et comparer le prix magasin au prix de référence pays.
+
+## Dois-je créer une demande de changement de prix ?
+
+Créer une demande de changement de prix peut être pertinent si :
+- une anomalie PRICE_ABOVE_REFERENCE ou INTER_STORE_PRICE_GAP est confirmée,
+- la marge ou le volume justifie une correction,
+- et aucune demande n’est déjà en cours pour ce produit et ce magasin.
+
+Avant de créer une demande, vérifiez systématiquement dans cet ordre :
+
+1. **Anomalie prix** — une anomalie PRICE_ABOVE_REFERENCE ou INTER_STORE_PRICE_GAP est-elle confirmée ? Si oui, elle justifie d’analyser un changement de prix.
+2. **KPI** — la marge, le volume vendu et le chiffre d’affaires soutiennent-ils la correction envisagée ?
+3. **Historique** — une demande de changement de prix n’est-elle pas déjà en cours pour ce produit et ce magasin ?
+4. **Promotion active** — une promotion couvre-t-elle déjà ce produit ? Si oui, analyser d’abord l’impact de la promotion avant de décider.
+5. **Périmètre RBAC** — avez-vous le droit de créer une demande pour ce produit et ce magasin ?
+
+Ne créez une demande que si la justification métier est confirmée et documentée. Le chatbot peut vous aider à vérifier les anomalies et les KPI. La décision finale appartient à l’utilisateur.
+
+## Quel indicateur regarder avant une décision pricing ?
+
+Avant toute décision, consultez les indicateurs dans l’ordre suivant selon le type de décision :
+
+| Décision | Indicateurs à vérifier en priorité |
+|---|---|
+| Changer un prix | Marge actuelle, Écart prix magasin/pays, Anomalie PRICE_ABOVE_REFERENCE |
+| Prolonger une promotion | Uplift revenu, Uplift volume, Marge pendant la promo |
+| Arrêter une promotion | Anomalie UNDERPERFORMING_PROMO ou INEFFECTIVE_DISCOUNT, Marge |
+| Prioriser une anomalie | Impact financier (perte de marge, écart de chiffre d’affaires) |
+| Créer une demande de prix | Anomalie confirmée, Marge après changement, Historique prix |
+
+Pour toute décision de changement de prix, vérifiez également :
+- le chiffre d’affaires sur la période récente ;
+- le volume vendu (une baisse peut justifier un ajustement) ;
+- l’uplift promo si une promotion est en cours sur le produit ;
+- la part du CA en promotion ;
+- l’historique des prix précédents pour ce produit et ce magasin.
+
+Le chatbot ne prend pas de décision à votre place. Il vous aide à identifier les données nécessaires pour décider.

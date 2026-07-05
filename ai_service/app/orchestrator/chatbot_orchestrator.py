@@ -1,8 +1,11 @@
 import re
+from datetime import date
 from typing import Any
 
 from app.core.llm_response_cleaner import strip_leading_greeting, strip_llm_sources_section
 from app.core.chatbot_messages import (
+    CHATBOT_GENERIC_RECOMMENDATION_CLARIFICATION_MESSAGE,
+    CHATBOT_GENERIC_RECOMMENDATION_CLARIFICATION_MESSAGE_EN,
     CHATBOT_MISSING_STORE_ID_MESSAGE,
     CHATBOT_MISSING_USER_EMAIL_MESSAGE,
     CHATBOT_NOT_IMPLEMENTED_MESSAGE,
@@ -14,6 +17,8 @@ from app.core.chatbot_messages import (
     CHATBOT_PRODUCT_CLARIFICATION_MESSAGE_EN,
     CHATBOT_PROMOTION_CLARIFICATION_MESSAGE,
     CHATBOT_PROMOTION_CLARIFICATION_MESSAGE_EN,
+    CHATBOT_PROMOTION_CONTEXT_CLARIFICATION_MESSAGE,
+    CHATBOT_PROMOTION_CONTEXT_CLARIFICATION_MESSAGE_EN,
     CHATBOT_STORE_CLARIFICATION_MESSAGE,
     CHATBOT_STORE_CLARIFICATION_MESSAGE_FR,
     CHATBOT_TECHNICAL_ERROR_MESSAGE,
@@ -124,18 +129,22 @@ _CLARIFY_PROMOTION_PHRASES = [
 _CLARIFICATION_MESSAGES_EN: dict[str, str | None] = {
     "clarify_prices": CHATBOT_PRICE_CLARIFICATION_MESSAGE,
     "clarify_promotions": CHATBOT_PROMOTION_CLARIFICATION_MESSAGE_EN,
+    "clarify_promotion_context": CHATBOT_PROMOTION_CONTEXT_CLARIFICATION_MESSAGE_EN,
     "clarify_store": CHATBOT_STORE_CLARIFICATION_MESSAGE,
     "clarify_product": CHATBOT_PRODUCT_CLARIFICATION_MESSAGE_EN,
     "clarify_price_requests": CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE_EN,
+    "generic_recommendation_clarification": CHATBOT_GENERIC_RECOMMENDATION_CLARIFICATION_MESSAGE_EN,
     "ambiguous_question": None,
 }
 
 _CLARIFICATION_MESSAGES_FR: dict[str, str | None] = {
     "clarify_prices": CHATBOT_PRICE_CLARIFICATION_MESSAGE_FR,
     "clarify_promotions": CHATBOT_PROMOTION_CLARIFICATION_MESSAGE,
+    "clarify_promotion_context": CHATBOT_PROMOTION_CONTEXT_CLARIFICATION_MESSAGE,
     "clarify_store": CHATBOT_STORE_CLARIFICATION_MESSAGE_FR,
     "clarify_product": CHATBOT_PRODUCT_CLARIFICATION_MESSAGE,
     "clarify_price_requests": CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE,
+    "generic_recommendation_clarification": CHATBOT_GENERIC_RECOMMENDATION_CLARIFICATION_MESSAGE,
     "ambiguous_question": None,
 }
 
@@ -147,6 +156,8 @@ _AMBIGUOUS_PHRASES: list[str] = []
 _PRICE_REVIEW_PHRASES: tuple[str, ...] = (
     "prix devrais je revoir",
     "prix devrais-je revoir",
+    "prix dois je revoir",
+    "prix dois-je revoir",
     "prix a revoir",
     "prix à revoir",
     "prix revoir en priorite",
@@ -154,6 +165,10 @@ _PRICE_REVIEW_PHRASES: tuple[str, ...] = (
     "quel prix revoir",
     "quel prix devrais je revoir",
     "quel prix devrais-je revoir",
+    "quel prix dois je revoir",
+    "quel prix dois-je revoir",
+    "prioriser les prix",
+    "prix prioritaire",
     "price to review",
     "price should i review",
 )
@@ -184,6 +199,114 @@ _CRITICAL_ANOMALY_PHRASES: tuple[str, ...] = (
     "most critical",
     "highest priority",
 )
+
+# Anomaly types related to promotional margin impact.
+_PROMO_MARGIN_ANOMALY_TYPES: frozenset[str] = frozenset(
+    {"INEFFECTIVE_DISCOUNT", "UNDERPERFORMING_PROMO"}
+)
+
+# T-A6 — Decision KPI guidance phrases: questions asking which indicators to check
+# before a pricing decision.  The block must be placed before step 5 (explain_kpi)
+# so that bare "kpi" in the question does not route to the KPI definition service.
+_DECISION_KPI_PHRASES: tuple[str, ...] = (
+    # FR accentuated — quel/quels indicateur(s) … avant (de) décider
+    "quel indicateur regarder avant décision",
+    "quels indicateurs regarder avant décision",
+    "quel indicateur regarder avant de décider",
+    "quels indicateurs regarder avant de décider",
+    "quels indicateurs dois-je regarder avant de prendre une décision",
+    "quels indicateurs dois je regarder avant de prendre une décision",
+    # FR non-accentuated equivalents
+    "quel indicateur regarder avant decision",
+    "quels indicateurs regarder avant decision",
+    "quel indicateur regarder avant de decider",
+    "quels indicateurs regarder avant de decider",
+    "quels indicateurs dois-je regarder avant de prendre une decision",
+    "quels indicateurs dois je regarder avant de prendre une decision",
+    # FR accentuated — quel/quels KPI … avant (de) décider
+    "quel kpi regarder avant décision",
+    "quels kpi regarder avant décision",
+    "quels kpi regarder avant de décider",
+    "kpi avant décision",
+    "kpi avant de décider",
+    "quels kpi sont importants pour décider",
+    # FR non-accentuated equivalents
+    "quel kpi regarder avant decision",
+    "quels kpi regarder avant decision",
+    "quels kpi regarder avant de decider",
+    "kpi avant decision",
+    "kpi avant de decider",
+    "quels kpi sont importants pour decider",
+    # Short forms — indicateur(s) + avant
+    "indicateur avant décision",
+    "indicateurs avant décision",
+    "indicateurs avant de décider",
+    "indicateur avant changement de prix",
+    "indicateur avant promotion",
+    "indicateur avant decision",
+    "indicateurs avant decision",
+    "indicateurs avant de decider",
+    # Broader decisional support phrases
+    "sur quoi me baser avant de changer un prix",
+    "que vérifier avant une décision pricing",
+    "que verifier avant une decision pricing",
+    "quels éléments vérifier avant une décision pricing",
+    "quels elements verifier avant une decision pricing",
+    "aide à la décision pricing",
+)
+
+# Phrases indicating the user wants to know which promotion to analyse/prioritise.
+_PROMO_ANALYSIS_PHRASES: tuple[str, ...] = (
+    "quelle promotion dois-je analyser",
+    "quelle promotion dois je analyser",
+    "promotion à analyser",
+    "promotion a analyser",
+    "promotion prioritaire",
+    "quelle promo regarder",
+    "quelle promo analyser",
+    "quelle promo dois-je",
+    "quelle promo dois je",
+)
+
+# Phrases indicating the user asks about bad margin impact from a promotion.
+_MARGIN_IMPACT_PHRASES: tuple[str, ...] = (
+    "mauvais impact marge",
+    "impact marge négatif",
+    "impact marge negatif",
+    "promotion dégrade la marge",
+    "promotion degrade la marge",
+    "dégrade la marge",
+    "degrade la marge",
+    "bad margin impact",
+    "promotion margin issue",
+    "impact négatif sur la marge",
+    "impact negatif sur la marge",
+    "promotion a un mauvais impact",
+    "promotion qui dégrade",
+    "promotion qui degrade",
+)
+
+# Business severity level per anomaly type (deduced, not stored as a DB field).
+_ANOMALY_SEVERITY: dict[str, str] = {
+    "PRICE_ABOVE_REFERENCE": "CRITICAL",
+    "INEFFECTIVE_DISCOUNT": "HIGH",
+    "UNDERPERFORMING_PROMO": "MEDIUM",
+    "INTER_STORE_PRICE_GAP": "MEDIUM",
+}
+
+# Phrases for ambiguous promotion questions requiring a specific promotion ID.
+_CLARIFY_PROMOTION_CONTEXT_PHRASES: list[str] = [
+    "cette promotion",
+    "cette promo",
+    "pourquoi cette promo",
+    "pourquoi cette promotion",
+    "this promotion",
+    "dois-je arrêter",
+    "dois je arreter",
+    "dois-je prolonger cette",
+    "dois-je stopper cette",
+    "dois je stopper cette",
+]
 
 # T210 — Static bilingual definitions for each anomaly type.
 # Used by explain_anomaly_definition intent so no data call is needed.
@@ -375,6 +498,14 @@ class ChatbotOrchestrator:
                 **routed,
                 "status": "answered",
                 "answer": self._build_chatbot_limits_response(lang=lang),
+                "source": "orchestrator",
+            }
+
+        if intent == "decision_kpi_guidance":
+            return {
+                **routed,
+                "status": "answered",
+                "answer": self._build_decision_kpi_response(lang=lang),
                 "source": "orchestrator",
             }
 
@@ -612,7 +743,10 @@ class ChatbotOrchestrator:
                 "qui peut modifier",
                 "qui peut approuver",
                 "qui peut rejeter",
+                "qui peut refuser",
                 "qui peut créer",
+                "refuser une demande",
+                "rejeter une demande",
                 "autorisé à",
                 "autorise a changer",
                 # French RBAC phrases — scope visibility
@@ -632,7 +766,6 @@ class ChatbotOrchestrator:
                 "business rule",
                 "validation workflow",
                 "workflow for",
-                "workflow de",
                 "le workflow pour",
                 "workflow de validation",
                 "audit",
@@ -650,12 +783,6 @@ class ChatbotOrchestrator:
                 "chatbot peut-il modifier",
                 "règle métier",
                 "traçabilité",
-                # French business rule phrases — ineffective promotions
-                "gérer une promotion",
-                "ne fonctionne pas",
-                "promotion inefficace",
-                "promotion ne marche",
-                "promotion échoue",
                 # Explanatory price rule questions — must be checked before price mismatch (3a)
                 # so "prix magasin" and "prix pays" in that section don't intercept them.
                 "pourquoi un prix magasin peut",
@@ -753,6 +880,7 @@ class ChatbotOrchestrator:
             return "list_store_country_price_mismatches"
 
         # 3b. General anomaly listing — all anomaly types without requiring store_id.
+        # Also covers margin-impact promotion questions (before explain_kpi which matches "marge").
         if self._contains_any_phrase(
             normalized_question,
             [
@@ -772,9 +900,19 @@ class ChatbotOrchestrator:
                 # Prioritisation requests — best answered with anomaly data
                 "quel prix devrais je revoir",
                 "quel prix devrais-je revoir",
+                "quel prix dois je revoir",
+                "quel prix dois-je revoir",
                 "prix a revoir en priorite",
                 "quel prix revoir en priorite",
                 "prix devrais je revoir",
+                "prix dois je revoir",
+                "prix dois-je revoir",
+                "prioriser les prix",
+                "prix prioritaire",
+                # Margin impact promotion phrases — must be before explain_kpi (step 5) which matches "marge"
+                *_MARGIN_IMPACT_PHRASES,
+                # Promotion analysis / prioritisation phrases
+                *_PROMO_ANALYSIS_PHRASES,
             ],
         ):
             return "list_anomalies"
@@ -820,6 +958,12 @@ class ChatbotOrchestrator:
         # not to the static explanation service.
         if self._contains_kpi_data_intent(normalized_question):
             return "get_kpi_data"
+
+        # 4.6. Decision KPI guidance — static list of indicators to check before a pricing decision.
+        # Must come before step 5 (explain_kpi) because "kpi" in the question would otherwise
+        # trigger the KPI definition service instead of the decisional indicator list.
+        if self._contains_any_phrase(normalized_question, list(_DECISION_KPI_PHRASES)):
+            return "decision_kpi_guidance"
 
         # 5. KPI explanation — definitions, formulas, and business interpretation.
         # Note: "explique le chiffre", "explique la marge", etc. are listed here rather than
@@ -946,14 +1090,21 @@ class ChatbotOrchestrator:
                 "available countries",
                 "show countries",
                 "liste des pays",
+                "liste les pays",
                 "quels pays",
+                "pays disponibles",
+                "pays existants",
                 # Stores
                 "list stores",
                 "what stores",
                 "available stores",
                 "show stores",
                 "liste des magasins",
+                "liste les magasins",
+                "affiche les magasins",
+                "montre les magasins",
                 "quels magasins",
+                "magasins disponibles",
                 # Product families
                 "product famil",
                 "familles de produits",
@@ -1017,6 +1168,33 @@ class ChatbotOrchestrator:
         ):
             return "chatbot_limits"
 
+        # 8.6. Promotion context clarification — "cette promotion" is ambiguous without an ID.
+        # Placed before documentary_knowledge so generic promotion phrasing triggers clarification.
+        if self._contains_any_phrase(normalized_question, _CLARIFY_PROMOTION_CONTEXT_PHRASES):
+            return "clarify_promotion_context"
+
+        # 8.7. Generic recommendation clarification — too vague without a specific topic.
+        # Placed before documentary_knowledge so "recommandes-tu" does not fall through to RAG.
+        # Note: "comment savoir quoi faire" belongs here, not in decision_kpi_guidance,
+        # because it carries no pricing context and requires a clarification question.
+        if self._contains_any_phrase(
+            normalized_question,
+            [
+                "quelle action recommandes-tu",
+                "quelle action recommandes tu",
+                "que recommandes-tu",
+                "que recommandes tu",
+                "quelle est ta recommandation",
+                "quelle est votre recommandation",
+                "what do you recommend",
+                "what is your recommendation",
+                "comment savoir quoi faire",
+                "que dois-je faire",
+                "que dois je faire",
+            ],
+        ):
+            return "generic_recommendation_clarification"
+
         # 9. Documentary knowledge — RAG over project documentation.
         # Deliberately placed after operational intents so Tool Calling stays
         # prioritaire for data questions.
@@ -1058,6 +1236,10 @@ class ChatbotOrchestrator:
                 "comment fonctionne le workflow",
                 "explique le workflow",
                 "workflow de changement de prix",
+                "processus de changement de prix",
+                "workflow pricing",
+                "cycle de validation",
+                "demande de changement de prix",
                 "comment créer une demande",
                 "comment soumettre une demande",
                 "pourquoi une demande reste",
@@ -1082,14 +1264,23 @@ class ChatbotOrchestrator:
                 "comment savoir si une promotion fonctionne",
                 "comment savoir si une promotion",
                 "ameliorer une promotion",
-                "dois-je arrêter cette promotion",
-                "dois je arreter cette promotion",
+                # Handling underperforming / ineffective promotions — routes to RAG, not business rules
+                "gérer une promotion",
+                "gerer une promotion",
+                "promotion inefficace",
+                "promotion ne marche",
+                "promotion echoue",
+                "promotion échoue",
+                "promotion qui ne fonctionne",
+                "que faire si une promotion ne fonctionne",
+                "promotion ne fonctionne pas",
+                "comment gérer une promotion",
+                "comment gerer une promotion",
                 # Pricing decision support
                 "comment decider si un prix doit etre change",
                 "prix doit etre change",
                 "que verifier avant de changer un prix",
                 "dois je creer une demande de changement",
-                "quelle action recommandes tu",
             ],
         ):
             return "documentary_knowledge"
@@ -1123,12 +1314,15 @@ class ChatbotOrchestrator:
             "guardrail_action_request": None,
             "chatbot_limits": None,
             "chatbot_capabilities": None,
+            "decision_kpi_guidance": None,
             "ambiguous_question": None,
             "clarify_prices": None,
             "clarify_promotions": None,
+            "clarify_promotion_context": None,
             "clarify_store": None,
             "clarify_product": None,
             "clarify_price_requests": None,
+            "generic_recommendation_clarification": None,
         }
 
         return tool_by_intent.get(intent)
@@ -1191,9 +1385,23 @@ class ChatbotOrchestrator:
                 if a.get("anomaly_type") in _PRICE_REVIEW_ANOMALY_TYPES
             ]
 
+        is_margin_impact = self._is_margin_impact_question(normalized)
+        if is_margin_impact and not is_price_review:
+            anomalies = [
+                a for a in anomalies
+                if a.get("anomaly_type") in _PROMO_MARGIN_ANOMALY_TYPES
+            ]
+
+        is_promo_analysis = self._is_promotion_analysis_question(normalized)
+        if is_promo_analysis and not is_price_review and not is_margin_impact:
+            anomalies = [
+                a for a in anomalies
+                if a.get("anomaly_type") in _PROMO_MARGIN_ANOMALY_TYPES
+            ]
+
         # T210 — filter by anomaly type when the question targets a specific type.
         anomaly_type_filter = self._detect_anomaly_type_filter(normalized)
-        if anomaly_type_filter and not is_price_review:
+        if anomaly_type_filter and not is_price_review and not is_margin_impact:
             anomalies = [a for a in anomalies if a.get("anomaly_type") == anomaly_type_filter]
 
         # T210 — sort by business priority when the question asks for critical anomalies.
@@ -1211,6 +1419,8 @@ class ChatbotOrchestrator:
             lang=lang,
             is_price_review=is_price_review,
             is_critical=is_critical,
+            is_margin_impact=is_margin_impact,
+            is_promo_analysis=is_promo_analysis,
             anomaly_type_filter=anomaly_type_filter,
         )
 
@@ -1220,6 +1430,8 @@ class ChatbotOrchestrator:
         lang: str = "fr",
         is_price_review: bool = False,
         is_critical: bool = False,
+        is_margin_impact: bool = False,
+        is_promo_analysis: bool = False,
         anomaly_type_filter: str | None = None,
     ) -> str:
         if not items:
@@ -1232,6 +1444,30 @@ class ChatbotOrchestrator:
                     ],
                     suggested_next_step=(
                         "Consultez les anomalies promotionnelles si vous souhaitez analyser les promotions inefficaces."
+                    ),
+                    lang=lang,
+                )
+            if is_margin_impact:
+                return self._response_service.format_tool_response(
+                    summary="Aucune anomalie de marge promotionnelle détectée dans votre périmètre.",
+                    details=[
+                        "La criticité de l'impact marge n'est pas disponible comme champ structuré dans les données actuelles.",
+                        "Elle est déduite du type d'anomalie : INEFFECTIVE_DISCOUNT (HIGH) et UNDERPERFORMING_PROMO (MEDIUM).",
+                    ],
+                    suggested_next_step=(
+                        "Demandez 'quelle est la performance de la promotion X ?' pour analyser son impact marge via le KPI promotion performance."
+                    ),
+                    lang=lang,
+                )
+            if is_promo_analysis:
+                return self._response_service.format_tool_response(
+                    summary="Aucune anomalie promotionnelle détectée dans votre périmètre.",
+                    details=[
+                        "Les types attendus sont UNDERPERFORMING_PROMO et INEFFECTIVE_DISCOUNT.",
+                        "Si aucune anomalie n'est présente, vos promotions actives sont dans les seuils attendus.",
+                    ],
+                    suggested_next_step=(
+                        "Consultez les KPI de performance promotionnelle pour confirmer l'absence d'anomalie."
                     ),
                     lang=lang,
                 )
@@ -1252,11 +1488,13 @@ class ChatbotOrchestrator:
             )
             if not has_price_critical:
                 return self._response_service.format_tool_response(
-                    summary=f"{len(items)} anomalie(s) détectée(s). Aucune anomalie prix critique n'est disponible dans les résultats actuels.",
+                    summary=f"{len(items)} anomalie(s) détectée(s). Aucune anomalie de sévérité CRITICAL n'est disponible.",
                     details=[
-                        "Les anomalies disponibles sont principalement des promotions sous-performantes.",
-                        "Elles doivent être analysées après les anomalies prix critiques.",
-                        "Le niveau critique dépend du type d'anomalie et de son impact financier.",
+                        "Niveaux de sévérité métier (déduits du type, non stockés en base) :",
+                        "  • CRITICAL — PRICE_ABOVE_REFERENCE",
+                        "  • HIGH     — INEFFECTIVE_DISCOUNT",
+                        "  • MEDIUM   — UNDERPERFORMING_PROMO, INTER_STORE_PRICE_GAP",
+                        "Les anomalies actuelles sont de sévérité MEDIUM — traitez-les après les anomalies CRITICAL et HIGH.",
                     ],
                     lang=lang,
                 )
@@ -1273,11 +1511,14 @@ class ChatbotOrchestrator:
         for item in displayed:
             anomaly = item.get("anomaly", item)
             expl = item.get("explanation", {})
-            label = expl.get("label", anomaly.get("anomaly_type", "Anomalie"))
+            anomaly_type = anomaly.get("anomaly_type", "")
+            label = expl.get("label", anomaly_type or "Anomalie")
+            severity = _ANOMALY_SEVERITY.get(anomaly_type, "")
+            severity_str = f" [{severity}]" if severity else ""
             product = anomaly.get("product_id", "?")
             store = anomaly.get("store_id")
             store_str = f" — Magasin {store}" if store else ""
-            details.append(f"{label} — Produit {product}{store_str}")
+            details.append(f"{label}{severity_str} — Produit {product}{store_str}")
 
         if is_price_review:
             return self._response_service.format_tool_response(
@@ -1285,6 +1526,17 @@ class ChatbotOrchestrator:
                 details=details,
                 suggested_next_step=(
                     "Comparer le prix magasin avec le prix pays avant de créer une demande de changement de prix."
+                ),
+                lang=lang,
+            )
+
+        if is_promo_analysis:
+            return self._response_service.format_tool_response(
+                summary=f"{total} anomalie(s) promotionnelle(s) à analyser en priorité.{suffix}",
+                details=details,
+                suggested_next_step=(
+                    "Analysez d'abord les anomalies INEFFECTIVE_DISCOUNT (HIGH), puis UNDERPERFORMING_PROMO (MEDIUM). "
+                    "Vérifiez l'uplift revenu, le volume vendu et la marge avant toute décision."
                 ),
                 lang=lang,
             )
@@ -1364,6 +1616,25 @@ class ChatbotOrchestrator:
             user_email=user_email,
         )
 
+        # Business rule: "active" means the promotion period includes today.
+        # The backend `active=True` filter only checks the technical status field,
+        # so promotions with an expired period may still be returned.
+        excluded_expired_count = 0
+        if active is True:
+            today = date.today()
+            in_period: list[dict[str, Any]] = []
+            for item in items:
+                try:
+                    start = date.fromisoformat(str(item.get("start_date", "")))
+                    end = date.fromisoformat(str(item.get("end_date", "")))
+                    if start <= today <= end:
+                        in_period.append(item)
+                    else:
+                        excluded_expired_count += 1
+                except (ValueError, TypeError):
+                    in_period.append(item)
+            items = in_period
+
         products_by_id: dict[int, dict[str, Any]] = {}
         if items:
             all_products = self.reference_data_tool.list_products(user_email=user_email)
@@ -1375,6 +1646,7 @@ class ChatbotOrchestrator:
             store_id=store_id,
             lang=lang,
             products_by_id=products_by_id,
+            excluded_expired_count=excluded_expired_count,
         )
 
     def _answer_prices_question(
@@ -1456,9 +1728,28 @@ class ChatbotOrchestrator:
         store_id: int | None = None,
         lang: str = "fr",
         products_by_id: dict[int, dict[str, Any]] | None = None,
+        excluded_expired_count: int = 0,
     ) -> str:
         if not items:
-            return "Aucune promotion trouvée."
+            if excluded_expired_count > 0:
+                note = (
+                    f"{excluded_expired_count} promotion(s) avec statut ACTIVE ont une période expirée "
+                    f"et ont été exclues car elles ne sont plus en cours aujourd'hui."
+                    if lang == "fr"
+                    else f"{excluded_expired_count} ACTIVE promotion(s) had an expired period "
+                    f"and were excluded as they are no longer current today."
+                )
+                return self._response_service.format_tool_response(
+                    summary="Aucune promotion réellement en cours aujourd'hui." if lang == "fr" else "No promotion currently in progress today.",
+                    details=[note],
+                    suggested_next_step=(
+                        "Vérifiez dans l'application les promotions expirées si vous souhaitez les prolonger."
+                        if lang == "fr"
+                        else "Check the application for expired promotions if you wish to extend them."
+                    ),
+                    lang=lang,
+                )
+            return "Aucune promotion trouvée." if lang == "fr" else "No promotion found."
 
         total = len(items)
         displayed = items[: self._MAX_DISPLAYED_RESULTS]
@@ -1475,6 +1766,7 @@ class ChatbotOrchestrator:
             scope_parts.append(f"magasin {store_id}")
         filters_label = f" (filtre : {', '.join(scope_parts)})" if scope_parts else ""
 
+        today = date.today()
         details = []
         for item in displayed:
             discount_type = item.get("discount_type", "")
@@ -1485,20 +1777,54 @@ class ChatbotOrchestrator:
                 discount_label = f"{discount_value}%" if lang == "fr" else f"{discount_value}% discount"
             else:
                 discount_label = f"prix fixe {discount_value}" if lang == "fr" else f"fixed price {discount_value}"
+
             store_label = f" — Magasin {item['store_id']}" if item.get("store_id") else ""
+            country_label = f" — Pays {item['country_id']}" if (not item.get("store_id") and item.get("country_id")) else ""
+            scope_label = store_label or country_label
+
             pid = item.get("product_id")
             product = (products_by_id or {}).get(pid) if pid is not None else None
             if product:
                 product_label = f"{product.get('code', pid)} — {product.get('name', '')}".strip(" —")
             else:
                 product_label = f"Produit {pid}"
+
+            # Technical status from the backend
+            tech_status = item.get("status", "")
+            if tech_status == "ACTIVE":
+                status_label = " [actif]" if lang == "fr" else " [active]"
+            elif tech_status == "INACTIVE":
+                status_label = " [inactif]" if lang == "fr" else " [inactive]"
+            else:
+                status_label = f" [{tech_status.lower()}]" if tech_status else ""
+
+            # Period status computed from start/end dates vs today
+            period_label = ""
+            try:
+                start = date.fromisoformat(str(item.get("start_date", "")))
+                end = date.fromisoformat(str(item.get("end_date", "")))
+                if today < start:
+                    period_label = " [à venir]" if lang == "fr" else " [upcoming]"
+                elif today > end:
+                    period_label = " [expirée]" if lang == "fr" else " [expired]"
+                else:
+                    period_label = " [en cours]" if lang == "fr" else " [current]"
+            except (ValueError, TypeError):
+                pass
+
             details.append(
                 f"{id_label}{product_label} — {discount_label}"
-                f" — {item['start_date']} → {item['end_date']}{store_label}"
+                f" — {item.get('start_date', '?')} → {item.get('end_date', '?')}"
+                f"{scope_label}{status_label}{period_label}"
             )
 
+        excluded_note = (
+            f" ({excluded_expired_count} exclue(s) car période expirée.)"
+            if excluded_expired_count > 0
+            else ""
+        )
         return self._response_service.format_tool_response(
-            summary=f"{total} promotion(s) trouvée(s){filters_label}.{suffix}",
+            summary=f"{total} promotion(s) en cours aujourd'hui{filters_label}.{suffix}{excluded_note}",
             details=details,
             suggested_next_step="Vérifiez les KPI de chaque promotion avant de les prolonger.",
             lang=lang,
@@ -1536,35 +1862,46 @@ class ChatbotOrchestrator:
             amount = item.get("amount", "?")
             currency = item.get("currency_code", "")
 
-            store = item.get("store_id")
-            store_str = f" — Magasin {store}" if store else ""
+            price_type = item.get("price_type", "")
+            type_str = f" — {price_type}" if price_type else ""
 
-            price_scope = item.get("scope") or item.get("price_type") or item.get("price_scope", "")
-            scope_str = f" — {price_scope}" if price_scope else ""
+            price_scope = item.get("price_scope", "")
+            item_store_id = item.get("store_id")
+            country_id = item.get("country_id")
+            if price_scope == "STORE" and item_store_id:
+                location_str = f" — Magasin {item_store_id}"
+            elif price_scope == "COUNTRY" and country_id:
+                location_str = f" — Pays {country_id}"
+            elif item_store_id:
+                location_str = f" — Magasin {item_store_id}"
+            elif country_id:
+                location_str = f" — Pays {country_id}"
+            else:
+                location_str = ""
 
-            start = item.get("start_date", "")
-            end = item.get("end_date", "")
-            period_str = f" — {start} → {end}" if start and end else ""
+            effective_from = item.get("effective_from", "")
+            effective_to = item.get("effective_to", "")
+            period_str = f" — {effective_from} → {effective_to}" if effective_from and effective_to else ""
 
-            is_active = item.get("is_active")
-            if is_active is True:
+            status = item.get("status", "")
+            if status == "ACTIVE":
                 active_str = " [actif]" if lang == "fr" else " [active]"
-            elif is_active is False:
+            elif status == "INACTIVE":
                 active_str = " [inactif]" if lang == "fr" else " [inactive]"
             else:
-                active_str = ""
+                active_str = f" [{status.lower()}]" if status else ""
 
             details.append(
-                f"{code} — {name} — {amount} {currency}{scope_str}{store_str}{period_str}{active_str}".strip(" —")
+                f"{code} — {name} — {amount} {currency}{type_str}{location_str}{period_str}{active_str}".strip(" —")
             )
 
         if total > 1:
             next_step = (
                 "Plusieurs prix existent car il peut y avoir plusieurs scopes (magasin, pays) "
-                "ou périodes différentes. Les prix actifs [actif] sont prioritaires."
+                "ou périodes différentes. Les prix avec statut ACTIVE sont prioritaires."
                 if lang == "fr"
                 else "Multiple prices exist because there can be several scopes (store, country) "
-                "or different periods. Active prices [active] take priority."
+                "or different periods. Prices with ACTIVE status take priority."
             )
         else:
             next_step = (
@@ -1728,6 +2065,9 @@ class ChatbotOrchestrator:
         if self._contains_any_phrase(normalized_question, _CLARIFY_PROMOTION_PHRASES):
             return "clarify_promotions"
 
+        if self._contains_any_phrase(normalized_question, _CLARIFY_PROMOTION_CONTEXT_PHRASES):
+            return "clarify_promotion_context"
+
         return None
 
     def _contains_any_phrase(self, text: str, keywords: list[str]) -> bool:
@@ -1735,6 +2075,12 @@ class ChatbotOrchestrator:
 
     def _is_price_review_question(self, normalized_question: str) -> bool:
         return any(phrase in normalized_question for phrase in _PRICE_REVIEW_PHRASES)
+
+    def _is_margin_impact_question(self, normalized_question: str) -> bool:
+        return any(phrase in normalized_question for phrase in _MARGIN_IMPACT_PHRASES)
+
+    def _is_promotion_analysis_question(self, normalized_question: str) -> bool:
+        return any(phrase in normalized_question for phrase in _PROMO_ANALYSIS_PHRASES)
 
     def _contains_kpi_data_intent(self, text: str) -> bool:
         data_phrases = [
@@ -1902,6 +2248,51 @@ class ChatbotOrchestrator:
             suggested_next_step=(
                 "For any action (approval, rejection, price change), "
                 "use the manual workflow in the application."
+            ),
+            lang=lang,
+        )
+
+    def _build_decision_kpi_response(self, lang: str = "fr") -> str:
+        if lang == "fr":
+            return self._response_service.format_tool_response(
+                summary="Avant toute décision pricing, consultez ces indicateurs dans l'ordre :",
+                details=[
+                    "Chiffre d'affaires — le CA est-il en hausse ou en baisse sur la période ?",
+                    "Marge — la marge reste-t-elle au-dessus du seuil acceptable ?",
+                    "Volume vendu — les ventes ont-elles évolué avec le prix ou la promotion ?",
+                    "Panier moyen (AOV) — l'achat moyen a-t-il changé ?",
+                    "Uplift promotionnel — la promotion a-t-elle généré un revenu supplémentaire ?",
+                    "Part du CA en promotion — quelle proportion des ventes est sous promotion ?",
+                    "Écart prix magasin / prix pays — y a-t-il une anomalie PRICE_ABOVE_REFERENCE ou INTER_STORE_PRICE_GAP ?",
+                    "Anomalies détectées — quelles anomalies sont actives (type, sévérité) ?",
+                    "Historique des changements de prix — une demande est-elle déjà en cours ?",
+                ],
+                suggested_next_step=(
+                    "Posez une question précise : "
+                    "'Quelle est la marge du produit X ?', "
+                    "'Quelles anomalies sont détectées ?', "
+                    "ou 'Quelle est la performance de la promotion Y ?'."
+                ),
+                lang=lang,
+            )
+        return self._response_service.format_tool_response(
+            summary="Before any pricing decision, check these indicators in order:",
+            details=[
+                "Revenue — is revenue trending up or down over the period?",
+                "Margin — is margin still above the business floor?",
+                "Volume sold — did sales change with the price or promotion?",
+                "Average order value (AOV) — has the average purchase changed?",
+                "Promotional uplift — did the promotion generate incremental revenue?",
+                "Promo sales share — what proportion of sales occurred under a promotion?",
+                "Store / country price gap — is there a PRICE_ABOVE_REFERENCE or INTER_STORE_PRICE_GAP anomaly?",
+                "Detected anomalies — which anomalies are active (type, severity)?",
+                "Price change history — is a request already pending for this product?",
+            ],
+            suggested_next_step=(
+                "Ask a specific question: "
+                "'What is the margin for product X?', "
+                "'Which anomalies are detected?', "
+                "or 'What is the performance of promotion Y?'."
             ),
             lang=lang,
         )

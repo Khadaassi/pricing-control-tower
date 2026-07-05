@@ -123,6 +123,16 @@ _CAN_APPROVE_PHRASES = [
     "who can reject",
 ]
 
+_CAN_REJECT_PHRASES = [
+    "qui peut refuser",
+    "refuser une demande",
+    "refuser un changement de prix",
+    "who can refuse",
+    "refuse a price change",
+    "refuse a request",
+    "refuse the request",
+]
+
 _CAN_CREATE_PROMOTION_PHRASES = [
     "qui peut créer une promotion",
     "qui peut creer une promotion",
@@ -181,6 +191,30 @@ _RBAC_CAN_APPROVE_RESPONSE_FR = (
     "- Le chatbot peut expliquer le workflow mais ne peut pas approuver ou refuser.\n\n"
     "Prochaine étape suggérée :\n"
     "Consultez le workflow de validation et vérifiez qui dispose des droits d'approbation dans votre organisation."
+)
+
+_RBAC_CAN_REJECT_RESPONSE = (
+    "Summary:\n"
+    "Only authorized users can reject a price change request.\n\n"
+    "Details:\n"
+    "- Rejection depends on the user's role and assigned scope.\n"
+    "- A pending request can move to rejected.\n"
+    "- The rejection reason must be recorded.\n"
+    "- The chatbot can explain the workflow but cannot reject a request itself.\n\n"
+    "Suggested next step:\n"
+    "Check the role and permissions of the user responsible for processing the request."
+)
+
+_RBAC_CAN_REJECT_RESPONSE_FR = (
+    "Résumé :\n"
+    "Seuls les utilisateurs autorisés peuvent refuser une demande de changement de prix.\n\n"
+    "Détails :\n"
+    "- Le refus dépend du rôle et du périmètre utilisateur.\n"
+    "- Une demande pending peut passer à rejected.\n"
+    "- Le motif de refus doit être enregistré.\n"
+    "- Le chatbot peut expliquer le workflow mais ne peut pas refuser la demande lui-même.\n\n"
+    "Prochaine étape suggérée :\n"
+    "Consultez le rôle et les permissions de l'utilisateur chargé de traiter la demande."
 )
 
 _RBAC_CAN_CREATE_PROMOTION_RESPONSE = (
@@ -261,6 +295,10 @@ class RBACExplanationService:
             response = _RBAC_CAN_APPROVE_RESPONSE_FR if lang == "fr" else _RBAC_CAN_APPROVE_RESPONSE
             return {"answer": response, "source": "rbac_tool", "roles_used": [], "llm_used": False}
 
+        if static_intent == "can_reject":
+            response = _RBAC_CAN_REJECT_RESPONSE_FR if lang == "fr" else _RBAC_CAN_REJECT_RESPONSE
+            return {"answer": response, "source": "rbac_tool", "roles_used": [], "llm_used": False}
+
         if static_intent == "can_create_promotion":
             response = _RBAC_CAN_CREATE_PROMOTION_RESPONSE_FR if lang == "fr" else _RBAC_CAN_CREATE_PROMOTION_RESPONSE
             return {"answer": response, "source": "rbac_tool", "roles_used": [], "llm_used": False}
@@ -316,6 +354,8 @@ class RBACExplanationService:
             return "personal_rights"
         if any(phrase in normalized for phrase in _CAN_CHANGE_PRICE_PHRASES):
             return "can_change_price"
+        if any(phrase in normalized for phrase in _CAN_REJECT_PHRASES):
+            return "can_reject"
         if any(phrase in normalized for phrase in _CAN_APPROVE_PHRASES):
             return "can_approve"
         if any(phrase in normalized for phrase in _CAN_CREATE_PROMOTION_PHRASES):

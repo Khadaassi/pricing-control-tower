@@ -100,3 +100,33 @@ Une promotion ne doit pas être jugée uniquement sur le chiffre d’affaires. U
 
 Prochaine étape recommandée :
 Comparer les KPI avant et pendant la promotion, puis vérifier les anomalies liées à cette promotion.
+
+## Différence entre promotion active et promotion en cours
+
+Le statut `ACTIVE` est un statut technique : il signifie que la promotion n'a pas été manuellement désactivée. Il est distinct du statut de période :
+
+| Statut de période | Signification |
+|---|---|
+| En cours | Aujourd'hui est compris entre la date de début et la date de fin |
+| À venir | La date de début est dans le futur |
+| Expiré | La date de fin est dépassée |
+
+Une promotion avec statut `ACTIVE` peut avoir une période expirée si elle n'a pas été clôturée manuellement dans l'application. Pour vérifier si une promotion est réellement en cours aujourd'hui, contrôlez à la fois le statut technique et la période affichée.
+
+## Quand arrêter ou ne pas prolonger une promotion ?
+
+Avant de décider d'arrêter ou de ne pas prolonger une promotion, analysez les indicateurs suivants :
+
+1. **Uplift de revenu** — le CA pendant la promotion est-il supérieur au CA de la période de référence ?
+2. **Volume vendu** — les ventes ont-elles augmenté ?
+3. **Impact sur la marge** — la remise a-t-elle dégradé la marge sous le seuil acceptable ?
+4. **Anomalies** — une anomalie UNDERPERFORMING_PROMO ou INEFFECTIVE_DISCOUNT a-t-elle été détectée ?
+5. **Durée** — la promotion est-elle trop récente pour être correctement évaluée ?
+
+Recommandations :
+- Uplift négatif ET marge dégradée → envisager l'arrêt
+- Uplift faible mais marge stable → analyser plus longtemps ou ajuster la remise
+- Uplift fort mais marge dégradée → revoir le taux de remise
+- Ne jamais arrêter une promotion sans analyser les KPI et les anomalies associées
+
+Le chatbot peut identifier les anomalies et expliquer les KPI associés. La décision d'arrêt ou de non-prolongation doit être prise par un utilisateur autorisé dans l'application.

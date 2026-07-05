@@ -190,3 +190,39 @@ CHATBOT_PRICE_REQUEST_CLARIFICATION_MESSAGE_EN = (
     "- rejected requests\n"
     "- all requests regardless of status?"
 )
+
+CHATBOT_PROMOTION_CONTEXT_CLARIFICATION_MESSAGE = (
+    "De quelle promotion parlez-vous ?\n\n"
+    "Merci de préciser :\n"
+    "- l'identifiant de la promotion\n"
+    "- ou le produit concerné\n"
+    "- ou le magasin concerné\n\n"
+    "Cela me permettra d'analyser les données pertinentes avant de vous conseiller."
+)
+
+CHATBOT_PROMOTION_CONTEXT_CLARIFICATION_MESSAGE_EN = (
+    "Which promotion are you referring to?\n\n"
+    "Please specify:\n"
+    "- the promotion ID\n"
+    "- or the product involved\n"
+    "- or the store involved\n\n"
+    "This will allow me to analyze the relevant data before advising you."
+)
+
+CHATBOT_GENERIC_RECOMMENDATION_CLARIFICATION_MESSAGE = (
+    "Pouvez-vous préciser le sujet de votre demande ?\n\n"
+    "Ma recommandation portera sur :\n"
+    "- un prix à revoir (anomalie PRICE_ABOVE_REFERENCE ou INTER_STORE_PRICE_GAP)\n"
+    "- une promotion à analyser (anomalie UNDERPERFORMING_PROMO ou INEFFECTIVE_DISCOUNT)\n"
+    "- une anomalie à prioriser\n"
+    "- une demande de changement de prix à créer"
+)
+
+CHATBOT_GENERIC_RECOMMENDATION_CLARIFICATION_MESSAGE_EN = (
+    "Could you clarify the subject of your request?\n\n"
+    "I can recommend analysis steps for:\n"
+    "- a price to review (PRICE_ABOVE_REFERENCE or INTER_STORE_PRICE_GAP anomaly)\n"
+    "- a promotion to analyse (UNDERPERFORMING_PROMO or INEFFECTIVE_DISCOUNT anomaly)\n"
+    "- an anomaly to prioritise\n"
+    "- a price change request to create"
+)
