@@ -1,6 +1,6 @@
 {% load static tailwind_tags %}
 <!DOCTYPE html>
-<html lang="fr" class="h-full">
+<html lang="fr" class="h-full" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -263,6 +263,32 @@
 
         #sidebar-toggle.is-collapsed svg {
             transform: rotate(180deg);
+        }
+
+        /* ── Arbitrary hex color utilities (Tailwind v4 compilation fix) ─── */
+        .bg-\[\#1E3A5F\] { background-color: #1E3A5F; }
+        .bg-\[\#162d4a\] { background-color: #162d4a; }
+        .bg-\[\#4F83B6\] { background-color: #4F83B6; }
+        .bg-\[\#EBF2F9\] { background-color: #EBF2F9; }
+        .bg-\[\#EBF2F9\]\/40 { background-color: color-mix(in oklab, #EBF2F9 40%, transparent); }
+        .bg-\[\#f7f8fc\] { background-color: #f7f8fc; }
+        .text-\[\#1E3A5F\] { color: #1E3A5F; }
+        .text-\[\#4F83B6\] { color: #4F83B6; }
+        .border-\[\#4F83B6\]\/20 { border-color: color-mix(in oklab, #4F83B6 20%, transparent); }
+        .hover\:bg-\[\#162d4a\]:hover { background-color: #162d4a; }
+        .hover\:bg-\[\#EBF2F9\]:hover { background-color: #EBF2F9; }
+        .hover\:bg-\[\#EBF2F9\]\/20:hover { background-color: color-mix(in oklab, #EBF2F9 20%, transparent); }
+        .hover\:bg-\[\#EBF2F9\]\/30:hover { background-color: color-mix(in oklab, #EBF2F9 30%, transparent); }
+        .hover\:bg-\[\#EBF2F9\]\/40:hover { background-color: color-mix(in oklab, #EBF2F9 40%, transparent); }
+        .hover\:border-\[\#4F83B6\]\/40:hover { border-color: color-mix(in oklab, #4F83B6 40%, transparent); }
+        .from-\[\#1E3A5F\] {
+            --tw-gradient-from: #1E3A5F;
+            --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
+        }
+        .via-\[\#4F83B6\] {
+            --tw-gradient-via: #4F83B6;
+            --tw-gradient-via-stops: var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-via) var(--tw-gradient-via-position), var(--tw-gradient-to) var(--tw-gradient-to-position);
+            --tw-gradient-stops: var(--tw-gradient-via-stops);
         }
 
         /* ── Chatbot floating widget ──────────────────────────── */
