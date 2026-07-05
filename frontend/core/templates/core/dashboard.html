@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load number_filters %}
 
 {% block title %}Tableau de bord | Tour de Contrôle des Prix{% endblock %}
 {% block page_title %}Tableau de bord{% endblock %}
@@ -14,8 +15,8 @@
 <div class="mt-2">
     <p class="mb-3 text-xs font-bold uppercase tracking-widest text-gray-400">Accès rapide</p>
     <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <a href="{% url 'core:price_change_requests' %}" class="flex items-center gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3.5 shadow-sm transition-all hover:border-violet-200 hover:bg-violet-50 hover:shadow-md">
-            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-600"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75l2.25 2.25L15 9.75"/><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 3.75h9A2.25 2.25 0 0118.75 6v12A2.25 2.25 0 0116.5 20.25h-9A2.25 2.25 0 015.25 18V6A2.25 2.25 0 017.5 3.75z"/></svg></div>
+        <a href="{% url 'core:price_change_requests' %}" class="flex items-center gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3.5 shadow-sm transition-all hover:border-[#4F83B6]/40 hover:bg-[#EBF2F9]/40 hover:shadow-md">
+            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#EBF2F9] text-[#4F83B6]"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75l2.25 2.25L15 9.75"/><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 3.75h9A2.25 2.25 0 0118.75 6v12A2.25 2.25 0 0116.5 20.25h-9A2.25 2.25 0 015.25 18V6A2.25 2.25 0 017.5 3.75z"/></svg></div>
             <span class="text-sm font-semibold text-gray-700">Demandes de prix</span>
         </a>
         <a href="{% url 'core:promotions' %}" class="flex items-center gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3.5 shadow-sm transition-all hover:border-amber-200 hover:bg-amber-50 hover:shadow-md">
@@ -45,7 +46,7 @@
 
         <div class="flex flex-col gap-1">
             <label for="store_id" class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Magasin</label>
-            <select id="store_id" name="store_id" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100">
+            <select id="store_id" name="store_id" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100">
                 <option value="">Tous les magasins</option>
                 {% for store in stores %}
                     <option value="{{ store.id }}" {% if active_filters.store_id == store.id|stringformat:"s" %}selected{% endif %}>{{ store.name }}</option>
@@ -55,7 +56,7 @@
 
         <div class="flex flex-col gap-1">
             <label for="price_type" class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Type de prix</label>
-            <select id="price_type" name="price_type" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100">
+            <select id="price_type" name="price_type" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100">
                 <option value="">Tous</option>
                 <option value="STANDARD" {% if active_filters.price_type == "STANDARD" %}selected{% endif %}>Standard</option>
                 <option value="PROMO" {% if active_filters.price_type == "PROMO" %}selected{% endif %}>Promo</option>
@@ -64,7 +65,7 @@
 
         <div class="flex flex-col gap-1">
             <label for="is_promo" class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Ventes promo</label>
-            <select id="is_promo" name="is_promo" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100">
+            <select id="is_promo" name="is_promo" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100">
                 <option value="">Toutes</option>
                 <option value="true" {% if active_filters.is_promo == "true" %}selected{% endif %}>Oui</option>
                 <option value="false" {% if active_filters.is_promo == "false" %}selected{% endif %}>Non</option>
@@ -73,14 +74,14 @@
 
         <div class="flex gap-2 ml-auto">
             <a href="{% url 'core:dashboard' %}" class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-500 transition hover:bg-gray-50">Réinitialiser</a>
-            <button type="submit" class="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700">Appliquer</button>
+            <button type="submit" class="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600">Appliquer</button>
         </div>
 
         {% if active_filters %}
         <div class="w-full flex items-center gap-2 pt-1">
-            <span class="text-[11px] text-violet-600 font-medium">Filtres actifs :</span>
-            {% if active_filters.store_id %}<span class="inline-flex items-center rounded-full bg-violet-100 px-2.5 py-0.5 text-[11px] font-medium text-violet-700">Magasin #{{ active_filters.store_id }}</span>{% endif %}
-            {% if active_filters.price_type %}<span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-medium text-blue-700">{{ active_filters.price_type }}</span>{% endif %}
+            <span class="text-[11px] text-amber-600 font-medium">Filtres actifs :</span>
+            {% if active_filters.store_id %}<span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-medium text-amber-700">Magasin #{{ active_filters.store_id }}</span>{% endif %}
+            {% if active_filters.price_type %}<span class="inline-flex items-center rounded-full bg-[#EBF2F9] px-2.5 py-0.5 text-[11px] font-medium text-[#4F83B6]">{{ active_filters.price_type }}</span>{% endif %}
             {% if active_filters.is_promo %}<span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-medium text-amber-700">Promo : {% if active_filters.is_promo == "true" %}Oui{% else %}Non{% endif %}</span>{% endif %}
         </div>
         {% endif %}
@@ -94,7 +95,7 @@
     {% for card in kpi_cards %}
     <div class="group relative overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 transition-all duration-200 hover:shadow-md hover:-translate-y-px">
         <div class="absolute inset-y-0 left-0 w-1 rounded-l-2xl
-            {% if card.label == 'Total sales' %}bg-violet-500
+            {% if card.label == 'Total sales' %}bg-[#4F83B6]
             {% elif card.label == 'Total quantity sold' %}bg-blue-500
             {% elif card.label == 'Total revenue' %}bg-emerald-500
             {% elif card.label == 'Promo sales' %}bg-amber-500
@@ -115,7 +116,7 @@
                     {% else %}{{ card.label }}{% endif %}
                 </p>
                 <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl
-                    {% if card.label == 'Total sales' %}bg-violet-100 text-violet-600
+                    {% if card.label == 'Total sales' %}bg-[#EBF2F9] text-[#4F83B6]
                     {% elif card.label == 'Total quantity sold' %}bg-blue-100 text-blue-600
                     {% elif card.label == 'Total revenue' %}bg-emerald-100 text-emerald-600
                     {% elif card.label == 'Promo sales' %}bg-amber-100 text-amber-600
@@ -139,7 +140,7 @@
                     {% endif %}
                 </div>
             </div>
-            <p class="text-2xl font-extrabold tracking-tight text-gray-900 tabular-nums">{{ card.value }}</p>
+            <p class="text-2xl font-extrabold tracking-tight text-gray-900 tabular-nums" title="{{ card.value }}">{{ card.value|compact_num }}</p>
             {% if card.description %}
             <p class="mt-1.5 text-[11px] text-gray-400 leading-relaxed">
                 {% if card.description == 'Number of sales transactions.' %}Nombre de transactions de vente.
@@ -180,7 +181,7 @@
         <div id="chartSales"></div>
         <div class="flex justify-center gap-5">
             <span class="flex items-center gap-1.5 text-xs text-gray-500"><span class="h-2.5 w-2.5 rounded-full bg-amber-400 inline-block"></span>Promo</span>
-            <span class="flex items-center gap-1.5 text-xs text-gray-500"><span class="h-2.5 w-2.5 rounded-full bg-violet-500 inline-block"></span>Standard</span>
+            <span class="flex items-center gap-1.5 text-xs text-gray-500"><span class="h-2.5 w-2.5 rounded-full bg-[#4F83B6] inline-block"></span>Standard</span>
         </div>
     </div>
 
@@ -207,7 +208,7 @@
     {% if chart_requests_json %}
     <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
         <div class="mb-1 flex items-center gap-3">
-            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
+            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#EBF2F9] text-[#4F83B6]">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75l2.25 2.25L15 9.75"/><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 3.75h9A2.25 2.25 0 0118.75 6v12A2.25 2.25 0 0116.5 20.25h-9A2.25 2.25 0 015.25 18V6A2.25 2.25 0 017.5 3.75z"/></svg>
             </div>
             <div>
@@ -324,7 +325,7 @@
     const STATUS_LABEL = { PENDING: 'En attente',  APPROVED: 'Approuvées', REJECTED: 'Rejetées' };
     const SEV_COLOR    = { HIGH: '#ef4444', CRITICAL: '#dc2626', MEDIUM: '#f97316', LOW: '#f59e0b', INFO: '#3b82f6' };
     const SEV_LABEL    = { HIGH: 'Haute', CRITICAL: 'Critique', MEDIUM: 'Moyenne', LOW: 'Basse', INFO: 'Info' };
-    const DISC_COLOR   = { PERCENTAGE: '#7c3aed', FIXED: '#10b981', FIXED_PRICE: '#10b981', AMOUNT: '#10b981', FLAT: '#3b82f6' };
+    const DISC_COLOR   = { PERCENTAGE: '#1E3A5F', FIXED: '#10b981', FIXED_PRICE: '#10b981', AMOUNT: '#10b981', FLAT: '#4F83B6' };
     const DISC_LABEL   = { PERCENTAGE: 'Pourcentage', FIXED: 'Montant fixe', FIXED_PRICE: 'Prix fixe', AMOUNT: 'Montant', FLAT: 'Forfait' };
 
     function go(id, opts) {
@@ -390,7 +391,7 @@
     {% if chart_sales_json %}
     (function () {
         const d = {{ chart_sales_json|safe }};
-        go('chartSales', donut(d.series, ['Promo', 'Standard'], ['#f59e0b', '#7c3aed']));
+        go('chartSales', donut(d.series, ['Promo', 'Standard'], ['#f59e0b', '#4F83B6']));
     })();
     {% endif %}
 
@@ -398,7 +399,7 @@
     {% if chart_revenue_json %}
     (function () {
         const d = {{ chart_revenue_json|safe }};
-        go('chartRevenue', bar(['Promo', 'Standard'], d.series, ['#f59e0b', '#7c3aed']));
+        go('chartRevenue', bar(['Promo', 'Standard'], d.series, ['#f59e0b', '#4F83B6']));
     })();
     {% endif %}
 
@@ -447,7 +448,7 @@
     {% if chart_promos_types_json %}
     (function () {
         const d      = {{ chart_promos_types_json|safe }};
-        const colors = d.labels.map(l => DISC_COLOR[l] || '#7c3aed');
+        const colors = d.labels.map(l => DISC_COLOR[l] || '#1E3A5F');
         const labels = d.labels.map(l => DISC_LABEL[l] || l);
         go('chartPromosTypes', bar(labels, d.series, colors));
     })();

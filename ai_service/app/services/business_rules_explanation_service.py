@@ -1,6 +1,8 @@
 import json
 from typing import Any
 
+from app.core.language_detector import detect_language
+from app.core.llm_response_cleaner import strip_leading_greeting
 from app.llm.base import BaseLLMProvider
 from app.llm.factory import get_llm_provider
 from app.tools.business_rules_tool import BusinessRulesTool
@@ -21,9 +23,9 @@ class BusinessRulesExplanationService:
         if not rules_context["found"]:
             return {
                 "answer": (
-                    "I could not find a documented business rule matching this question. "
-                    "I can answer questions about pricing rules, promotions, price change "
-                    "workflow, audit trail, RBAC, or chatbot limitations."
+                    "Je n'ai pas trouvé de règle métier documentée correspondant à cette question. "
+                    "Je peux répondre aux questions sur les règles tarifaires, les promotions, "
+                    "le workflow de changement de prix, la traçabilité, le RBAC ou les limitations du chatbot."
                 ),
                 "source": "business_rules_tool",
                 "rules_used": [],
@@ -35,7 +37,7 @@ class BusinessRulesExplanationService:
             rules_context=rules_context,
         )
 
-        answer = self.llm_provider.generate_response(prompt)
+        answer = strip_leading_greeting(self.llm_provider.generate_response(prompt))
 
         return {
             "answer": answer,
@@ -75,9 +77,9 @@ Documented business rules:
 {json.dumps(rules_context, indent=2, ensure_ascii=False)}
 
 Answer requirements:
-- Always answer in French.
-- Answer in clear business language.
-- Be concise.
+- Answer in the same language as the user's question.
+- Do not start with a greeting. Answer directly.
+- Use a concise professional business tone.
 - Do not invent capabilities.
 - Do not mention internal Python classes.
 - Do not mention JSON unless useful for the user.

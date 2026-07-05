@@ -8,6 +8,7 @@ KPI_DEFINITIONS: dict[str, dict[str, Any]] = {
             "turnover",
             "sales amount",
             "chiffre d'affaires",
+            "chiffre d affaires",
             "ca",
         ],
         "definition": (
@@ -60,12 +61,12 @@ KPI_DEFINITIONS: dict[str, dict[str, Any]] = {
             "average basket",
         ],
         "definition": (
-            "Average order value represents the average revenue generated per sale."
+            "Average order value (panier moyen) represents the average revenue generated per transaction."
         ),
         "business_use": (
-            "It helps users understand how much customers spend on average."
+            "It helps users understand how much customers spend on average per order."
         ),
-        "formula": "total revenue / number of sales",
+        "formula": "total_revenue / number_of_transactions",
     },
     "promotion_performance": {
         "label": "Promotion performance",
@@ -77,8 +78,8 @@ KPI_DEFINITIONS: dict[str, dict[str, Any]] = {
             "promo",
         ],
         "definition": (
-            "Promotion performance measures whether a promotion improves sales, volume, "
-            "or margin compared with a reference period."
+            "Promotion performance measures whether a promotion improves revenue or margin "
+            "compared with a reference period."
         ),
         "business_use": (
             "It helps users identify effective promotions and underperforming campaigns."
@@ -123,7 +124,7 @@ class KPITool:
         }
 
     def search_kpis(self, question: str) -> dict[str, Any]:
-        normalized_question = question.lower()
+        normalized_question = question.lower().replace("’", "'").replace("‘", "'")
         matches: list[dict[str, Any]] = []
 
         for kpi_code, kpi in KPI_DEFINITIONS.items():

@@ -50,7 +50,7 @@ class PriceChangeRequestForm(forms.Form):
         widget=forms.DateInput(
             attrs={
                 "type": "date",
-                "class": _INPUT_CLASS,
+                "class": _INPUT_CLASS + " [color-scheme:light]",
             }
         ),
     )

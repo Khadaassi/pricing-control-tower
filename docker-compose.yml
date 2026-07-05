@@ -38,8 +38,21 @@ services:
       - AI_SERVICE_BASE_URL=http://ai_service:8001
     ports:
       - "8001:8001"
+    volumes:
+      - ./frontend/templates:/app/templates
+      - ./frontend/core/templates:/app/core/templates
+      - ./frontend/core/templatetags:/app/core/templatetags
     depends_on:
       - backend
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: pct_chromadb
+    restart: unless-stopped
+    ports:
+      - "8010:8000"
+    volumes:
+      - pct_chromadb_data:/chroma/chroma
 
   ai_service:
     build:
@@ -54,10 +67,13 @@ services:
       # "localhost" here would mean the container itself, not the backend
       # service.
       - BACKEND_API_URL=http://backend:8000
+      - CHROMADB_URL=http://chromadb:8000
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
     ports:
       - "8002:8001"
     depends_on:
       - backend
+      - chromadb
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
@@ -112,3 +128,4 @@ services:
 
 volumes:
   pct_postgres_data:
+  pct_chromadb_data:
