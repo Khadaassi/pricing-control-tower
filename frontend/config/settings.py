@@ -26,6 +26,16 @@ SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
 
+# Set to True once this deployment sits behind HTTPS (reverse proxy / load balancer with TLS
+# termination). Kept independent from DEBUG: docker-compose currently serves plain HTTP even
+# with DEBUG=False, and flipping these on without real TLS in front would lock out logins
+# (secure cookies never sent back) and break every request (forced HTTPS redirect loop).
+DJANGO_HTTPS_ENABLED = os.getenv("DJANGO_HTTPS_ENABLED", "False") == "True"
+
+SESSION_COOKIE_SECURE = DJANGO_HTTPS_ENABLED
+CSRF_COOKIE_SECURE = DJANGO_HTTPS_ENABLED
+SECURE_SSL_REDIRECT = DJANGO_HTTPS_ENABLED
+
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "frontend"]
 
 CSRF_TRUSTED_ORIGINS = ["http://localhost:8001", "http://127.0.0.1:8001"]

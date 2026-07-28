@@ -112,3 +112,48 @@ jobs:
 
       - name: Run AI service tests
         run: uv run pytest
+
+  frontend-ci:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+
+    env:
+      DJANGO_SECRET_KEY: test_django_secret_key
+      DJANGO_DEBUG: "False"
+      INTERNAL_AUTH_SECRET: test_internal_auth_secret
+      # No backend/ai_service running in this job — deliberately unreachable.
+      # The frontend test suite mocks outbound calls and handles connection
+      # failures gracefully, so no live FastAPI backend is needed here.
+      FASTAPI_BASE_URL: http://127.0.0.1:9
+      AI_SERVICE_BASE_URL: http://127.0.0.1:9
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run frontend lint
+        run: uv run ruff check .
+
+      - name: Check for missing Django migrations
+        run: uv run python manage.py makemigrations --check --dry-run
+
+      - name: Apply Django migrations
+        run: uv run python manage.py migrate --noinput
+
+      - name: Run frontend tests
+        run: uv run python manage.py test

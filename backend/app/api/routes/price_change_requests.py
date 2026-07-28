@@ -1,10 +1,11 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.current_user import get_current_business_user
 from app.db import get_db
+from app.models.price_change_request import PriceChangeRequest
 from app.models.user_account import UserAccount
 from app.schemas.price_change_request import (
     PriceChangeRequestCreate,
@@ -46,6 +47,10 @@ def create_price_change_request_endpoint(
         permission_code="CREATE_PRICE_REQUEST",
     )
 
+    ensure_country_filter_allowed(current_user, payload.country_id)
+    ensure_store_filter_allowed(current_user, payload.store_id)
+    ensure_store_belongs_to_country_scope(db, current_user, payload.store_id)
+
     return create_price_change_request(
         db=db,
         payload=payload,
@@ -68,6 +73,15 @@ def approve_price_change_request_endpoint(
         user=current_user,
         permission_code="APPROVE_PRICE_REQUEST",
     )
+
+    target_request = db.get(PriceChangeRequest, price_change_request_id)
+
+    if target_request is None:
+        raise HTTPException(status_code=404, detail="Price change request not found")
+
+    ensure_country_filter_allowed(current_user, target_request.country_id)
+    ensure_store_filter_allowed(current_user, target_request.store_id)
+    ensure_store_belongs_to_country_scope(db, current_user, target_request.store_id)
 
     return approve_and_apply_price_change_request(
         db=db,
@@ -131,6 +145,15 @@ def reject_price_change_request_endpoint(
         user=current_user,
         permission_code="REJECT_PRICE_REQUEST",
     )
+
+    target_request = db.get(PriceChangeRequest, price_change_request_id)
+
+    if target_request is None:
+        raise HTTPException(status_code=404, detail="Price change request not found")
+
+    ensure_country_filter_allowed(current_user, target_request.country_id)
+    ensure_store_filter_allowed(current_user, target_request.store_id)
+    ensure_store_belongs_to_country_scope(db, current_user, target_request.store_id)
 
     return reject_price_change_request(
         db=db,

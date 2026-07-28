@@ -628,7 +628,6 @@ class PromotionsView(LoginRequiredMixin, TemplateView):
             promotions_list.append(
                 {
                     "id": promotion.get("id"),
-                    "product_id": promotion.get("product_id"),
                     "code": promotion.get("code") or "N/A",
                     "name": promotion.get("name") or "N/A",
                     "description": promotion.get("description") or "N/A",
