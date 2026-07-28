@@ -23,6 +23,10 @@ services:
       # "localhost" here would mean the container itself, not the postgres
       # service.
       - DATABASE_URL=postgresql+psycopg://pct_user:pct_password@postgres:5432/pct
+      # Shared HMAC secret used to sign/verify the internal service tokens that
+      # frontend and ai_service present in place of a raw user email. Must be
+      # identical across backend, frontend, and ai_service.
+      - INTERNAL_AUTH_SECRET=${INTERNAL_AUTH_SECRET:?INTERNAL_AUTH_SECRET must be set}
     ports:
       - "8000:8000"
     depends_on:
@@ -36,6 +40,9 @@ services:
     environment:
       - FASTAPI_BASE_URL=http://backend:8000
       - AI_SERVICE_BASE_URL=http://ai_service:8001
+      # Shared HMAC secret used to sign the internal service tokens sent to the
+      # backend in place of a raw user email. Must match backend's value.
+      - INTERNAL_AUTH_SECRET=${INTERNAL_AUTH_SECRET:?INTERNAL_AUTH_SECRET must be set}
     ports:
       - "8001:8001"
     volumes:
@@ -78,6 +85,9 @@ services:
       - BACKEND_API_URL=http://backend:8000
       - CHROMADB_URL=http://chromadb:8000
       - OLLAMA_BASE_URL=http://ollama:11434
+      # Shared HMAC secret used to sign the internal service tokens sent to the
+      # backend in place of a raw user email. Must match backend's value.
+      - INTERNAL_AUTH_SECRET=${INTERNAL_AUTH_SECRET:?INTERNAL_AUTH_SECRET must be set}
     ports:
       - "8002:8001"
     depends_on:

@@ -3,6 +3,7 @@ from typing import Any
 import httpx
 
 from app.core.config import settings
+from app.core.internal_auth import issue_service_token
 
 
 class BackendClient:
@@ -18,7 +19,7 @@ class BackendClient:
         url = f"{self.base_url}{path}"
 
         headers = {
-            "X-User-Email": user_email,
+            "Authorization": f"Bearer {issue_service_token(user_email)}",
         }
 
         with httpx.Client(timeout=10.0) as client:

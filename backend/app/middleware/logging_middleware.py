@@ -7,7 +7,23 @@ from collections.abc import Callable
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.core.internal_auth import InvalidServiceToken, decode_service_token
+
 logger = logging.getLogger("pricing_control_tower.api")
+
+
+def _extract_user_email(request: Request) -> str | None:
+    authorization = request.headers.get("Authorization")
+
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+
+    token = authorization.removeprefix("Bearer ").strip()
+
+    try:
+        return decode_service_token(token)
+    except InvalidServiceToken:
+        return None
 
 
 class StructuredLoggingMiddleware(BaseHTTPMiddleware):
@@ -20,7 +36,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
 
         method = request.method
         path = request.url.path
-        user_email = request.headers.get("X-User-Email")
+        user_email = _extract_user_email(request)
 
         request_log = {
             "event": "http_request_started",

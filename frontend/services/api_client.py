@@ -7,6 +7,8 @@ from typing import Any
 import requests
 from django.conf import settings
 
+from services.internal_auth import issue_service_token
+
 logger = logging.getLogger("pricing_control_tower.frontend.api_client")
 
 
@@ -32,7 +34,7 @@ def build_user_headers(user_email: str | None = None) -> dict[str, str]:
     if not user_email:
         return {}
 
-    return {"X-User-Email": user_email}
+    return {"Authorization": f"Bearer {issue_service_token(user_email)}"}
 
 
 def api_get(

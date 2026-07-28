@@ -33,6 +33,11 @@ CSRF_TRUSTED_ORIGINS = ["http://localhost:8001", "http://127.0.0.1:8001"]
 FASTAPI_BASE_URL = os.getenv("FASTAPI_BASE_URL", "http://127.0.0.1:8000")
 AI_SERVICE_BASE_URL = os.getenv("AI_SERVICE_BASE_URL", "http://localhost:8001")
 
+INTERNAL_AUTH_SECRET = os.getenv("INTERNAL_AUTH_SECRET")
+
+if not INTERNAL_AUTH_SECRET:
+    raise RuntimeError("INTERNAL_AUTH_SECRET environment variable is not set.")
+
 # Application definition
 
 INSTALLED_APPS = [

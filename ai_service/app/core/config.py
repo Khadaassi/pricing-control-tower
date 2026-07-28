@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     groq_api_key: str | None = None
 
     backend_api_url: str = "http://localhost:8000"
+    internal_auth_secret: str = ""
 
     # RAG — embedding provider
     embedding_provider: str = "ollama"

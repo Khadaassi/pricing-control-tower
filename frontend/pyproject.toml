@@ -8,5 +8,6 @@ dependencies = [
     "django>=6.0.5",
     "django-tailwind[cookiecutter,honcho,reload]>=4.4.2",
     "prometheus-client>=0.25.0",
+    "pyjwt>=2.13.0",
     "requests>=2.33.1",
 ]

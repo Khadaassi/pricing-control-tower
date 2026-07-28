@@ -1,13 +1,17 @@
+import time
 from datetime import date
 from decimal import Decimal
 from uuid import uuid4
 
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 import app.api.routes.price_change_requests as price_change_requests_routes
 from app.api.dependencies.current_user import get_current_business_user
+from app.config import get_internal_auth_secret
+from app.core.internal_auth import ALGORITHM
 from app.db import SessionLocal
 from app.main import app
 from app.models.country import Country
@@ -225,8 +229,12 @@ def rbac_user_factory(db_session):
 
 
 def build_user_headers(user: UserAccount) -> dict[str, str]:
+    now = int(time.time())
+    payload = {"sub": user.email, "iat": now, "exp": now + 60}
+    token = jwt.encode(payload, get_internal_auth_secret(), algorithm=ALGORITHM)
+
     return {
-        "X-User-Email": user.email,
+        "Authorization": f"Bearer {token}",
     }
 
 

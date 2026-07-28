@@ -398,9 +398,13 @@ class ProductsView(LoginRequiredMixin, TemplateView):
 
 
 class ProductAnalyticsView(LoginRequiredMixin, View):
-    def get(self, _request, product_id):
+    def get(self, request, product_id):
         try:
-            data = api_get("/analytics/sales/summary", params={"product_id": product_id})
+            data = api_get(
+                "/analytics/sales/summary",
+                params={"product_id": product_id},
+                user_email=request.user.email,
+            )
         except ApiClientError as exc:
             return JsonResponse({"error": str(exc)}, status=502)
         return JsonResponse(data)
@@ -944,7 +948,11 @@ class PriceHistoryView(LoginRequiredMixin, TemplateView):
         api_params = {**raw_filters, **pagination_params} if raw_filters else pagination_params
 
         try:
-            data = api_get("/price-history", params=api_params)
+            data = api_get(
+                "/price-history",
+                params=api_params,
+                user_email=self.request.user.email,
+            )
         except ApiClientError as exc:
             context["api_error"] = str(exc)
             return context
@@ -1036,7 +1044,11 @@ class AnalyticsSalesView(LoginRequiredMixin, TemplateView):
         api_params = {**raw_filters, **pagination_params} if raw_filters else pagination_params
 
         try:
-            data = api_get("/analytics/sales", params=api_params)
+            data = api_get(
+                "/analytics/sales",
+                params=api_params,
+                user_email=self.request.user.email,
+            )
         except ApiClientError as exc:
             context["api_error"] = str(exc)
             return context
