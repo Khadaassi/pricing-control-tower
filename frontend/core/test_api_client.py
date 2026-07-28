@@ -43,41 +43,42 @@ def make_response(status_code=200, json_data=None, raise_exc=None):
     return response
 
 
+# All three api_get/api_post/api_patch now funnel through services.http.do_request, which
+# calls requests.request(method, url, ...) — that's the single point to mock.
 @override_settings(FASTAPI_BASE_URL="http://backend.test")
 class ApiGetTests(TestCase):
-    @patch("services.api_client.requests.get")
-    def test_returns_json_on_success(self, mock_get):
-        mock_get.return_value = make_response(200, {"items": [1, 2, 3]})
+    @patch("services.http.requests.request")
+    def test_returns_json_on_success(self, mock_request):
+        mock_request.return_value = make_response(200, {"items": [1, 2, 3]})
 
         result = api_get("/prices", params={"limit": 10}, user_email="a@b.com")
 
         self.assertEqual(result, {"items": [1, 2, 3]})
-        called_url = mock_get.call_args.args[0]
-        self.assertEqual(called_url, "http://backend.test/prices")
-        self.assertIn("Authorization", mock_get.call_args.kwargs["headers"])
+        self.assertEqual(mock_request.call_args.args, ("GET", "http://backend.test/prices"))
+        self.assertIn("Authorization", mock_request.call_args.kwargs["headers"])
 
-    @patch("services.api_client.requests.get")
-    def test_connection_error_raises_api_connection_error(self, mock_get):
-        mock_get.side_effect = requests.exceptions.ConnectionError("refused")
-
-        with self.assertRaises(ApiConnectionError):
-            api_get("/prices")
-
-    @patch("services.api_client.requests.get")
-    def test_timeout_raises_api_connection_error(self, mock_get):
-        mock_get.side_effect = requests.exceptions.Timeout("too slow")
+    @patch("services.http.requests.request")
+    def test_connection_error_raises_api_connection_error(self, mock_request):
+        mock_request.side_effect = requests.exceptions.ConnectionError("refused")
 
         with self.assertRaises(ApiConnectionError):
             api_get("/prices")
 
-    @patch("services.api_client.requests.get")
-    def test_http_error_raises_api_response_error_with_detail_message(self, mock_get):
+    @patch("services.http.requests.request")
+    def test_timeout_raises_api_connection_error(self, mock_request):
+        mock_request.side_effect = requests.exceptions.Timeout("too slow")
+
+        with self.assertRaises(ApiConnectionError):
+            api_get("/prices")
+
+    @patch("services.http.requests.request")
+    def test_http_error_raises_api_response_error_with_detail_message(self, mock_request):
         response = make_response(
             403,
             {"detail": "Permission denied: CREATE_PRICE_REQUEST is required"},
         )
         response.raise_for_status.side_effect = requests.exceptions.HTTPError(response=response)
-        mock_get.return_value = response
+        mock_request.return_value = response
 
         with self.assertRaises(ApiResponseError) as ctx:
             api_get("/price-change-requests")
@@ -87,11 +88,11 @@ class ApiGetTests(TestCase):
             "Permission denied: CREATE_PRICE_REQUEST is required",
         )
 
-    @patch("services.api_client.requests.get")
-    def test_invalid_json_raises_api_response_error(self, mock_get):
+    @patch("services.http.requests.request")
+    def test_invalid_json_raises_api_response_error(self, mock_request):
         response = make_response(200)
         response.json.side_effect = requests.exceptions.JSONDecodeError("boom", "doc", 0)
-        mock_get.return_value = response
+        mock_request.return_value = response
 
         with self.assertRaises(ApiResponseError):
             api_get("/prices")
@@ -99,9 +100,9 @@ class ApiGetTests(TestCase):
 
 @override_settings(FASTAPI_BASE_URL="http://backend.test")
 class ApiPostTests(TestCase):
-    @patch("services.api_client.requests.post")
-    def test_returns_json_on_success(self, mock_post):
-        mock_post.return_value = make_response(201, {"id": 1, "status": "PENDING"})
+    @patch("services.http.requests.request")
+    def test_returns_json_on_success(self, mock_request):
+        mock_request.return_value = make_response(201, {"id": 1, "status": "PENDING"})
 
         result = api_post(
             "/price-change-requests",
@@ -110,13 +111,14 @@ class ApiPostTests(TestCase):
         )
 
         self.assertEqual(result, {"id": 1, "status": "PENDING"})
-        self.assertEqual(mock_post.call_args.kwargs["json"], {"product_id": 1})
+        self.assertEqual(mock_request.call_args.args, ("POST", "http://backend.test/price-change-requests"))
+        self.assertEqual(mock_request.call_args.kwargs["json"], {"product_id": 1})
 
-    @patch("services.api_client.requests.post")
-    def test_http_error_raises_api_response_error(self, mock_post):
+    @patch("services.http.requests.request")
+    def test_http_error_raises_api_response_error(self, mock_request):
         response = make_response(409, {"detail": "Only PENDING requests can be approved"})
         response.raise_for_status.side_effect = requests.exceptions.HTTPError(response=response)
-        mock_post.return_value = response
+        mock_request.return_value = response
 
         with self.assertRaises(ApiResponseError) as ctx:
             api_post("/price-change-requests/1/approve")
@@ -126,17 +128,18 @@ class ApiPostTests(TestCase):
 
 @override_settings(FASTAPI_BASE_URL="http://backend.test")
 class ApiPatchTests(TestCase):
-    @patch("services.api_client.requests.patch")
-    def test_returns_json_on_success(self, mock_patch):
-        mock_patch.return_value = make_response(200, {"id": 1, "active": False})
+    @patch("services.http.requests.request")
+    def test_returns_json_on_success(self, mock_request):
+        mock_request.return_value = make_response(200, {"id": 1, "active": False})
 
         result = api_patch("/promotions/1/deactivate", user_email="a@b.com")
 
         self.assertEqual(result, {"id": 1, "active": False})
+        self.assertEqual(mock_request.call_args.args[0], "PATCH")
 
-    @patch("services.api_client.requests.patch")
-    def test_connection_error_raises_api_connection_error(self, mock_patch):
-        mock_patch.side_effect = requests.exceptions.ConnectionError("refused")
+    @patch("services.http.requests.request")
+    def test_connection_error_raises_api_connection_error(self, mock_request):
+        mock_request.side_effect = requests.exceptions.ConnectionError("refused")
 
         with self.assertRaises(ApiConnectionError):
             api_patch("/promotions/1/deactivate")

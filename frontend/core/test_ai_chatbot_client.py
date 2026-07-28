@@ -42,11 +42,13 @@ def make_response(status_code=200, json_data=None, raise_exc=None):
     return response
 
 
+# ask_chatbot() now funnels through services.http.do_request, which calls
+# requests.request(method, url, ...) — that's the single point to mock.
 @override_settings(AI_SERVICE_BASE_URL="http://ai-service.test")
 class AskChatbotTests(TestCase):
-    @patch("core.services.ai_chatbot_client.requests.post")
-    def test_returns_json_on_success(self, mock_post):
-        mock_post.return_value = make_response(
+    @patch("services.http.requests.request")
+    def test_returns_json_on_success(self, mock_request):
+        mock_request.return_value = make_response(
             200,
             {"answer": "42", "status": "routed", "selected_tool": "kpi_tool"},
         )
@@ -54,43 +56,42 @@ class AskChatbotTests(TestCase):
         result = ask_chatbot("question", user_email="a@b.com", store_id=3)
 
         self.assertEqual(result["answer"], "42")
-        called_url = mock_post.call_args.args[0]
-        self.assertEqual(called_url, "http://ai-service.test/chat")
+        self.assertEqual(mock_request.call_args.args, ("POST", "http://ai-service.test/chat"))
         self.assertEqual(
-            mock_post.call_args.kwargs["json"],
+            mock_request.call_args.kwargs["json"],
             {"question": "question", "user_email": "a@b.com", "store_id": 3},
         )
 
-    @patch("core.services.ai_chatbot_client.requests.post")
-    def test_connection_error_raises_ai_chatbot_connection_error(self, mock_post):
-        mock_post.side_effect = requests.exceptions.ConnectionError("refused")
+    @patch("services.http.requests.request")
+    def test_connection_error_raises_ai_chatbot_connection_error(self, mock_request):
+        mock_request.side_effect = requests.exceptions.ConnectionError("refused")
 
         with self.assertRaises(AiChatbotConnectionError):
             ask_chatbot("question")
 
-    @patch("core.services.ai_chatbot_client.requests.post")
-    def test_timeout_raises_ai_chatbot_connection_error(self, mock_post):
-        mock_post.side_effect = requests.exceptions.Timeout("too slow")
+    @patch("services.http.requests.request")
+    def test_timeout_raises_ai_chatbot_connection_error(self, mock_request):
+        mock_request.side_effect = requests.exceptions.Timeout("too slow")
 
         with self.assertRaises(AiChatbotConnectionError):
             ask_chatbot("question")
 
-    @patch("core.services.ai_chatbot_client.requests.post")
-    def test_http_error_raises_ai_chatbot_response_error(self, mock_post):
+    @patch("services.http.requests.request")
+    def test_http_error_raises_ai_chatbot_response_error(self, mock_request):
         response = make_response(500)
         response.raise_for_status.side_effect = requests.exceptions.HTTPError(response=response)
-        mock_post.return_value = response
+        mock_request.return_value = response
 
         with self.assertRaises(AiChatbotResponseError) as ctx:
             ask_chatbot("question")
 
         self.assertIn("500", str(ctx.exception))
 
-    @patch("core.services.ai_chatbot_client.requests.post")
-    def test_invalid_json_raises_ai_chatbot_response_error(self, mock_post):
+    @patch("services.http.requests.request")
+    def test_invalid_json_raises_ai_chatbot_response_error(self, mock_request):
         response = make_response(200)
         response.json.side_effect = requests.exceptions.JSONDecodeError("boom", "doc", 0)
-        mock_post.return_value = response
+        mock_request.return_value = response
 
         with self.assertRaises(AiChatbotResponseError):
             ask_chatbot("question")

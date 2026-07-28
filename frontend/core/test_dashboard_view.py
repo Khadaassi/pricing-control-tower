@@ -18,7 +18,7 @@ class DashboardViewTests(TestCase):
         self.client.force_login(self.user)
         self.url = reverse("core:dashboard")
 
-    @patch("core.views.api_get")
+    @patch("core.views.dashboard.api_get")
     def test_dashboard_builds_kpi_cards_and_charts_from_api_data(self, mock_api_get):
         def fake_api_get(endpoint, params=None, user_email=None):
             if endpoint == "/stores":
@@ -80,7 +80,7 @@ class DashboardViewTests(TestCase):
         promos_status = json.loads(response.context["chart_promos_status_json"])
         self.assertEqual(promos_status["series"], [1, 1])
 
-    @patch("core.views.api_get")
+    @patch("core.views.dashboard.api_get")
     def test_dashboard_sets_api_error_when_kpis_call_fails(self, mock_api_get):
         mock_api_get.side_effect = ApiClientError("Unable to connect to FastAPI backend.")
 
@@ -93,7 +93,7 @@ class DashboardViewTests(TestCase):
         )
         self.assertEqual(response.context["kpi_cards"], [])
 
-    @patch("core.views.api_get")
+    @patch("core.views.dashboard.api_get")
     def test_dashboard_survives_secondary_endpoint_failures(self, mock_api_get):
         """The KPI cards must still render even if /anomalies or /promotions fail —
         those failures are swallowed (bare `except ApiClientError: pass`)."""

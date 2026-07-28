@@ -17,7 +17,7 @@ class PricesViewTests(TestCase):
         self.client.force_login(self.user)
         self.url = reverse("core:prices")
 
-    @patch("core.views.api_get")
+    @patch("core.views.prices.api_get")
     def test_prices_view_renders_paginated_list(self, mock_api_get):
         def fake_api_get(endpoint, params=None, user_email=None):
             if endpoint == "/prices":
@@ -60,7 +60,7 @@ class PricesViewTests(TestCase):
         self.assertEqual(row["scope_label"], "Prix pays")
         self.assertEqual(row["amount"], "19.99 EUR")
 
-    @patch("core.views.api_get")
+    @patch("core.views.prices.api_get")
     def test_prices_view_sets_api_error_on_failure(self, mock_api_get):
         def fake_api_get(endpoint, params=None, user_email=None):
             if endpoint == "/prices":
@@ -89,7 +89,7 @@ class PromotionsViewTests(TestCase):
         self.client.force_login(self.user)
         self.url = reverse("core:promotions")
 
-    @patch("core.views.api_get")
+    @patch("core.views.promotions.api_get")
     def test_promotions_view_renders_paginated_list(self, mock_api_get):
         def fake_api_get(endpoint, params=None, user_email=None):
             if endpoint == "/promotions":
@@ -132,7 +132,7 @@ class PromotionsViewTests(TestCase):
         self.assertEqual(row["scope"], "Promotion pays")
         self.assertEqual(row["status"], "Active")
 
-    @patch("core.views.api_get")
+    @patch("core.views.promotions.api_get")
     def test_promotions_view_sets_api_error_on_failure(self, mock_api_get):
         def fake_api_get(endpoint, params=None, user_email=None):
             if endpoint == "/promotions":

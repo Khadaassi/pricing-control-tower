@@ -403,36 +403,31 @@ def reject_price_change_request(
             detail="Rejection reason must not be empty",
         )
 
-    try:
-        price_change_request.status = "REJECTED"
-        price_change_request.rejection_reason = cleaned_reason
-        price_change_request.rejected_by_user_id = rejected_by_user_id
-        price_change_request.rejected_at = datetime.now(timezone.utc)
+    price_change_request.status = "REJECTED"
+    price_change_request.rejection_reason = cleaned_reason
+    price_change_request.rejected_by_user_id = rejected_by_user_id
+    price_change_request.rejected_at = datetime.now(timezone.utc)
 
-        audit_log = AuditLog(
-            price_change_request_id=price_change_request.id,
-            action_type="REQUEST_REJECTED",
-            performed_by_user_id=rejected_by_user_id,
-            description=(
-                "Price change request rejected. "
-                f"Request ID: {price_change_request.id}, "
-                f"Product ID: {price_change_request.product_id}, "
-                f"Country ID: {price_change_request.country_id}, "
-                f"Store ID: {price_change_request.store_id}, "
-                f"Current price ID: {price_change_request.current_price_id}, "
-                f"Reason: {cleaned_reason}."
-            ),
-        )
+    audit_log = AuditLog(
+        price_change_request_id=price_change_request.id,
+        action_type="REQUEST_REJECTED",
+        performed_by_user_id=rejected_by_user_id,
+        description=(
+            "Price change request rejected. "
+            f"Request ID: {price_change_request.id}, "
+            f"Product ID: {price_change_request.product_id}, "
+            f"Country ID: {price_change_request.country_id}, "
+            f"Store ID: {price_change_request.store_id}, "
+            f"Current price ID: {price_change_request.current_price_id}, "
+            f"Reason: {cleaned_reason}."
+        ),
+    )
 
-        db.add(audit_log)
-        db.commit()
-        db.refresh(price_change_request)
+    db.add(audit_log)
+    db.commit()
+    db.refresh(price_change_request)
 
-        return price_change_request
-
-    except Exception:
-        db.rollback()
-        raise
+    return price_change_request
 
 def get_current_applicable_standard_price(
     db: Session,

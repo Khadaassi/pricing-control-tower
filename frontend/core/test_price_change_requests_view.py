@@ -18,7 +18,7 @@ class PriceChangeRequestsViewGetTests(TestCase):
         self.client.force_login(self.user)
         self.url = reverse("core:price_change_requests")
 
-    @patch("core.views.api_get")
+    @patch("core.views.price_change_requests.api_get")
     def test_renders_paginated_list(self, mock_api_get):
         def fake_api_get(endpoint, params=None, user_email=None):
             if endpoint == "/price-change-requests":
@@ -59,7 +59,7 @@ class PriceChangeRequestsViewGetTests(TestCase):
         self.assertEqual(row["scope"], "Demande pays")
         self.assertEqual(row["price_delta_pct"], 20.0)
 
-    @patch("core.views.api_get")
+    @patch("core.views.price_change_requests.api_get")
     def test_sets_api_error_on_failure(self, mock_api_get):
         def fake_api_get(endpoint, params=None, user_email=None):
             if endpoint == "/price-change-requests":
@@ -87,7 +87,7 @@ class PriceChangeRequestsWorkflowTests(TestCase):
         self.client.force_login(self.user)
         self.url = reverse("core:price_change_requests")
 
-    @patch("core.views.api_post")
+    @patch("core.views.price_change_requests.api_post")
     def test_approve_action_posts_to_backend_and_redirects_with_success(self, mock_api_post):
         mock_api_post.return_value = {"id": 42, "status": "APPLIED"}
 
@@ -107,7 +107,7 @@ class PriceChangeRequestsWorkflowTests(TestCase):
         self.assertEqual(len(messages), 1)
         self.assertIn("approuvée", str(messages[0]))
 
-    @patch("core.views.api_post")
+    @patch("core.views.price_change_requests.api_post")
     def test_approve_action_shows_error_message_on_api_failure(self, mock_api_post):
         mock_api_post.side_effect = ApiResponseError("Permission denied: APPROVE_PRICE_REQUEST is required")
 
@@ -123,7 +123,7 @@ class PriceChangeRequestsWorkflowTests(TestCase):
         self.assertIn("n’a pas pu être approuvée", str(messages[0]))
         self.assertIn("Permission denied", str(messages[0]))
 
-    @patch("core.views.api_post")
+    @patch("core.views.price_change_requests.api_post")
     def test_reject_action_posts_reason_and_redirects_with_success(self, mock_api_post):
         mock_api_post.return_value = {"id": 42, "status": "REJECTED"}
 
@@ -144,7 +144,7 @@ class PriceChangeRequestsWorkflowTests(TestCase):
         self.assertIn("refusée", str(messages[0]))
 
     def test_reject_action_without_reason_does_not_call_backend(self):
-        with patch("core.views.api_post") as mock_api_post:
+        with patch("core.views.price_change_requests.api_post") as mock_api_post:
             response = self.client.post(
                 self.url,
                 {"action": "reject", "request_id": "42", "reason": "   "},
