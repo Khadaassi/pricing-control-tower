@@ -54,6 +54,15 @@ services:
     volumes:
       - pct_chromadb_data:/chroma/chroma
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: pct_ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - pct_ollama_data:/root/.ollama
+
   ai_service:
     build:
       context: ./ai_service
@@ -68,12 +77,13 @@ services:
       # service.
       - BACKEND_API_URL=http://backend:8000
       - CHROMADB_URL=http://chromadb:8000
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OLLAMA_BASE_URL=http://ollama:11434
     ports:
       - "8002:8001"
     depends_on:
       - backend
       - chromadb
+      - ollama
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
@@ -129,3 +139,4 @@ services:
 volumes:
   pct_postgres_data:
   pct_chromadb_data:
+  pct_ollama_data:
