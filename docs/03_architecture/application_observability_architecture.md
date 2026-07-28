@@ -120,8 +120,10 @@ Grafana can be accessed locally at:
 http://localhost:3000
 ```
 
-Default login: `admin` / `admin` (set via `GF_SECURITY_ADMIN_USER` /
-`GF_SECURITY_ADMIN_PASSWORD` in `docker-compose.yml`).
+Login is set via the `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` environment
+variables (see `.env.example`), consumed by `GF_SECURITY_ADMIN_USER` /
+`GF_SECURITY_ADMIN_PASSWORD` in `docker-compose.yml`. There is no default —
+`docker compose up` fails fast if either is unset.
 
 The global dashboard is:
 
