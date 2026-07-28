@@ -43,6 +43,8 @@ services:
       # Shared HMAC secret used to sign the internal service tokens sent to the
       # backend in place of a raw user email. Must match backend's value.
       - INTERNAL_AUTH_SECRET=${INTERNAL_AUTH_SECRET:?INTERNAL_AUTH_SECRET must be set}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
+      - DJANGO_DEBUG=${DJANGO_DEBUG:-False}
     ports:
       - "8001:8001"
     volumes:
