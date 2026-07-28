@@ -204,7 +204,7 @@ document.addEventListener("DOMContentLoaded", function () {
         function typeNext() {
             if (idx < words.length) {
                 built += (idx > 0 ? " " : "") + words[idx];
-                contentEl.innerHTML = built.replace(/\n/g, "<br>");
+                contentEl.innerHTML = escHtml(built);
                 idx++;
                 scrollToBottom();
                 setTimeout(typeNext, 38);
