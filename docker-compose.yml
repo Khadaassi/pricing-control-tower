@@ -21,8 +21,10 @@ services:
       # Overrides backend/.env's DATABASE_URL (meant for running the backend
       # directly on the host), which is unreachable from inside this container:
       # "localhost" here would mean the container itself, not the postgres
-      # service.
-      - DATABASE_URL=postgresql+psycopg://pct_user:pct_password@postgres:5432/pct
+      # service. Credentials are interpolated from the root .env (must match
+      # POSTGRES_USER/POSTGRES_PASSWORD/POSTGRES_DB in backend/.env, which
+      # seed the postgres container itself).
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:?POSTGRES_USER must be set}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:?POSTGRES_DB must be set}
       # Shared HMAC secret used to sign/verify the internal service tokens that
       # frontend and ai_service present in place of a raw user email. Must be
       # identical across backend, frontend, and ai_service.
