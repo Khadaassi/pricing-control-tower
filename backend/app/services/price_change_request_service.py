@@ -206,10 +206,12 @@ def approve_and_apply_price_change_request(
     price_change_request_id: int,
     performed_by_user_id: int,
 ) -> PriceChangeRequest:
+    # with_for_update() locks the row until commit/rollback, so a concurrent approval on the
+    # same request blocks here instead of both passing the PENDING check below.
     price_change_request = db.scalar(
-        select(PriceChangeRequest).where(
-            PriceChangeRequest.id == price_change_request_id
-        )
+        select(PriceChangeRequest)
+        .where(PriceChangeRequest.id == price_change_request_id)
+        .with_for_update()
     )
 
     if price_change_request is None:
@@ -361,10 +363,12 @@ def reject_price_change_request(
     rejected_by_user_id: int,
     reason: str,
 ) -> PriceChangeRequest:
+    # Same lock as approve_and_apply_price_change_request: prevents a concurrent
+    # approve/reject on the same request from both passing the PENDING check below.
     price_change_request = db.scalar(
-        select(PriceChangeRequest).where(
-            PriceChangeRequest.id == price_change_request_id
-        )
+        select(PriceChangeRequest)
+        .where(PriceChangeRequest.id == price_change_request_id)
+        .with_for_update()
     )
 
     if price_change_request is None:

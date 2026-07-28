@@ -2,7 +2,7 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import text
+from sqlalchemy import and_, column, func, select, table
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.current_user import get_current_business_user
@@ -17,6 +17,83 @@ from app.services.scope_service import (
 
 router = APIRouter(prefix="/analytics/sales", tags=["analytics"])
 
+# pct_analytics.obt_sales is a dbt-built analytical view, not an ORM-mapped model. table()/
+# column() give a typed, injection-safe query surface (and_()/.where()) without needing a full
+# mapped class for a view this wide.
+obt_sales = table(
+    "obt_sales",
+    column("transaction_id"),
+    column("transaction_date"),
+    column("transaction_day"),
+    column("transaction_month"),
+    column("product_id"),
+    column("product_code"),
+    column("product_name"),
+    column("brand"),
+    column("product_family_name"),
+    column("store_id"),
+    column("store_name"),
+    column("city"),
+    column("region"),
+    column("country_id"),
+    column("country_code"),
+    column("country_name"),
+    column("price_amount"),
+    column("currency_code"),
+    column("price_scope"),
+    column("price_type"),
+    column("is_store_specific_price"),
+    column("is_promotional_price"),
+    column("unit_price"),
+    column("price_difference"),
+    column("price_difference_rate"),
+    column("promotion_code"),
+    column("promotion_name"),
+    column("discount_type"),
+    column("discount_value"),
+    column("is_promo"),
+    column("has_promotion"),
+    column("quantity"),
+    column("revenue"),
+    schema="pct_analytics",
+)
+
+LIST_COLUMNS = [
+    obt_sales.c.transaction_id,
+    obt_sales.c.transaction_date,
+    obt_sales.c.transaction_day,
+    obt_sales.c.transaction_month,
+    obt_sales.c.product_id,
+    obt_sales.c.product_code,
+    obt_sales.c.product_name,
+    obt_sales.c.brand,
+    obt_sales.c.product_family_name,
+    obt_sales.c.store_id,
+    obt_sales.c.store_name,
+    obt_sales.c.city,
+    obt_sales.c.region,
+    obt_sales.c.country_id,
+    obt_sales.c.country_code,
+    obt_sales.c.country_name,
+    obt_sales.c.price_amount,
+    obt_sales.c.currency_code,
+    obt_sales.c.price_scope,
+    obt_sales.c.price_type,
+    obt_sales.c.is_store_specific_price,
+    obt_sales.c.is_promotional_price,
+    obt_sales.c.unit_price,
+    obt_sales.c.price_difference,
+    obt_sales.c.price_difference_rate,
+    obt_sales.c.promotion_code,
+    obt_sales.c.promotion_name,
+    obt_sales.c.discount_type,
+    obt_sales.c.discount_value,
+    obt_sales.c.is_promo,
+    obt_sales.c.has_promotion,
+    obt_sales.c.quantity,
+    obt_sales.c.revenue,
+]
+
 
 @router.get(
     "/summary",
@@ -30,29 +107,25 @@ def get_analytics_sales_summary(
 ) -> dict:
     allowed_store_ids = resolve_allowed_store_ids_for_analytics(db=db, user=current_user)
 
-    scope_condition = (
-        "AND store_id = ANY(:allowed_store_ids)" if allowed_store_ids is not None else ""
-    )
-    params: dict = {"product_id": product_id}
+    conditions = [obt_sales.c.product_id == product_id]
 
     if allowed_store_ids is not None:
-        params["allowed_store_ids"] = allowed_store_ids
+        conditions.append(obt_sales.c.store_id.in_(allowed_store_ids))
 
-    sql = text(f"""
-        SELECT
-            COUNT(*)                                            AS transaction_count,
-            COALESCE(SUM(quantity), 0)                         AS total_quantity,
-            COALESCE(SUM(revenue), 0)                          AS total_revenue,
-            COALESCE(AVG(unit_price), 0)                       AS avg_selling_price,
-            COUNT(*) FILTER (WHERE is_promo = true)            AS promo_transactions,
-            COALESCE(SUM(revenue) FILTER (WHERE is_promo = true), 0) AS promo_revenue,
-            MIN(transaction_day)                               AS first_sale_date,
-            MAX(transaction_day)                               AS last_sale_date
-        FROM pct_analytics.obt_sales
-        WHERE product_id = :product_id
-        {scope_condition}
-    """)
-    row = db.execute(sql, params).mappings().one_or_none()
+    is_promo = obt_sales.c.is_promo.is_(True)
+
+    stmt = select(
+        func.count().label("transaction_count"),
+        func.coalesce(func.sum(obt_sales.c.quantity), 0).label("total_quantity"),
+        func.coalesce(func.sum(obt_sales.c.revenue), 0).label("total_revenue"),
+        func.coalesce(func.avg(obt_sales.c.unit_price), 0).label("avg_selling_price"),
+        func.count().filter(is_promo).label("promo_transactions"),
+        func.coalesce(func.sum(obt_sales.c.revenue).filter(is_promo), 0).label("promo_revenue"),
+        func.min(obt_sales.c.transaction_day).label("first_sale_date"),
+        func.max(obt_sales.c.transaction_day).label("last_sale_date"),
+    ).where(and_(*conditions))
+
+    row = db.execute(stmt).mappings().one_or_none()
     if row is None or row["transaction_count"] == 0:
         return {"product_id": product_id, "transaction_count": 0}
 
@@ -98,84 +171,40 @@ def list_analytics_sales(
 
     allowed_store_ids = resolve_allowed_store_ids_for_analytics(db=db, user=current_user)
 
-    conditions = ["1=1"]
-    filter_params: dict = {}
+    conditions = []
 
     if product_id is not None:
-        conditions.append("product_id = :product_id")
-        filter_params["product_id"] = product_id
+        conditions.append(obt_sales.c.product_id == product_id)
 
     if store_id is not None:
-        conditions.append("store_id = :store_id")
-        filter_params["store_id"] = store_id
+        conditions.append(obt_sales.c.store_id == store_id)
     elif allowed_store_ids is not None:
-        conditions.append("store_id = ANY(:allowed_store_ids)")
-        filter_params["allowed_store_ids"] = allowed_store_ids
+        conditions.append(obt_sales.c.store_id.in_(allowed_store_ids))
 
     if country_id is not None:
-        conditions.append("country_id = :country_id")
-        filter_params["country_id"] = country_id
+        conditions.append(obt_sales.c.country_id == country_id)
 
     if is_promo is not None:
-        conditions.append("is_promo = :is_promo")
-        filter_params["is_promo"] = is_promo
+        conditions.append(obt_sales.c.is_promo == is_promo)
 
     if date_from is not None:
-        conditions.append("transaction_day >= :date_from")
-        filter_params["date_from"] = date_from
+        conditions.append(obt_sales.c.transaction_day >= date_from)
 
     if date_to is not None:
-        conditions.append("transaction_day <= :date_to")
-        filter_params["date_to"] = date_to
+        conditions.append(obt_sales.c.transaction_day <= date_to)
 
-    where = " AND ".join(conditions)
+    count_stmt = select(func.count()).select_from(obt_sales)
+    list_stmt = select(*LIST_COLUMNS).select_from(obt_sales)
 
-    count_sql = text(f"SELECT COUNT(*) FROM pct_analytics.obt_sales WHERE {where}")
-    count_row = db.execute(count_sql, filter_params).fetchone()
-    total = int(count_row[0]) if count_row else 0
+    if conditions:
+        count_stmt = count_stmt.where(and_(*conditions))
+        list_stmt = list_stmt.where(and_(*conditions))
 
-    params = {**filter_params, "limit": limit, "offset": offset}
-    sql = text(f"""
-        SELECT
-            transaction_id,
-            transaction_date,
-            transaction_day,
-            transaction_month,
-            product_id,
-            product_code,
-            product_name,
-            brand,
-            product_family_name,
-            store_id,
-            store_name,
-            city,
-            region,
-            country_id,
-            country_code,
-            country_name,
-            price_amount,
-            currency_code,
-            price_scope,
-            price_type,
-            is_store_specific_price,
-            is_promotional_price,
-            unit_price,
-            price_difference,
-            price_difference_rate,
-            promotion_code,
-            promotion_name,
-            discount_type,
-            discount_value,
-            is_promo,
-            has_promotion,
-            quantity,
-            revenue
-        FROM pct_analytics.obt_sales
-        WHERE {where}
-        ORDER BY transaction_date DESC
-        LIMIT :limit
-        OFFSET :offset
-    """)
+    total = db.scalar(count_stmt) or 0
 
-    rows = db.execute(sql, params).mappings().all()
+    list_stmt = (
+        list_stmt.order_by(obt_sales.c.transaction_date.desc()).limit(limit).offset(offset)
+    )
+
+    rows = db.execute(list_stmt).mappings().all()
     return {"items": [dict(row) for row in rows], "total": total}
