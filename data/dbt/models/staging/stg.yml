@@ -15,12 +15,31 @@ models:
       - name: product_id
         tests:
           - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_product')
+                field: product_id
       - name: store_id
         tests:
           - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_store')
+                field: store_id
       - name: price_id
         tests:
           - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_price')
+                field: price_id
+      - name: promotion_id
+        description: "Nullable — only set for promotional sales."
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_promotion')
+                field: promotion_id
       - name: quantity
         tests:
           - not_null
@@ -78,6 +97,10 @@ models:
       - name: country_id
         tests:
           - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_country')
+                field: country_id
 
   - name: stg_price
     description: "Staged prices from pct_core.price"
@@ -90,6 +113,10 @@ models:
       - name: product_id
         tests:
           - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_product')
+                field: product_id
       - name: price_scope
         tests:
           - not_null

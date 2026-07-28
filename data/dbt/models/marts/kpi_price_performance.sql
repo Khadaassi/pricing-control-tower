@@ -1,3 +1,5 @@
+{{ config(materialized='table') }}
+
 with sales as (
 
     select

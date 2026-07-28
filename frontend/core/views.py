@@ -24,6 +24,11 @@ from services.api_client import ApiClientError, ApiResponseError, api_get, api_p
 
 logger = logging.getLogger("pricing_control_tower.frontend.chatbot")
 
+# Generic, French, user-facing messages for API failures — never expose str(exc) to the
+# client: ApiClientError messages may originate from the backend's raw HTTP error body.
+API_CONNECTION_ERROR_MESSAGE = "Le service est momentanément indisponible. Veuillez réessayer plus tard."
+API_RESPONSE_ERROR_MESSAGE = "Le serveur a retourné une réponse inattendue. Veuillez réessayer."
+
 
 class _ApiPaginator:
     def __init__(self, total: int, per_page: int) -> None:
@@ -405,8 +410,10 @@ class ProductAnalyticsView(LoginRequiredMixin, View):
                 params={"product_id": product_id},
                 user_email=request.user.email,
             )
-        except ApiClientError as exc:
-            return JsonResponse({"error": str(exc)}, status=502)
+        except ApiResponseError:
+            return JsonResponse({"error": API_RESPONSE_ERROR_MESSAGE}, status=502)
+        except ApiClientError:
+            return JsonResponse({"error": API_CONNECTION_ERROR_MESSAGE}, status=502)
         return JsonResponse(data)
 
 
@@ -414,8 +421,10 @@ class ProductPricesView(LoginRequiredMixin, View):
     def get(self, _request, product_id):
         try:
             data = api_get("/prices", params={"product_id": product_id, "limit": 500}, user_email=_request.user.email)
-        except ApiClientError as exc:
-            return JsonResponse({"error": str(exc)}, status=502)
+        except ApiResponseError:
+            return JsonResponse({"error": API_RESPONSE_ERROR_MESSAGE}, status=502)
+        except ApiClientError:
+            return JsonResponse({"error": API_CONNECTION_ERROR_MESSAGE}, status=502)
 
         prices = data.get("items", data) if isinstance(data, dict) else data
         price_type_labels = {"STANDARD": "Standard", "PROMO": "Promotionnel"}
@@ -1269,10 +1278,10 @@ class PromotionDeactivateView(LoginRequiredMixin, View):
     def post(self, _request, promotion_id: int):
         try:
             data = api_patch(f"/promotions/{promotion_id}/deactivate", user_email=_request.user.email)
-        except ApiResponseError as exc:
-            return JsonResponse({"error": str(exc)}, status=409)
-        except ApiClientError as exc:
-            return JsonResponse({"error": str(exc)}, status=502)
+        except ApiResponseError:
+            return JsonResponse({"error": API_RESPONSE_ERROR_MESSAGE}, status=409)
+        except ApiClientError:
+            return JsonResponse({"error": API_CONNECTION_ERROR_MESSAGE}, status=502)
         return JsonResponse({"id": data["id"], "active": data["active"]})
 
 
@@ -1298,10 +1307,10 @@ class PromotionCreateView(LoginRequiredMixin, View):
 
         try:
             result = api_post("/promotions", payload, user_email=request.user.email)
-        except ApiResponseError as exc:
-            return JsonResponse({"error": str(exc)}, status=400)
-        except ApiClientError as exc:
-            return JsonResponse({"error": str(exc)}, status=502)
+        except ApiResponseError:
+            return JsonResponse({"error": API_RESPONSE_ERROR_MESSAGE}, status=400)
+        except ApiClientError:
+            return JsonResponse({"error": API_CONNECTION_ERROR_MESSAGE}, status=502)
 
         return JsonResponse(result, status=201)
 
@@ -1310,8 +1319,10 @@ class ProductPromotionsView(LoginRequiredMixin, View):
     def get(self, _request, product_id):
         try:
             data = api_get("/promotions", params={"product_id": product_id, "limit": 500}, user_email=_request.user.email)
-        except ApiClientError as exc:
-            return JsonResponse({"error": str(exc)}, status=502)
+        except ApiResponseError:
+            return JsonResponse({"error": API_RESPONSE_ERROR_MESSAGE}, status=502)
+        except ApiClientError:
+            return JsonResponse({"error": API_CONNECTION_ERROR_MESSAGE}, status=502)
 
         promotions = data.get("items", data) if isinstance(data, dict) else data
         countries = build_country_choices()

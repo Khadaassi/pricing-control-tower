@@ -23,13 +23,14 @@ Run `dbt run` after this script to refresh pct_analytics.kpi_promo_performance.
 
 from __future__ import annotations
 
-import os
 import random
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
 
 import psycopg
+
+from _db import get_database_url
 
 CREATED_BY_USER_ID = 1
 CURRENCY_CODE = "EUR"
@@ -78,13 +79,6 @@ class Baseline:
 
 def money(v: Decimal | float | int) -> Decimal:
     return Decimal(str(v)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-
-def get_database_url() -> str:
-    url = os.getenv("DATABASE_URL")
-    if not url:
-        raise RuntimeError("DATABASE_URL environment variable is missing.")
-    return url
 
 
 # ---------------------------------------------------------------------------
