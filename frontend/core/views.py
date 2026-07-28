@@ -7,11 +7,11 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.views import View
 from django.views.generic import TemplateView
-from django.contrib.auth.mixins import LoginRequiredMixin
 
 from core.chatbot_suggestions import get_chatbot_suggestions
 from core.forms import PriceChangeRequestForm

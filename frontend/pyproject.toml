@@ -11,3 +11,23 @@ dependencies = [
     "pyjwt>=2.13.0",
     "requests>=2.33.1",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.0",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+# No "E" (pycodestyle) here unlike backend/ai_service: views.py predates any line-length
+# enforcement and has ~25 long lines (long f-strings, path() calls) that would need an
+# unrelated reformatting pass to clear. F (real bugs: unused imports, duplicate keys) and
+# I (import order) are enough to make this job a useful, low-noise signal.
+select = ["F", "I"]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
