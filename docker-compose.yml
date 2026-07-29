@@ -132,6 +132,29 @@ services:
       retries: 20
       start_period: 5s
 
+  rag_bootstrap:
+    build:
+      context: ./ai_service
+    container_name: pct_rag_bootstrap
+    restart: "no"
+    env_file:
+      - ./ai_service/.env
+    environment:
+      - CHROMADB_URL=http://chromadb:8000
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      # app/rag/config.py resolves PROJECT_ROOT as three parents up from this
+      # file, which lands at the container filesystem root — so the corpus
+      # manifest and documents (normally read straight off the host checkout
+      # when running this script manually) are mounted at the same /docs path.
+      - ./docs:/docs:ro
+    entrypoint: ["uv", "run", "python3", "scripts/bootstrap_rag.py"]
+    depends_on:
+      chromadb:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+
   ai_service:
     build:
       context: ./ai_service
@@ -165,6 +188,8 @@ services:
         condition: service_healthy
       ollama:
         condition: service_healthy
+      rag_bootstrap:
+        condition: service_completed_successfully
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.55.1
