@@ -91,6 +91,7 @@
         <div class="flex flex-wrap gap-2">
             {% for suggestion in chatbot_suggestions %}
                 <button type="button"
+                        data-question="{{ suggestion }}"
                         class="chatbot-suggestion-btn rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-[11px] text-gray-600 transition-colors hover:border-[#4F83B6]/40 hover:bg-[#EBF2F9] hover:text-[#1E3A5F]">
                     {{ suggestion }}
                 </button>
@@ -204,7 +205,7 @@ document.addEventListener("DOMContentLoaded", function () {
         function typeNext() {
             if (idx < words.length) {
                 built += (idx > 0 ? " " : "") + words[idx];
-                contentEl.innerHTML = built.replace(/\n/g, "<br>");
+                contentEl.innerHTML = escHtml(built);
                 idx++;
                 scrollToBottom();
                 setTimeout(typeNext, 38);
@@ -227,7 +228,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Suggestions → fill input
     document.querySelectorAll(".chatbot-suggestion-btn").forEach(function (btn) {
         btn.addEventListener("click", function () {
-            input.value = btn.textContent.trim();
+            input.value = btn.dataset.question;
             input.focus();
         });
     });

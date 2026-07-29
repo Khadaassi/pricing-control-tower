@@ -11,12 +11,17 @@ class Settings(BaseSettings):
     groq_api_key: str | None = None
 
     backend_api_url: str = "http://localhost:8000"
+    internal_auth_secret: str = ""
 
     # RAG — embedding provider
     embedding_provider: str = "ollama"
     embedding_model_name: str = "mxbai-embed-large"
     ollama_base_url: str = "http://localhost:11434"
-    embedding_timeout_seconds: float = 120.0
+    # Ollama's CPU limit in docker-compose.yml (2 cores) makes cold-start batch
+    # embedding during RAG indexing noticeably slower than a live single-query
+    # embed — 120s was tight enough to time out mid-corpus-index in that
+    # container. 300s covers indexing while still bounding a stuck request.
+    embedding_timeout_seconds: float = 300.0
 
     # RAG — vector store
     chromadb_url: str = "http://localhost:8010"

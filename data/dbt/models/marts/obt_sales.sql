@@ -1,3 +1,5 @@
+{{ config(materialized='table') }}
+
 with sales_enriched as (
 
     select * from {{ ref('int_sales_enriched') }}

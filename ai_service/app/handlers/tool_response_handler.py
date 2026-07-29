@@ -22,9 +22,12 @@ import re
 from datetime import date
 from typing import Any
 
+import httpx
+
 from app.core.chatbot_messages import (
     CHATBOT_MISSING_STORE_ID_MESSAGE,
     CHATBOT_MISSING_USER_EMAIL_MESSAGE,
+    CHATBOT_RBAC_DENIED_MESSAGE,
     CHATBOT_TECHNICAL_ERROR_MESSAGE,
 )
 from app.intents.anomaly_phrases import (
@@ -143,6 +146,24 @@ class ToolResponseHandler:
                     "source": "reference_data_tool",
                 }
 
+        except httpx.HTTPStatusError as error:
+            # 401/403 from the backend mean the RBAC/scope check rejected this
+            # user for this data — not a technical failure (Ollama/backend
+            # down, timeout, 5xx). Distinguishing the two avoids handing the
+            # same opaque "technical error" message to both cases.
+            if error.response.status_code in (401, 403):
+                return {
+                    "status": "error",
+                    "answer": CHATBOT_RBAC_DENIED_MESSAGE,
+                    "source": "orchestrator",
+                    "error_type": type(error).__name__,
+                }
+            return {
+                "status": "error",
+                "answer": CHATBOT_TECHNICAL_ERROR_MESSAGE,
+                "source": "orchestrator",
+                "error_type": type(error).__name__,
+            }
         except Exception as error:
             return {
                 "status": "error",

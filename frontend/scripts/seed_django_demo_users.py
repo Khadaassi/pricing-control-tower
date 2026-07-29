@@ -4,7 +4,6 @@ import os
 import sys
 from pathlib import Path
 
-
 BASE_DIR = Path(__file__).resolve().parents[1]
 sys.path.append(str(BASE_DIR))
 
@@ -15,7 +14,6 @@ import django  # noqa: E402
 django.setup()
 
 from django.contrib.auth import get_user_model  # noqa: E402
-
 
 DEMO_PASSWORD = os.getenv("DEMO_USER_PASSWORD", "Password123!")
 

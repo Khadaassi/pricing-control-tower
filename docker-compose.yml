@@ -9,6 +9,13 @@ services:
       - "5432:5432"
     volumes:
       - pct_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # $$ (not $) so this is evaluated by the container's own shell against its actual
+      # env vars (from backend/.env), not substituted by docker-compose at parse time.
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   backend:
     build:
@@ -21,12 +28,31 @@ services:
       # Overrides backend/.env's DATABASE_URL (meant for running the backend
       # directly on the host), which is unreachable from inside this container:
       # "localhost" here would mean the container itself, not the postgres
-      # service.
-      - DATABASE_URL=postgresql+psycopg://pct_user:pct_password@postgres:5432/pct
+      # service. Credentials are interpolated from the root .env (must match
+      # POSTGRES_USER/POSTGRES_PASSWORD/POSTGRES_DB in backend/.env, which
+      # seed the postgres container itself).
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:?POSTGRES_USER must be set}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:?POSTGRES_DB must be set}
+      # Shared HMAC secret used to sign/verify the internal service tokens that
+      # frontend and ai_service present in place of a raw user email. Must be
+      # identical across backend, frontend, and ai_service.
+      - INTERNAL_AUTH_SECRET=${INTERNAL_AUTH_SECRET:?INTERNAL_AUTH_SECRET must be set}
     ports:
       - "8000:8000"
+    healthcheck:
+      # Parses the /health body instead of just checking HTTP 200: the endpoint always
+      # returns 200 but reports status "degraded" while postgres isn't reachable yet.
+      test:
+        - CMD
+        - python3
+        - -c
+        - "import json,sys,urllib.request; d=json.loads(urllib.request.urlopen('http://localhost:8000/health', timeout=3).read()); sys.exit(0 if d.get('status') == 'ok' else 1)"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
   frontend:
     build:
@@ -36,23 +62,98 @@ services:
     environment:
       - FASTAPI_BASE_URL=http://backend:8000
       - AI_SERVICE_BASE_URL=http://ai_service:8001
+      # Shared HMAC secret used to sign the internal service tokens sent to the
+      # backend in place of a raw user email. Must match backend's value.
+      - INTERNAL_AUTH_SECRET=${INTERNAL_AUTH_SECRET:?INTERNAL_AUTH_SECRET must be set}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
+      - DJANGO_DEBUG=${DJANGO_DEBUG:-False}
+      # Set to True only once a TLS-terminating reverse proxy/load balancer sits in front of
+      # this stack — this compose file itself serves plain HTTP.
+      - DJANGO_HTTPS_ENABLED=${DJANGO_HTTPS_ENABLED:-False}
     ports:
       - "8001:8001"
     volumes:
       - ./frontend/templates:/app/templates
       - ./frontend/core/templates:/app/core/templates
       - ./frontend/core/templatetags:/app/core/templatetags
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   chromadb:
-    image: chromadb/chroma:latest
+    image: chromadb/chroma:1.1.1
     container_name: pct_chromadb
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 2G
     ports:
       - "8010:8000"
     volumes:
       - pct_chromadb_data:/chroma/chroma
+    healthcheck:
+      # No curl/wget/python3 in this image — raw HTTP GET over bash's /dev/tcp instead.
+      test:
+        - CMD-SHELL
+        - >-
+          bash -c 'exec 3<>/dev/tcp/127.0.0.1/8000 &&
+          printf "GET /api/v2/heartbeat HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3 &&
+          head -1 <&3 | grep -q 200'
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  ollama:
+    image: ollama/ollama:0.32.4
+    container_name: pct_ollama
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 4G
+    ports:
+      - "11434:11434"
+    volumes:
+      - pct_ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  rag_bootstrap:
+    build:
+      context: ./ai_service
+    container_name: pct_rag_bootstrap
+    restart: "no"
+    env_file:
+      - ./ai_service/.env
+    environment:
+      - CHROMADB_URL=http://chromadb:8000
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      # app/rag/config.py resolves PROJECT_ROOT as three parents up from this
+      # file, which lands at the container filesystem root — so the corpus
+      # manifest and documents (normally read straight off the host checkout
+      # when running this script manually) are mounted at the same /docs path.
+      - ./docs:/docs:ro
+    entrypoint: ["uv", "run", "python3", "scripts/bootstrap_rag.py"]
+    depends_on:
+      chromadb:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
 
   ai_service:
     build:
@@ -68,15 +169,30 @@ services:
       # service.
       - BACKEND_API_URL=http://backend:8000
       - CHROMADB_URL=http://chromadb:8000
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OLLAMA_BASE_URL=http://ollama:11434
+      # Shared HMAC secret used to sign the internal service tokens sent to the
+      # backend in place of a raw user email. Must match backend's value.
+      - INTERNAL_AUTH_SECRET=${INTERNAL_AUTH_SECRET:?INTERNAL_AUTH_SECRET must be set}
     ports:
       - "8002:8001"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/chat/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
     depends_on:
-      - backend
-      - chromadb
+      backend:
+        condition: service_healthy
+      chromadb:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      rag_bootstrap:
+        condition: service_completed_successfully
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
     container_name: pct_cadvisor
     restart: unless-stopped
     ports:
@@ -91,12 +207,15 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
     depends_on:
-      - backend
-      - frontend
-      - ai_service
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+      ai_service:
+        condition: service_healthy
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.5.4
     container_name: pct_prometheus
     restart: unless-stopped
     ports:
@@ -106,20 +225,25 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
     depends_on:
-      - backend
-      - frontend
-      - ai_service
-      - cadvisor
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+      ai_service:
+        condition: service_healthy
+      # cadvisor has no healthcheck (out of scope here) — just wait for it to start.
+      cadvisor:
+        condition: service_started
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:13.1.0
     container_name: pct_grafana
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:?GRAFANA_ADMIN_USER must be set}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set}
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
@@ -129,3 +253,4 @@ services:
 volumes:
   pct_postgres_data:
   pct_chromadb_data:
+  pct_ollama_data:

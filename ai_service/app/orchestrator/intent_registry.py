@@ -52,6 +52,7 @@ from app.intents.workflow_phrases import (
     BUSINESS_RULE_PHRASES,
     DOCUMENTARY_ANOMALY_PHRASES,
     DOCUMENTARY_KNOWLEDGE_PHRASES,
+    DOCUMENTARY_PROMOTION_DIAGNOSIS_PHRASES,
 )
 from app.orchestrator.intent_types import Intent, IntentRule, RouteType
 from app.orchestrator.normalization import normalize
@@ -239,6 +240,18 @@ INTENT_RULES: list[IntentRule] = [
         priority=90,
         phrases=_n(CHATBOT_LIMITS_PHRASES),
         description="Static chatbot limitations description",
+    ),
+    # -------------------------------------------------------------------------
+    # Priority 94 — Specific promotion diagnosis questions (before the vague
+    # "cette promotion" clarification catch-all at 95, which would otherwise
+    # shadow phrasings like "pourquoi cette promo ne marche pas ?")
+    # -------------------------------------------------------------------------
+    IntentRule(
+        intent=Intent.DOCUMENTARY_KNOWLEDGE,
+        route_type=RouteType.RAG,
+        priority=94,
+        phrases=_n(DOCUMENTARY_PROMOTION_DIAGNOSIS_PHRASES),
+        description="Specific 'why isn't this promo working' questions → documentary RAG",
     ),
     # -------------------------------------------------------------------------
     # Priority 95 — Promotion context clarification (before RAG)

@@ -5,6 +5,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
 from app.models.price import Price
+from app.models.price_change_request import PriceChangeRequest
 from app.models.promotion import Promotion
 from app.models.store import Store
 from app.models.user_account import UserAccount
@@ -120,6 +121,25 @@ def apply_promotion_scope(
         )
 
     return stmt.where(Promotion.country_id == user.country_id)
+
+
+def apply_price_change_request_scope(
+    stmt: Select,
+    user: UserAccount,
+) -> Select:
+    if is_global_user(user):
+        return stmt
+
+    if is_store_user(user):
+        return stmt.where(
+            PriceChangeRequest.country_id == user.country_id,
+            (
+                (PriceChangeRequest.store_id == user.store_id)
+                | (PriceChangeRequest.store_id.is_(None))
+            ),
+        )
+
+    return stmt.where(PriceChangeRequest.country_id == user.country_id)
 
 
 def resolve_allowed_store_ids_for_analytics(

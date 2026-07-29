@@ -99,8 +99,12 @@ The chatbot understands and responds in French and English. You can switch langu
 
 ## How the chatbot works
 
-The chatbot uses two complementary approaches:
+The chatbot uses three complementary mechanisms — see
+[Chatbot Response Mechanisms](chatbot_response_mechanisms.md) for the full
+breakdown of which question triggers which one:
 
-**Tool Calling** — for operational data (live figures from the backend): promotions, prices, anomalies, KPI numbers, price change requests, reference data.
+**Tool Calling** — for operational data (live figures from the backend): promotions, prices, anomalies, KPI numbers, price change requests, reference data. No LLM involved.
 
-**RAG (Retrieval-Augmented Generation)** — for conceptual questions (business rules, workflow explanations, KPI definitions, RBAC, decision support): the chatbot retrieves relevant documentation and generates a natural language answer.
+**Templated knowledge base** — for KPI definitions, business rules, and RBAC explanations: the chatbot matches the question against a curated set of documented answers and has the LLM turn the match into prose. This does **not** use ChromaDB — it is not RAG in the strict sense, even though it answers conceptual questions.
+
+**RAG (Retrieval-Augmented Generation)** — the fallback for documentary questions not covered by the templated knowledge base (architecture, monitoring, chatbot usage rules, …): the chatbot retrieves relevant documentation chunks from ChromaDB and generates a natural language answer grounded in them, with sources cited.

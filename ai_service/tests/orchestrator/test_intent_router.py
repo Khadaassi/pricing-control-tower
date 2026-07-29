@@ -162,6 +162,23 @@ class TestListAnomaliesRouting:
         m = router.route("Show me the priority anomalies")
         assert m.intent == Intent.LIST_ANOMALIES
 
+    def test_conceptual_which_anomalies_exist_routes_to_documentary(
+        self, router: IntentRouter
+    ) -> None:
+        # "Quelles anomalies existent ?" asks what anomaly TYPES exist (a
+        # definitional question), not "list my current anomalies" — must not
+        # be swallowed by the bare "anomalies" substring below.
+        m = router.route("Quelles anomalies existent ?")
+        assert m.intent == Intent.DOCUMENTARY_KNOWLEDGE
+        assert m.route_type == RouteType.RAG
+
+    def test_how_to_prioritize_anomalies_routes_to_documentary(
+        self, router: IntentRouter
+    ) -> None:
+        m = router.route("Comment prioriser les anomalies ?")
+        assert m.intent == Intent.DOCUMENTARY_KNOWLEDGE
+        assert m.route_type == RouteType.RAG
+
 
 # ---------------------------------------------------------------------------
 # Store-vs-country price mismatches — priority 40
@@ -300,6 +317,16 @@ class TestDocumentaryKnowledgeRouting:
         m = router.route("explique le workflow de changement de prix")
         assert m.intent == Intent.DOCUMENTARY_KNOWLEDGE
 
+    def test_pourquoi_cette_promo_ne_marche_pas_routes_to_documentary(
+        self, router: IntentRouter
+    ) -> None:
+        # Must not be intercepted by the vague "cette promo" clarification
+        # catch-all (priority 95) — this phrasing already carries enough
+        # context to answer, not just ask which promotion is meant.
+        m = router.route("Pourquoi cette promo ne marche pas ?")
+        assert m.intent == Intent.DOCUMENTARY_KNOWLEDGE
+        assert m.route_type == RouteType.RAG
+
 
 # ---------------------------------------------------------------------------
 # Clarification intents — priorities 120–125
@@ -359,6 +386,14 @@ class TestPriorityOrdering:
         # "chiffre d'affaires" is a live data question, not a definition
         m = router.route("quel est le chiffre d'affaires du magasin 3 ?")
         assert m.intent == Intent.GET_KPI_DATA
+
+    def test_vague_promotion_reference_still_clarifies(self, router: IntentRouter) -> None:
+        # The new priority-94 diagnostic rule must stay narrow: a genuinely
+        # vague "cette promotion" reference (no diagnostic context) still
+        # needs clarification, not a documentary answer.
+        m = router.route("cette promotion, dois-je la prolonger ?")
+        assert m.intent == Intent.CLARIFY_PROMOTION_CONTEXT
+        assert m.route_type == RouteType.CLARIFICATION
 
     def test_accent_insensitive_matching(self, router: IntentRouter) -> None:
         # Same question with and without accent should yield same intent

@@ -18,3 +18,10 @@ class OllamaEmbeddingProvider(BaseEmbeddingProvider):
         )
         response.raise_for_status()
         return response.json()["embeddings"]
+
+    def is_reachable(self) -> bool:
+        try:
+            response = httpx.get(f"{self._base_url}/api/tags", timeout=2.0)
+            return response.status_code == 200
+        except Exception:
+            return False

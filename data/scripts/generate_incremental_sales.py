@@ -11,16 +11,15 @@ Usage (from repo root):
 """
 from __future__ import annotations
 
-import os
 import random
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal, ROUND_HALF_UP
-from pathlib import Path
 
 import psycopg
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+from _db import get_database_url
+
 PRODUCT_CODE_PREFIX = "FB%"
 INITIAL_START_DATE = date(2025, 1, 1)
 CREATED_BY = 1
@@ -73,21 +72,6 @@ class Price:
 
 def money(v) -> Decimal:
     return Decimal(str(v)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-
-def get_database_url() -> str:
-    url = os.getenv("DATABASE_URL")
-    if not url:
-        env_path = REPO_ROOT / "backend" / ".env"
-        if env_path.exists():
-            for raw in env_path.read_text().splitlines():
-                line = raw.strip()
-                if line.startswith("DATABASE_URL="):
-                    url = line.split("=", 1)[1].strip().strip('"').strip("'")
-                    break
-    if not url:
-        raise RuntimeError("DATABASE_URL is not set.")
-    return url
 
 
 # ── Fetchers ─────────────────────────────────────────────────────────────────

@@ -262,13 +262,19 @@ flowchart TD
 |---|---|
 | Provider | Groq (`BaseLLMProvider` / `GroqProvider`) |
 | Model | `llama-3.1-8b-instant` |
-| LLM called for | RAG documentary answers only |
-| LLM not called for | Tool Calling results, guardrail, clarification, fallback responses |
+| LLM called for | RAG documentary answers; and KPI / business-rule / RBAC explanations once a keyword match is found (see below) |
+| LLM not called for | Live-data tools (`AnomalyTool`, `PriceTool`, `PromotionTool`, `PriceChangeRequestTool`, `ReferenceDataTool`, `KPIDataTool`), guardrail, clarification, fallback, and static responses (`chatbot_capabilities`, `chatbot_limits`, `decision_kpi_guidance`) |
 
-The LLM is invoked only when the RAG flow retrieves relevant chunks. All other response
-types are assembled directly by `ResponseGenerationService` from structured data or
-constant message strings defined in `chatbot_messages.py`. This keeps latency low and
-hallucination risk bounded.
+`KPIExplanationService`, `BusinessRulesExplanationService` and `RBACExplanationService`
+(§4.2) are grouped under "Tool Calling" above because they never touch ChromaDB, but they
+do call the LLM to turn a keyword-matched dictionary entry into prose — they are **not**
+RAG despite answering conceptual questions. This distinction (and the RBAC static
+short-circuit that skips the LLM entirely for 8 exact-match patterns) is exactly why "RAG"
+gets misused as an umbrella term; see
+[Chatbot Response Mechanisms](../05_ai/chatbot_response_mechanisms.md) for the disambiguation
+table. All non-LLM response types are assembled directly by `ResponseGenerationService`
+from structured data or constant message strings defined in `chatbot_messages.py`. This
+keeps latency low and hallucination risk bounded outside the two mechanisms above.
 
 ---
 
@@ -627,6 +633,7 @@ Full matrix: [`docs/06_validation/chatbot_business_use_cases_validation.md`](../
 - [AI Chatbot Architecture](ai_chatbot_architecture.md)
 - [AI Chatbot Frontend Integration](ai_chatbot_frontend_integration.md)
 - [Chatbot Security Rules](chatbot_security_rules.md)
+- [Chatbot Response Mechanisms](../05_ai/chatbot_response_mechanisms.md) — disambiguates the "RAG" label across the three response mechanisms
 - [RAG Document Corpus Manifest](../05_ai/rag_document_corpus_manifest.md)
 - [RAG Vector Indexing](../05_ai/rag_vector_indexing.md)
 - [AI Chatbot Monitoring Runbook](../05_runbook/ai_chatbot_monitoring.md)

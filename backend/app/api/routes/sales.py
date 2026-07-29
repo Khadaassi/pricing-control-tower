@@ -4,9 +4,16 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.dependencies.current_user import get_current_business_user
 from app.db import get_db
 from app.models.sales_transaction import SalesTransaction
+from app.models.user_account import UserAccount
 from app.schemas.sales_transaction import SalesTransactionRead
+from app.services.scope_service import (
+    ensure_store_belongs_to_country_scope,
+    ensure_store_filter_allowed,
+    resolve_allowed_store_ids_for_analytics,
+)
 
 router = APIRouter(prefix="/sales", tags=["sales"])
 
@@ -33,7 +40,13 @@ def list_sales_transactions(
         le=500,
         description="Maximum number of records to return",
     ),
+    current_user: UserAccount = Depends(get_current_business_user),
 ) -> list[SalesTransactionRead]:
+    ensure_store_filter_allowed(current_user, store_id)
+    ensure_store_belongs_to_country_scope(db, current_user, store_id)
+
+    allowed_store_ids = resolve_allowed_store_ids_for_analytics(db=db, user=current_user)
+
     query = select(SalesTransaction).order_by(SalesTransaction.transaction_id)
 
     if product_id is not None:
@@ -41,6 +54,8 @@ def list_sales_transactions(
 
     if store_id is not None:
         query = query.where(SalesTransaction.store_id == store_id)
+    elif allowed_store_ids is not None:
+        query = query.where(SalesTransaction.store_id.in_(allowed_store_ids))
 
     if promotion_id is not None:
         query = query.where(SalesTransaction.promotion_id == promotion_id)

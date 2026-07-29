@@ -90,6 +90,10 @@ def create_promotion(
         permission_code=required_permission,
     )
 
+    ensure_country_filter_allowed(current_user, payload.country_id)
+    ensure_store_filter_allowed(current_user, payload.store_id)
+    ensure_store_belongs_to_country_scope(db, current_user, payload.store_id)
+
     promo_data = payload.model_dump()
     promo_data["created_by"] = current_user.id
 
@@ -110,6 +114,10 @@ def deactivate_promotion(
 
     if promotion is None:
         raise HTTPException(status_code=404, detail="Promotion not found")
+
+    ensure_country_filter_allowed(current_user, promotion.country_id)
+    ensure_store_filter_allowed(current_user, promotion.store_id)
+    ensure_store_belongs_to_country_scope(db, current_user, promotion.store_id)
 
     required_permission = (
         "STOP_STORE_PROMOTION"

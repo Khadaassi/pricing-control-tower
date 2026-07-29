@@ -1,13 +1,17 @@
+import time
 from datetime import date
 from decimal import Decimal
 from uuid import uuid4
 
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 import app.api.routes.price_change_requests as price_change_requests_routes
 from app.api.dependencies.current_user import get_current_business_user
+from app.config import get_internal_auth_secret
+from app.core.internal_auth import ALGORITHM
 from app.db import SessionLocal
 from app.main import app
 from app.models.country import Country
@@ -17,6 +21,7 @@ from app.models.product import Product
 from app.models.product_family import ProductFamily
 from app.models.role import Role
 from app.models.role_permission import RolePermission
+from app.models.store import Store
 from app.models.user_account import UserAccount
 from app.models.user_role import UserRole
 
@@ -133,6 +138,34 @@ def workflow_test_data(db_session, test_business_user):
     }
 
 
+@pytest.fixture
+def scope_test_data(db_session, workflow_test_data):
+    """Second country + a store in it, disjoint from workflow_test_data's country.
+
+    Used to assert that a user scoped to country/store A is rejected when acting on
+    country B (workflow_test_data's country), and allowed within their own scope.
+    """
+    suffix = uuid4().hex[:6].upper()
+
+    other_country = Country(code=f"OC{suffix}", name=f"Other Country {suffix}")
+    db_session.add(other_country)
+    db_session.flush()
+
+    other_store = Store(
+        code=f"OS{suffix}",
+        name=f"Other Store {suffix}",
+        country_id=other_country.id,
+    )
+    db_session.add(other_store)
+    db_session.commit()
+    db_session.refresh(other_store)
+
+    return {
+        "other_country_id": other_country.id,
+        "other_store_id": other_store.id,
+    }
+
+
 def get_or_create_permission(db_session, permission_code: str) -> Permission:
     permission = db_session.scalar(
         select(Permission).where(Permission.code == permission_code)
@@ -183,6 +216,8 @@ def create_test_role_with_permissions(
 def create_test_user_with_permissions(
     db_session,
     permission_codes: list[str],
+    country_id: int | None = None,
+    store_id: int | None = None,
 ) -> UserAccount:
     suffix = uuid4().hex[:8].lower()
 
@@ -190,8 +225,8 @@ def create_test_user_with_permissions(
         email=f"rbac.test.{suffix}@pricing-control-tower.local",
         full_name=f"RBAC Test User {suffix}",
         active=True,
-        country_id=None,
-        store_id=None,
+        country_id=country_id,
+        store_id=store_id,
     )
     db_session.add(user)
     db_session.flush()
@@ -215,25 +250,39 @@ def create_test_user_with_permissions(
 
 @pytest.fixture
 def rbac_user_factory(db_session):
-    def factory(permission_codes: list[str]) -> UserAccount:
+    def factory(
+        permission_codes: list[str],
+        country_id: int | None = None,
+        store_id: int | None = None,
+    ) -> UserAccount:
         return create_test_user_with_permissions(
             db_session=db_session,
             permission_codes=permission_codes,
+            country_id=country_id,
+            store_id=store_id,
         )
 
     return factory
 
 
 def build_user_headers(user: UserAccount) -> dict[str, str]:
+    now = int(time.time())
+    payload = {"sub": user.email, "iat": now, "exp": now + 60}
+    token = jwt.encode(payload, get_internal_auth_secret(), algorithm=ALGORITHM)
+
     return {
-        "X-User-Email": user.email,
+        "Authorization": f"Bearer {token}",
     }
 
 
 @pytest.fixture
 def rbac_headers_factory(rbac_user_factory):
-    def factory(permission_codes: list[str]) -> dict[str, str]:
-        user = rbac_user_factory(permission_codes)
+    def factory(
+        permission_codes: list[str],
+        country_id: int | None = None,
+        store_id: int | None = None,
+    ) -> dict[str, str]:
+        user = rbac_user_factory(permission_codes, country_id=country_id, store_id=store_id)
         return build_user_headers(user)
 
     return factory

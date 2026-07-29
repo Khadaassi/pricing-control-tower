@@ -1,7 +1,8 @@
 import json
 import logging
+from contextlib import ExitStack
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -235,6 +236,29 @@ class TestChatEndpointValidation:
 
 
 class TestChatHealthEndpoint:
+    @staticmethod
+    def _patch_dependencies(*, backend: bool, chromadb: bool, ollama: bool) -> ExitStack:
+        stack = ExitStack()
+        stack.enter_context(
+            patch(
+                "app.api.routes.health._check_backend",
+                return_value={"status": "ok" if backend else "error", "reachable": backend},
+            )
+        )
+        stack.enter_context(
+            patch(
+                "app.api.routes.health._check_chromadb",
+                return_value={"status": "ok" if chromadb else "error", "reachable": chromadb},
+            )
+        )
+        stack.enter_context(
+            patch(
+                "app.api.routes.health._check_ollama",
+                return_value={"status": "ok" if ollama else "error", "reachable": ollama},
+            )
+        )
+        return stack
+
     def test_health_endpoint_returns_service_status(self, client: TestClient) -> None:
         response = client.get("/chat/health")
 
@@ -243,6 +267,42 @@ class TestChatHealthEndpoint:
         assert body["service"] == "ai_service"
         assert body["component"] == "chatbot"
         assert body["status"] in {"ok", "degraded"}
+
+    def test_status_ok_when_llm_and_all_dependencies_reachable(self, client: TestClient) -> None:
+        with self._patch_dependencies(backend=True, chromadb=True, ollama=True):
+            response = client.get("/chat/health")
+
+        body = response.json()
+        assert body["status"] == "ok"
+        assert body["checks"] == {
+            "backend": {"status": "ok", "reachable": True},
+            "chromadb": {"status": "ok", "reachable": True},
+            "ollama": {"status": "ok", "reachable": True},
+        }
+
+    def test_status_degraded_when_ollama_unreachable(self, client: TestClient) -> None:
+        with self._patch_dependencies(backend=True, chromadb=True, ollama=False):
+            response = client.get("/chat/health")
+
+        body = response.json()
+        assert body["status"] == "degraded"
+        assert body["checks"]["ollama"] == {"status": "error", "reachable": False}
+
+    def test_status_degraded_when_chromadb_unreachable(self, client: TestClient) -> None:
+        with self._patch_dependencies(backend=True, chromadb=False, ollama=True):
+            response = client.get("/chat/health")
+
+        body = response.json()
+        assert body["status"] == "degraded"
+        assert body["checks"]["chromadb"] == {"status": "error", "reachable": False}
+
+    def test_status_degraded_when_backend_unreachable(self, client: TestClient) -> None:
+        with self._patch_dependencies(backend=False, chromadb=True, ollama=True):
+            response = client.get("/chat/health")
+
+        body = response.json()
+        assert body["status"] == "degraded"
+        assert body["checks"]["backend"] == {"status": "error", "reachable": False}
 
 
 class TestChatEndpointLogging:

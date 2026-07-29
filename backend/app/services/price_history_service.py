@@ -5,10 +5,13 @@ from sqlalchemy.orm import Session
 
 from app.models.price_change_request import PriceChangeRequest
 from app.models.price_history import PriceHistory
+from app.models.user_account import UserAccount
+from app.services.scope_service import apply_price_change_request_scope
 
 
 def list_price_history(
     db: Session,
+    user: UserAccount,
     price_change_request_id: int | None = None,
     product_id: int | None = None,
     country_id: int | None = None,
@@ -39,6 +42,8 @@ def list_price_history(
             PriceChangeRequest.id == PriceHistory.price_change_request_id,
         )
     )
+
+    base_query = apply_price_change_request_scope(base_query, user)
 
     if price_change_request_id is not None:
         base_query = base_query.where(

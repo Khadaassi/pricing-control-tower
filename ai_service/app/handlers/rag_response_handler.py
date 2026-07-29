@@ -10,6 +10,8 @@ returned without calling the LLM.
 
 from typing import Any
 
+import httpx
+
 from app.core.chatbot_messages import CHATBOT_TECHNICAL_ERROR_MESSAGE
 from app.core.config import settings
 from app.core.llm_response_cleaner import strip_leading_greeting, strip_llm_sources_section
@@ -27,6 +29,11 @@ logger = get_logger("ai_service.orchestrator")
 RAG_FALLBACK_ANSWER = (
     "Je n'ai pas trouvé suffisamment d'informations dans la documentation "
     "du projet pour répondre à cette question de manière fiable."
+)
+
+RAG_INFRA_UNAVAILABLE_ANSWER = (
+    "Le moteur de recherche documentaire est temporairement indisponible. "
+    "Veuillez réessayer plus tard."
 )
 
 
@@ -49,6 +56,22 @@ class RAGResponseHandler:
 
         try:
             return self._answer(question, lang)
+        except httpx.HTTPError as error:
+            # Covers both connection failures (Ollama/ChromaDB down) and non-2xx
+            # responses from either — distinct from an unexpected internal bug,
+            # so the user gets an actionable message instead of a generic one.
+            log_event(
+                logger,
+                "rag_infra_unavailable",
+                error=str(error),
+                error_type=type(error).__name__,
+            )
+            return {
+                "status": "error",
+                "answer": RAG_INFRA_UNAVAILABLE_ANSWER,
+                "source": "orchestrator",
+                "error_type": type(error).__name__,
+            }
         except Exception as error:
             return {
                 "status": "error",

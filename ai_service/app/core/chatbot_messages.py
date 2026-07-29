@@ -14,6 +14,11 @@ CHATBOT_TECHNICAL_ERROR_MESSAGE = (
     "Veuillez réessayer plus tard ou contacter l’équipe support de l’application."
 )
 
+CHATBOT_RBAC_DENIED_MESSAGE = (
+    "Vous n’avez pas les droits nécessaires pour accéder à cette donnée. "
+    "Vérifiez votre rôle et votre périmètre d’accès (magasin, pays)."
+)
+
 CHATBOT_MISSING_USER_EMAIL_MESSAGE = (
     "L’adresse e-mail de l’utilisateur est nécessaire pour récupérer les données "
     "en respectant le filtrage RBAC."

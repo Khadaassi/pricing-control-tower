@@ -5,12 +5,12 @@
 ```
 ┌───────────────────┐     ┌──────────────────┐     ┌─────────────────────┐
 │  Python Scripts   │────▶│   pct_core       │────▶│   pct_analytics     │
-│  (generation)     │     │   (PostgreSQL)   │     │   (dbt views)       │
+│  (data/scripts/)  │     │   (PostgreSQL)   │     │   (dbt views)       │
 └───────────────────┘     └──────────────────┘     └─────────────────────┘
         │                         │                         │
-   seed_reference_data.py         │                    obt_sales
-   generate_sales_dataset.py      │                    kpi_price_performance
-   load_sales_transactions.py     │                    kpi_promo_performance
+   reset_and_seed.py              │                    obt_sales
+   generate_incremental_sales.py  │                    kpi_price_performance
+   generate_anomaly_scenarios.py  │                    kpi_promo_performance
                                   │                         │
                                   │                         ▼
                            ┌──────▼──────┐          ┌──────────────┐
@@ -23,34 +23,32 @@
 
 ## 2. Ingestion Flow (data → pct_core)
 
-### Step 1: Reference Data Seeding
+> The earlier `data/generation/` pipeline (CSV generation + separate load step) has been
+> removed — it was dead code, superseded by the scripts below, which write directly to
+> `pct_core` via SQL. See `COMMANDES.md` for the full command reference.
 
-**Script**: `data/generation/seed_reference_data.py`
+### Step 1: Full Reset & Seed
 
-Inserts reference data into `pct_core`:
-- Countries (country)
-- Stores (store)
-- Product families (product_family)
-- Products (product)
-- Standard and promotional prices (price)
-- Promotions (promotion)
+**Script**: `data/scripts/reset_and_seed.py`
 
-### Step 2: Sales Dataset Generation
+One-shot, destructive (truncates all core tables first). Seeds `pct_core` end to end:
+countries, stores, product families/products/images, standard and store prices, promotions,
+initial sales history (2025-01-01 → yesterday) with seasonal patterns, and anomaly
+calibration scenarios.
 
-**Script**: `data/generation/generate_sales_dataset.py`
+### Step 2: Incremental Sales
 
-Generates a CSV file (`data/generated/sales_transactions.csv`) containing ~20,000 simulated transactions over 6 months.
+**Script**: `data/scripts/generate_incremental_sales.py`
 
-Generation rules:
-- Non-uniform quantity distribution (product + store variability + promo effect)
-- Simple seasonality
-- Consistency with active prices and promotions at each date
+Idempotent — generates sales from the day after the latest existing transaction up to
+yesterday. Safe to re-run on a schedule to keep `pct_core.sales_transaction` current.
 
-### Step 3: Database Loading
+### Step 3: Anomaly Calibration Scenarios (optional, standalone)
 
-**Script**: `data/generation/load_sales_transactions.py`
+**Script**: `data/scripts/generate_anomaly_scenarios.py`
 
-Loads the CSV into the `pct_core.sales_transaction` table.
+Also invoked as the last step of `reset_and_seed.py`; can be re-run independently to
+regenerate calibrated anomaly scenarios (`CALIB_*` promotions) without a full reset.
 
 ---
 
@@ -149,9 +147,8 @@ DashboardView        →   GET /kpis               →  obt_sales
 
 | Step | Prerequisites |
 |---|---|
-| Reference data seed | PostgreSQL running, `pct_core` schema created |
-| Sales generation | Reference data inserted (products, stores, prices, promos) |
-| Sales loading | CSV generated |
+| Reset & seed | PostgreSQL running, `pct_core` schema migrated |
+| Incremental sales | Reset & seed already run at least once |
 | dbt run | Data present in `pct_core`, `pct_analytics` schema created |
 | API | PostgreSQL accessible |
 | Frontend | API accessible |
@@ -160,31 +157,26 @@ DashboardView        →   GET /kpis               →  obt_sales
 
 ## 6. Execution Commands
 
+See `COMMANDES.md` for the full, up-to-date command reference. Summary:
+
 ```bash
 # 1. Start PostgreSQL
-cd backend
-docker compose up -d
+docker compose up -d postgres
 
 # 2. Apply database migrations
-alembic upgrade head
+cd backend && uv run alembic upgrade head && cd ..
 
-# 3. Return to repository root
-cd ..
+# 3. Full reset & seed (destructive — truncates pct_core first)
+DATABASE_URL="postgresql+psycopg://pct_user:pct_password@localhost:5432/pct" \
+uv run python data/scripts/reset_and_seed.py
 
-# 4. Seed reference data
-python data/generation/seed_reference_data.py
+# 4. Keep sales current (idempotent, safe to re-run)
+DATABASE_URL="postgresql+psycopg://pct_user:pct_password@localhost:5432/pct" \
+uv run python data/scripts/generate_incremental_sales.py
 
-# 5. Generate sales transactions
-python data/generation/generate_sales_dataset.py
+# 5. Run dbt transformations
+cd data && uv run dbt run --project-dir dbt && cd ..
 
-# 6. Load sales transactions into PostgreSQL
-python data/generation/load_sales_transactions.py
-
-# 7. Run dbt transformations
-cd data/dbt
-dbt run
-
-# 8. Start the API
-cd ../../backend
-uvicorn app.main:app --reload
+# 6. Start the API
+cd backend && uv run uvicorn app.main:app --reload
 ```
