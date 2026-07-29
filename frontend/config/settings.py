@@ -36,9 +36,19 @@ SESSION_COOKIE_SECURE = DJANGO_HTTPS_ENABLED
 CSRF_COOKIE_SECURE = DJANGO_HTTPS_ENABLED
 SECURE_SSL_REDIRECT = DJANGO_HTTPS_ENABLED
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "frontend"]
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,frontend").split(",")
+    if h.strip()
+]
 
-CSRF_TRUSTED_ORIGINS = ["http://localhost:8001", "http://127.0.0.1:8001"]
+CSRF_TRUSTED_ORIGINS = [
+    o.strip()
+    for o in os.getenv(
+        "DJANGO_CSRF_TRUSTED_ORIGINS", "http://localhost:8001,http://127.0.0.1:8001"
+    ).split(",")
+    if o.strip()
+]
 
 FASTAPI_BASE_URL = os.getenv("FASTAPI_BASE_URL", "http://127.0.0.1:8000")
 AI_SERVICE_BASE_URL = os.getenv("AI_SERVICE_BASE_URL", "http://localhost:8001")
