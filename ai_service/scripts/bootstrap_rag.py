@@ -7,9 +7,13 @@ chromadb being healthy, with ai_service itself gated on this container exiting
 scripts/index_rag_documents.py` from the host) that had to be redone by hand
 after every `docker compose down -v`.
 
-Idempotent: if the ChromaDB collection already has chunks (volume was not
-wiped), indexing is skipped — only the Ollama pull is repeated, which Ollama
-itself treats as a fast no-op when the model is already present.
+Idempotent: the collection is only left alone if its chunk count already
+matches what the current corpus would produce — a partial/failed prior run
+(e.g. container killed mid-indexing) leaves a non-empty but incomplete
+collection, which a plain "skip if non-empty" check would wrongly treat as
+done. Anything else (empty, partial, or stale from a since-changed corpus)
+triggers a full reset-and-reindex. The Ollama pull always re-runs, which
+Ollama itself treats as a fast no-op when the model is already present.
 
 Usage (from ai_service/ directory):
     uv run python scripts/bootstrap_rag.py
@@ -23,6 +27,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import httpx
 
 from app.core.config import settings
+from app.rag.chunker import chunk_document
+from app.rag.document_loader import load_corpus
 from app.rag.vector_store import ChromaClient
 from scripts.index_rag_documents import main as index_documents
 
@@ -49,7 +55,12 @@ def pull_embedding_model() -> None:
     print(f"  Ollama pull status: {status}")
 
 
-def index_corpus_if_empty() -> None:
+def _expected_chunk_count() -> int:
+    corpus = load_corpus()
+    return sum(len(chunk_document(doc)) for doc in corpus)
+
+
+def index_corpus_if_incomplete() -> None:
     store = ChromaClient()
 
     if not store.is_reachable():
@@ -58,21 +69,25 @@ def index_corpus_if_empty() -> None:
 
     collection_id = store.get_or_create_collection(settings.rag_collection_name)
     existing = store.count(collection_id)
+    expected = _expected_chunk_count()
 
-    if existing > 0:
+    if existing == expected:
         print(
-            f"Collection '{settings.rag_collection_name}' already has {existing} chunks — "
-            "skipping indexing (volume was not wiped)."
+            f"Collection '{settings.rag_collection_name}' already has all {expected} "
+            "expected chunks — skipping indexing."
         )
         return
 
-    print(f"Collection '{settings.rag_collection_name}' is empty — indexing corpus...")
-    index_documents(reset=False)
+    print(
+        f"Collection '{settings.rag_collection_name}' has {existing} chunks, "
+        f"expected {expected} — (re)indexing corpus from scratch..."
+    )
+    index_documents(reset=True)
 
 
 def main() -> None:
     pull_embedding_model()
-    index_corpus_if_empty()
+    index_corpus_if_incomplete()
     print("RAG bootstrap complete.")
 
 
