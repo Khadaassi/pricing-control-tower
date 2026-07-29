@@ -30,6 +30,7 @@ jobs:
       POSTGRES_HOST: localhost
       POSTGRES_PORT: 5432
       POSTGRES_DB: ci_db
+      INTERNAL_AUTH_SECRET: test_internal_auth_secret
 
     steps:
       - name: Checkout repository

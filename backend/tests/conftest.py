@@ -6,13 +6,13 @@ from uuid import uuid4
 import jwt
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 import app.api.routes.price_change_requests as price_change_requests_routes
 from app.api.dependencies.current_user import get_current_business_user
 from app.config import get_internal_auth_secret
 from app.core.internal_auth import ALGORITHM
-from app.db import SessionLocal
+from app.db import SessionLocal, engine
 from app.main import app
 from app.models.country import Country
 from app.models.permission import Permission
@@ -24,6 +24,55 @@ from app.models.role_permission import RolePermission
 from app.models.store import Store
 from app.models.user_account import UserAccount
 from app.models.user_role import UserRole
+
+# pct_analytics.obt_sales is a dbt-built table (data/dbt/models/marts/obt_sales.sql),
+# not managed by Alembic, and dbt doesn't run in the test environment. Mirror its
+# column layout here so routes reading from it are exercisable without a dbt run.
+_OBT_SALES_DDL = """
+CREATE TABLE IF NOT EXISTS pct_analytics.obt_sales (
+    transaction_id INTEGER PRIMARY KEY,
+    transaction_date TIMESTAMP NOT NULL,
+    transaction_day DATE NOT NULL,
+    transaction_month DATE NOT NULL,
+    product_id INTEGER NOT NULL,
+    product_code VARCHAR NOT NULL,
+    product_name VARCHAR NOT NULL,
+    brand VARCHAR,
+    product_family_name VARCHAR,
+    store_id INTEGER NOT NULL,
+    store_name VARCHAR NOT NULL,
+    city VARCHAR,
+    region VARCHAR,
+    country_id INTEGER NOT NULL,
+    country_code VARCHAR NOT NULL,
+    country_name VARCHAR NOT NULL,
+    price_id INTEGER,
+    price_amount NUMERIC(12, 2),
+    currency_code VARCHAR,
+    price_scope VARCHAR NOT NULL,
+    price_type VARCHAR NOT NULL,
+    is_store_specific_price BOOLEAN,
+    is_promotional_price BOOLEAN,
+    unit_price NUMERIC(12, 2) NOT NULL,
+    price_difference NUMERIC(12, 2),
+    price_difference_rate NUMERIC(12, 4),
+    promotion_id INTEGER,
+    promotion_code VARCHAR,
+    promotion_name VARCHAR,
+    discount_type VARCHAR,
+    discount_value NUMERIC(12, 2),
+    is_promo BOOLEAN NOT NULL,
+    has_promotion BOOLEAN,
+    quantity INTEGER NOT NULL,
+    revenue NUMERIC(12, 2) NOT NULL
+)
+"""
+
+
+@pytest.fixture(scope="session", autouse=True)
+def obt_sales_table():
+    with engine.begin() as connection:
+        connection.execute(text(_OBT_SALES_DDL))
 
 
 @pytest.fixture
