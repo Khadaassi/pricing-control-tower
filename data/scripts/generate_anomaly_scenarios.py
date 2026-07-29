@@ -3,7 +3,10 @@ Generate targeted anomaly scenarios calibrated against the real organic baseline
 
 Strategy:
   1. For each product, query actual organic sales in the 14-day window
-     BEFORE the promo period (2026-02-15 → 2026-02-28).
+     immediately BEFORE the promo period. Both windows are anchored on
+     date.today() (promo ends "yesterday", same convention as
+     reset_and_seed.py / generate_incremental_sales.py) so the script
+     produces a sensible date range no matter when it is run.
   2. Compute daily_quantity from that real baseline.
   3. Generate promo sales at calibrated fractions of the baseline to hit
      specific uplift targets:
@@ -23,25 +26,32 @@ Run `dbt run` after this script to refresh pct_analytics.kpi_promo_performance.
 
 from __future__ import annotations
 
-import os
 import random
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 import psycopg
+
+from _db import get_database_url
 
 CREATED_BY_USER_ID = 1
 CURRENCY_CODE = "EUR"
 ACTIVE_STATUS = "ACTIVE"
 
-ANOMALY_PROMO_START = date(2025, 2, 1)
-ANOMALY_PROMO_END = date(2025, 3, 31)
-PROMO_DAYS = (ANOMALY_PROMO_END - ANOMALY_PROMO_START).days + 1  # 59
+# Anchored on "yesterday" — same convention as reset_and_seed.py and
+# generate_incremental_sales.py — instead of a hardcoded past year, so
+# re-running this script always targets a window with real organic sales
+# data available (durations preserved: 59-day promo, 14-day baseline
+# immediately preceding it).
+PROMO_DAYS = 59
+BASELINE_DAYS = 14
 
-BASELINE_START = date(2025, 1, 1)
-BASELINE_END = date(2025, 1, 14)
-BASELINE_DAYS = (BASELINE_END - BASELINE_START).days + 1  # 14
+ANOMALY_PROMO_END = date.today() - timedelta(days=1)
+ANOMALY_PROMO_START = ANOMALY_PROMO_END - timedelta(days=PROMO_DAYS - 1)
+
+BASELINE_END = ANOMALY_PROMO_START - timedelta(days=1)
+BASELINE_START = BASELINE_END - timedelta(days=BASELINE_DAYS - 1)
 
 # Fraction of baseline daily quantity → target uplift
 SEVERITY_FRACTIONS = {
@@ -78,13 +88,6 @@ class Baseline:
 
 def money(v: Decimal | float | int) -> Decimal:
     return Decimal(str(v)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-
-def get_database_url() -> str:
-    url = os.getenv("DATABASE_URL")
-    if not url:
-        raise RuntimeError("DATABASE_URL environment variable is missing.")
-    return url
 
 
 # ---------------------------------------------------------------------------

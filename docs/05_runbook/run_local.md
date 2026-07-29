@@ -73,27 +73,30 @@ This creates the `pct_core` schema and all tables (country, store, product, pric
 
 ---
 
-## 6. Load Reference Data
+## 6. Full Reset & Seed
+
+> Replaces the old `data/generation/` CSV pipeline (removed — dead code, superseded by this
+> script, which writes directly to `pct_core` via SQL).
 
 ```bash
-python data/generation/seed_reference_data.py
+DATABASE_URL="postgresql+psycopg://pct_user:pct_password@localhost:5432/pct" \
+uv run python data/scripts/reset_and_seed.py
 ```
 
-Inserts users, countries, stores, families, products, promotions, and prices.
+Destructive (truncates all core tables first). Seeds users, countries, stores, families,
+products, prices, promotions, initial sales history, and anomaly calibration scenarios.
 
 ---
 
-## 7. Generate and Load Sales
+## 7. Keep Sales Current
 
 ```bash
-# Generate the CSV
-python data/generation/generate_sales_dataset.py
-
-# Load into database
-python data/generation/load_sales_transactions.py
+DATABASE_URL="postgresql+psycopg://pct_user:pct_password@localhost:5432/pct" \
+uv run python data/scripts/generate_incremental_sales.py
 ```
 
-The generated file is `data/generated/sales_transactions.csv` (~20,000 rows).
+Idempotent — generates sales from the day after the latest transaction up to yesterday.
+Safe to re-run.
 
 ---
 
@@ -172,9 +175,8 @@ docker compose exec postgres psql -U pct_user -d pct \
 |---|---|
 | PostgreSQL | `docker compose up -d postgres` |
 | Migrations | `cd backend && alembic upgrade head` |
-| Reference seed | `python data/generation/seed_reference_data.py` |
-| Sales generation | `python data/generation/generate_sales_dataset.py` |
-| Sales loading | `python data/generation/load_sales_transactions.py` |
+| Reset & seed | `uv run python data/scripts/reset_and_seed.py` |
+| Incremental sales | `uv run python data/scripts/generate_incremental_sales.py` |
 | dbt | `cd data && uv run dbt run --select +obt_sales +kpi_price_performance +kpi_promo_performance` |
 | dbt tests | `cd data && uv run dbt test` |
 | API | `cd backend && uvicorn app.main:app --reload --port 8000` |

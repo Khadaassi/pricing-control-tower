@@ -8,7 +8,17 @@ business-rule explanatory question does not fall through to list_anomalies.
 DOCUMENTARY_ANOMALY_PHRASES — specific anomaly handling questions that route to
 RAG (documentary knowledge) rather than to the anomaly data tool.  Must be
 evaluated before general anomaly detection (step 3b) so "anomalie" in these
-questions does not trigger the data tool.
+questions does not trigger the data tool. Includes conceptual "what/how"
+anomaly questions ("quelles anomalies existent", "comment prioriser les
+anomalies") that would otherwise be swallowed by the bare "anomalies"
+substring in GENERAL_ANOMALY_PHRASES (priority 45) before ever reaching the
+generic "comment prioriser" entry in DOCUMENTARY_KNOWLEDGE_PHRASES (110).
+
+DOCUMENTARY_PROMOTION_DIAGNOSIS_PHRASES — specific "why isn't this promotion
+working" diagnostic questions. Must be evaluated before
+CLARIFY_PROMOTION_CONTEXT_PHRASES (priority 95, promotion_phrases.py), whose
+bare "cette promo"/"cette promotion" substrings would otherwise shadow these
+more specific phrasings and force a clarification prompt instead of an answer.
 
 DOCUMENTARY_KNOWLEDGE_PHRASES — general documentary / workflow explanation
 questions answered by the RAG pipeline.
@@ -57,6 +67,16 @@ DOCUMENTARY_ANOMALY_PHRASES: list[str] = [
     "que faire avec une anomalie prix",
     "que dois-je faire avec une anomalie prix",
     "que dois je faire avec une anomalie prix",
+    "quelles anomalies existent",
+    "quelles anomalies existe",
+    "comment prioriser les anomalies",
+]
+
+DOCUMENTARY_PROMOTION_DIAGNOSIS_PHRASES: list[str] = [
+    "pourquoi cette promo ne marche pas",
+    "pourquoi cette promotion ne marche pas",
+    "pourquoi cette promo ne fonctionne pas",
+    "pourquoi cette promotion ne fonctionne pas",
 ]
 
 DOCUMENTARY_KNOWLEDGE_PHRASES: list[str] = [
@@ -110,7 +130,6 @@ DOCUMENTARY_KNOWLEDGE_PHRASES: list[str] = [
     "quel kpi regarder",
     "comment ameliorer",
     "que faire avec une anomalie",
-    "pourquoi cette promo ne marche pas",
     "comment interpreter un",
     # Promotion explanation
     "promotion active",

@@ -201,16 +201,26 @@ def list_price_change_requests(
     )
 
     return list(db.scalars(paginated_query).all()), int(total)
+def lock_price_change_request_for_update(
+    db: Session,
+    price_change_request_id: int,
+) -> PriceChangeRequest | None:
+    """Read a price change request row with a Postgres row lock (FOR UPDATE) held until the
+    caller commits/rolls back. Shared by approve/reject so a concurrent mutation on the same
+    request blocks here instead of both passing the PENDING check."""
+    return db.scalar(
+        select(PriceChangeRequest)
+        .where(PriceChangeRequest.id == price_change_request_id)
+        .with_for_update()
+    )
+
+
 def approve_and_apply_price_change_request(
     db: Session,
     price_change_request_id: int,
     performed_by_user_id: int,
 ) -> PriceChangeRequest:
-    price_change_request = db.scalar(
-        select(PriceChangeRequest).where(
-            PriceChangeRequest.id == price_change_request_id
-        )
-    )
+    price_change_request = lock_price_change_request_for_update(db, price_change_request_id)
 
     if price_change_request is None:
         raise HTTPException(
@@ -361,11 +371,7 @@ def reject_price_change_request(
     rejected_by_user_id: int,
     reason: str,
 ) -> PriceChangeRequest:
-    price_change_request = db.scalar(
-        select(PriceChangeRequest).where(
-            PriceChangeRequest.id == price_change_request_id
-        )
-    )
+    price_change_request = lock_price_change_request_for_update(db, price_change_request_id)
 
     if price_change_request is None:
         raise HTTPException(
@@ -397,36 +403,31 @@ def reject_price_change_request(
             detail="Rejection reason must not be empty",
         )
 
-    try:
-        price_change_request.status = "REJECTED"
-        price_change_request.rejection_reason = cleaned_reason
-        price_change_request.rejected_by_user_id = rejected_by_user_id
-        price_change_request.rejected_at = datetime.now(timezone.utc)
+    price_change_request.status = "REJECTED"
+    price_change_request.rejection_reason = cleaned_reason
+    price_change_request.rejected_by_user_id = rejected_by_user_id
+    price_change_request.rejected_at = datetime.now(timezone.utc)
 
-        audit_log = AuditLog(
-            price_change_request_id=price_change_request.id,
-            action_type="REQUEST_REJECTED",
-            performed_by_user_id=rejected_by_user_id,
-            description=(
-                "Price change request rejected. "
-                f"Request ID: {price_change_request.id}, "
-                f"Product ID: {price_change_request.product_id}, "
-                f"Country ID: {price_change_request.country_id}, "
-                f"Store ID: {price_change_request.store_id}, "
-                f"Current price ID: {price_change_request.current_price_id}, "
-                f"Reason: {cleaned_reason}."
-            ),
-        )
+    audit_log = AuditLog(
+        price_change_request_id=price_change_request.id,
+        action_type="REQUEST_REJECTED",
+        performed_by_user_id=rejected_by_user_id,
+        description=(
+            "Price change request rejected. "
+            f"Request ID: {price_change_request.id}, "
+            f"Product ID: {price_change_request.product_id}, "
+            f"Country ID: {price_change_request.country_id}, "
+            f"Store ID: {price_change_request.store_id}, "
+            f"Current price ID: {price_change_request.current_price_id}, "
+            f"Reason: {cleaned_reason}."
+        ),
+    )
 
-        db.add(audit_log)
-        db.commit()
-        db.refresh(price_change_request)
+    db.add(audit_log)
+    db.commit()
+    db.refresh(price_change_request)
 
-        return price_change_request
-
-    except Exception:
-        db.rollback()
-        raise
+    return price_change_request
 
 def get_current_applicable_standard_price(
     db: Session,

@@ -8,7 +8,10 @@ CLARIFY_PROMOTIONS_EXACT — bare promotion commands that need clarification.
 
 CLARIFY_PROMOTION_CONTEXT_PHRASES — vague references to "cette promotion" that
   require the user to specify a promotion ID or product.  Evaluated before the
-  documentary knowledge fallback.
+  documentary knowledge fallback, but after the more specific
+  DOCUMENTARY_PROMOTION_DIAGNOSIS_PHRASES (workflow_phrases.py, priority 94)
+  so that "pourquoi cette promo ne marche pas ?" gets an answer instead of a
+  clarification prompt.
 
 CLARIFY_PROMOTION_PHRASES — vague "tell me about promotion" queries.
 """

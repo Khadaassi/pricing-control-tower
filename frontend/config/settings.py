@@ -10,8 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
-from pathlib import Path
 import os
+from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,10 +21,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-_pms+-lj@ihlbw$#qp1(i0=4f7)px9@^n0c8o+updjyf-9z#z#'
+SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
+
+# Set to True once this deployment sits behind HTTPS (reverse proxy / load balancer with TLS
+# termination). Kept independent from DEBUG: docker-compose currently serves plain HTTP even
+# with DEBUG=False, and flipping these on without real TLS in front would lock out logins
+# (secure cookies never sent back) and break every request (forced HTTPS redirect loop).
+DJANGO_HTTPS_ENABLED = os.getenv("DJANGO_HTTPS_ENABLED", "False") == "True"
+
+SESSION_COOKIE_SECURE = DJANGO_HTTPS_ENABLED
+CSRF_COOKIE_SECURE = DJANGO_HTTPS_ENABLED
+SECURE_SSL_REDIRECT = DJANGO_HTTPS_ENABLED
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "frontend"]
 
@@ -32,6 +42,11 @@ CSRF_TRUSTED_ORIGINS = ["http://localhost:8001", "http://127.0.0.1:8001"]
 
 FASTAPI_BASE_URL = os.getenv("FASTAPI_BASE_URL", "http://127.0.0.1:8000")
 AI_SERVICE_BASE_URL = os.getenv("AI_SERVICE_BASE_URL", "http://localhost:8001")
+
+INTERNAL_AUTH_SECRET = os.getenv("INTERNAL_AUTH_SECRET")
+
+if not INTERNAL_AUTH_SECRET:
+    raise RuntimeError("INTERNAL_AUTH_SECRET environment variable is not set.")
 
 # Application definition
 

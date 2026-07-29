@@ -126,7 +126,14 @@ def build_database_url() -> str:
         return database_url
 
     db_user = os.getenv("POSTGRES_USER", "pct_user")
-    db_password = os.getenv("POSTGRES_PASSWORD", "pct_password")
+    db_password = os.getenv("POSTGRES_PASSWORD")
+
+    if not db_password:
+        raise RuntimeError(
+            "POSTGRES_PASSWORD environment variable is not set "
+            "(no hardcoded default — set DATABASE_URL or POSTGRES_PASSWORD explicitly)."
+        )
+
     db_host = os.getenv("POSTGRES_HOST", "127.0.0.1")
     db_port = os.getenv("POSTGRES_PORT", "5432")
     db_name = os.getenv("POSTGRES_DB", "pct")

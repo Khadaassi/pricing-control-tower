@@ -55,7 +55,14 @@ def build_database_url() -> str:
         return database_url
 
     db_user = os.getenv("DB_USER", "pct_user")
-    db_password = os.getenv("DB_PASSWORD", "pct_password")
+    db_password = os.getenv("DB_PASSWORD")
+
+    if not db_password:
+        raise RuntimeError(
+            "DB_PASSWORD environment variable is not set "
+            "(no hardcoded default — set DATABASE_URL or DB_PASSWORD explicitly)."
+        )
+
     db_host = os.getenv("DB_HOST", "127.0.0.1")
     db_port = os.getenv("DB_PORT", "5432")
     db_name = os.getenv("DB_NAME", "pct")
