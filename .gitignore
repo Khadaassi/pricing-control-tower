@@ -212,6 +212,19 @@ frontend/theme/static_src/node_modules/
 node_modules/
 __pycache__/
 *.pyc
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
 frontend/db.sqlite3
 db.sqlite3
 
