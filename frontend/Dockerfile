@@ -1,10 +1,18 @@
 # theme/static/css/dist/ (Tailwind output) is gitignored — built from source
 # here instead of committing compiled CSS to the repo.
+#
+# Needs the whole app tree, not just theme/static_src/: styles.css declares
+# `@source "../../../**/*.{html,py,js}"` (theme/static_src/src/styles.css),
+# which resolves to the frontend root — Tailwind v4 scans those files at
+# build time to know which utility classes to generate. Copying only
+# theme/static_src/ here left Tailwind with nothing to scan, so the build
+# "succeeded" but only ever emitted the base preflight/reset rules — no
+# actual utility classes used by the templates.
 FROM node:22-slim AS tailwind-build
+WORKDIR /app
+COPY . .
 WORKDIR /app/theme/static_src
-COPY theme/static_src/package.json theme/static_src/package-lock.json ./
 RUN npm ci
-COPY theme/static_src/ ./
 RUN npm run build
 
 FROM python:3.14-slim
