@@ -156,6 +156,22 @@ jobs:
       - name: Apply Django migrations
         run: uv run python manage.py migrate --noinput
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Tailwind dependencies
+        working-directory: frontend/theme/static_src
+        run: npm ci
+
+      - name: Build Tailwind CSS
+        working-directory: frontend/theme/static_src
+        run: npm run build
+
+      - name: Collect static files
+        run: uv run python manage.py collectstatic --noinput
+
       - name: Run frontend tests
         run: uv run python manage.py test
 
