@@ -24,3 +24,31 @@ resource "google_secret_manager_secret_iam_member" "vm_db_password_access" {
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.pct_vm.email}"
 }
+
+# Shared HMAC secret for internal service tokens between backend, frontend,
+# and ai_service — same value consumed by all three (T214/T215/T216).
+resource "random_password" "internal_auth_secret" {
+  length  = 64
+  special = false
+}
+
+resource "google_secret_manager_secret" "internal_auth_secret" {
+  secret_id = "pct-internal-auth-secret"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_version" "internal_auth_secret" {
+  secret      = google_secret_manager_secret.internal_auth_secret.id
+  secret_data = random_password.internal_auth_secret.result
+}
+
+resource "google_secret_manager_secret_iam_member" "vm_internal_auth_secret_access" {
+  secret_id = google_secret_manager_secret.internal_auth_secret.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.pct_vm.email}"
+}

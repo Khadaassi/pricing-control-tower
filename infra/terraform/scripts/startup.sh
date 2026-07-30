@@ -5,7 +5,7 @@ set -euo pipefail
 
 if ! command -v docker &>/dev/null; then
   apt-get update
-  apt-get install -y ca-certificates curl gnupg
+  apt-get install -y ca-certificates curl gnupg git
   install -m 0755 -d /etc/apt/keyrings
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
   chmod a+r /etc/apt/keyrings/docker.asc
@@ -17,6 +17,18 @@ if ! command -v docker &>/dev/null; then
   apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
   systemctl enable docker
   systemctl start docker
+fi
+
+# gcloud CLI: used by fetch-secrets.sh to pull secrets from Secret Manager.
+# On GCE, it authenticates automatically as the instance's attached service
+# account via the metadata server — no gcloud auth login needed.
+if ! command -v gcloud &>/dev/null; then
+  apt-get install -y apt-transport-https ca-certificates gnupg curl
+  curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+  echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
+    | tee /etc/apt/sources.list.d/google-cloud-sdk.list > /dev/null
+  apt-get update
+  apt-get install -y google-cloud-cli
 fi
 
 # device_name in the attached_disk block (compute.tf) is "pct-data-disk", which

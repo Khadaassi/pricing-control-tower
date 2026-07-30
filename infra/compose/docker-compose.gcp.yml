@@ -1,0 +1,25 @@
+# Production overlay for pct-app-vm. Kept separate from the root
+# docker-compose.yml (local dev) instead of merged, since Cloud SQL replaces
+# the local `postgres` service entirely rather than just overriding it.
+# Grows service-by-service across T214/T215/T216/T217.
+services:
+  backend:
+    build:
+      context: ../../backend
+    container_name: pct_backend
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must be set}
+      - INTERNAL_AUTH_SECRET=${INTERNAL_AUTH_SECRET:?INTERNAL_AUTH_SECRET must be set}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - "import json,sys,urllib.request; d=json.loads(urllib.request.urlopen('http://localhost:8000/health', timeout=3).read()); sys.exit(0 if d.get('status') == 'ok' else 1)"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s

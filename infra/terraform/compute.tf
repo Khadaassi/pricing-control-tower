@@ -19,6 +19,10 @@ resource "google_compute_instance" "pct_vm" {
   metadata = {
     # SSH access is IAM-managed (OS Login) instead of static per-instance keys.
     enable-oslogin = "TRUE"
+    # Kept in the generic `metadata` map rather than the dedicated
+    # metadata_startup_script argument — that argument forces instance
+    # replacement on every change; this key updates in place.
+    startup-script = file("${path.module}/scripts/startup.sh")
   }
 
   boot_disk {
@@ -46,8 +50,6 @@ resource "google_compute_instance" "pct_vm" {
     email  = google_service_account.pct_vm.email
     scopes = ["cloud-platform"]
   }
-
-  metadata_startup_script = file("${path.module}/scripts/startup.sh")
 
   allow_stopping_for_update = true
 }
