@@ -6,9 +6,14 @@ head` on a genuinely fresh database. Mirrors the equivalent CI setup step in
 (e.g. the local dev volume).
 """
 
-from sqlalchemy import text
+import sys
+from pathlib import Path
 
-from app.db import engine
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from sqlalchemy import text  # noqa: E402
+
+from app.db import engine  # noqa: E402
 
 with engine.begin() as connection:
     connection.execute(text("CREATE SCHEMA IF NOT EXISTS pct_core"))
