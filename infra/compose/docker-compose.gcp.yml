@@ -3,6 +3,95 @@
 # the local `postgres` service entirely rather than just overriding it.
 # Grows service-by-service across T214/T215/T216/T217.
 services:
+  chromadb:
+    image: chromadb/chroma:1.1.1
+    container_name: pct_chromadb
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 2G
+    volumes:
+      # Bind-mounted to the persistent data disk (T211) instead of a Docker
+      # volume on the boot disk — survives independently of the VM's boot disk.
+      - /mnt/data/chromadb:/chroma/chroma
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          bash -c 'exec 3<>/dev/tcp/127.0.0.1/8000 &&
+          printf "GET /api/v2/heartbeat HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3 &&
+          head -1 <&3 | grep -q 200'
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  ollama:
+    image: ollama/ollama:0.32.4
+    container_name: pct_ollama
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 4G
+    volumes:
+      - /mnt/data/ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  rag_bootstrap:
+    build:
+      context: ../../ai_service
+    container_name: pct_rag_bootstrap
+    restart: "no"
+    environment:
+      - CHROMADB_URL=http://chromadb:8000
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      - ../../docs:/docs:ro
+    entrypoint: ["uv", "run", "python3", "scripts/bootstrap_rag.py"]
+    depends_on:
+      chromadb:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+
+  ai_service:
+    build:
+      context: ../../ai_service
+    container_name: pct_ai_service
+    restart: unless-stopped
+    environment:
+      - BACKEND_API_URL=http://backend:8000
+      - CHROMADB_URL=http://chromadb:8000
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - INTERNAL_AUTH_SECRET=${INTERNAL_AUTH_SECRET:?INTERNAL_AUTH_SECRET must be set}
+      - GROQ_API_KEY=${GROQ_API_KEY:?GROQ_API_KEY must be set}
+    ports:
+      - "8002:8001"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/chat/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    depends_on:
+      backend:
+        condition: service_healthy
+      chromadb:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      rag_bootstrap:
+        condition: service_completed_successfully
+
   backend:
     build:
       context: ../../backend
@@ -31,8 +120,6 @@ services:
     restart: unless-stopped
     environment:
       - FASTAPI_BASE_URL=http://backend:8000
-      # ai_service isn't deployed yet (T216) — chatbot calls will fail until
-      # then, everything else (auth, dashboards, health) works fine.
       - AI_SERVICE_BASE_URL=http://ai_service:8001
       - INTERNAL_AUTH_SECRET=${INTERNAL_AUTH_SECRET:?INTERNAL_AUTH_SECRET must be set}
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}

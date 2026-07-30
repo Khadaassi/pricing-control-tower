@@ -79,3 +79,23 @@ resource "google_secret_manager_secret_iam_member" "vm_django_secret_key_access"
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.pct_vm.email}"
 }
+
+# Groq API key (ai_service, T216) — an external credential, not something
+# Terraform can generate. No secret_version resource here on purpose: the
+# real value is added out-of-band via `gcloud secrets versions add`, so it
+# never passes through Terraform state, git, or this conversation.
+resource "google_secret_manager_secret" "groq_api_key" {
+  secret_id = "pct-groq-api-key"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_iam_member" "vm_groq_api_key_access" {
+  secret_id = google_secret_manager_secret.groq_api_key.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.pct_vm.email}"
+}

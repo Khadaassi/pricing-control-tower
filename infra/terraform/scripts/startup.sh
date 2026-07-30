@@ -46,3 +46,7 @@ mount -o discard,defaults "$DATA_DISK" "$MOUNT_POINT" || true
 if ! grep -q "$DATA_DISK" /etc/fstab; then
   echo "$DATA_DISK $MOUNT_POINT ext4 discard,defaults,nofail 0 2" >> /etc/fstab
 fi
+
+# chromadb/ollama (T216) bind-mount here instead of using boot-disk-backed
+# Docker volumes, so their data survives independently of the VM's boot disk.
+mkdir -p "$MOUNT_POINT/chromadb" "$MOUNT_POINT/ollama"

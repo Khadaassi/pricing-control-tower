@@ -19,6 +19,7 @@ ENV_FILE="$SCRIPT_DIR/.env"
 DB_PASSWORD=$(gcloud secrets versions access latest --secret=pct-db-password --project="$PROJECT_ID")
 INTERNAL_AUTH_SECRET=$(gcloud secrets versions access latest --secret=pct-internal-auth-secret --project="$PROJECT_ID")
 DJANGO_SECRET_KEY=$(gcloud secrets versions access latest --secret=pct-django-secret-key --project="$PROJECT_ID")
+GROQ_API_KEY=$(gcloud secrets versions access latest --secret=pct-groq-api-key --project="$PROJECT_ID")
 
 cat > "$ENV_FILE" <<EOF
 DATABASE_URL=postgresql+psycopg://${DB_USER}:${DB_PASSWORD}@${CLOUDSQL_PRIVATE_IP}:5432/${DB_NAME}
@@ -28,6 +29,7 @@ DJANGO_DEBUG=False
 DJANGO_HTTPS_ENABLED=False
 DJANGO_ALLOWED_HOSTS=${VM_STATIC_IP}
 DJANGO_CSRF_TRUSTED_ORIGINS=http://${VM_STATIC_IP}:8001
+GROQ_API_KEY=${GROQ_API_KEY}
 EOF
 
 chmod 600 "$ENV_FILE"
