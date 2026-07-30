@@ -98,3 +98,14 @@ fi
 # chromadb/ollama (T216) bind-mount here instead of using boot-disk-backed
 # Docker volumes, so their data survives independently of the VM's boot disk.
 mkdir -p "$MOUNT_POINT/chromadb" "$MOUNT_POINT/ollama"
+
+# frontend's SQLite db (T220) — pre-create as an empty file, not a directory:
+# bind-mounting a host path that doesn't exist yet makes Docker create a
+# directory there instead of a file, which breaks SQLite. chmod 666 because
+# the frontend container runs as a non-root user whose UID doesn't match
+# whatever owns this file on the host.
+mkdir -p "$MOUNT_POINT/frontend"
+if [ ! -f "$MOUNT_POINT/frontend/db.sqlite3" ]; then
+  touch "$MOUNT_POINT/frontend/db.sqlite3"
+  chmod 666 "$MOUNT_POINT/frontend/db.sqlite3"
+fi

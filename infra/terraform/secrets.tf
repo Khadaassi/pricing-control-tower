@@ -126,3 +126,32 @@ resource "google_secret_manager_secret_iam_member" "vm_grafana_admin_password_ac
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.pct_vm.email}"
 }
+
+# Django superuser password (T220) — for end-to-end login testing. Not wired
+# into the app's own runtime env (only used once, manually, to bootstrap the
+# account via createsuperuser).
+resource "random_password" "django_superuser_password" {
+  length  = 24
+  special = false
+}
+
+resource "google_secret_manager_secret" "django_superuser_password" {
+  secret_id = "pct-django-superuser-password"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_version" "django_superuser_password" {
+  secret      = google_secret_manager_secret.django_superuser_password.id
+  secret_data = random_password.django_superuser_password.result
+}
+
+resource "google_secret_manager_secret_iam_member" "vm_django_superuser_password_access" {
+  secret_id = google_secret_manager_secret.django_superuser_password.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.pct_vm.email}"
+}

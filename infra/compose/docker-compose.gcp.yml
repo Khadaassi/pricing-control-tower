@@ -127,6 +127,10 @@ services:
       - DJANGO_HTTPS_ENABLED=${DJANGO_HTTPS_ENABLED:-False}
       - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:?DJANGO_ALLOWED_HOSTS must be set}
       - DJANGO_CSRF_TRUSTED_ORIGINS=${DJANGO_CSRF_TRUSTED_ORIGINS:?DJANGO_CSRF_TRUSTED_ORIGINS must be set}
+    volumes:
+      # Persisted on the data disk (T220) — without this, every container
+      # rebuild silently resets Django's sessions/admin accounts.
+      - /mnt/data/frontend/db.sqlite3:/app/db.sqlite3
     ports:
       - "8001:8001"
     healthcheck:
