@@ -52,3 +52,30 @@ resource "google_secret_manager_secret_iam_member" "vm_internal_auth_secret_acce
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.pct_vm.email}"
 }
+
+# Django's session/CSRF signing key (frontend, T215).
+resource "random_password" "django_secret_key" {
+  length  = 50
+  special = false
+}
+
+resource "google_secret_manager_secret" "django_secret_key" {
+  secret_id = "pct-django-secret-key"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_version" "django_secret_key" {
+  secret      = google_secret_manager_secret.django_secret_key.id
+  secret_data = random_password.django_secret_key.result
+}
+
+resource "google_secret_manager_secret_iam_member" "vm_django_secret_key_access" {
+  secret_id = google_secret_manager_secret.django_secret_key.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.pct_vm.email}"
+}

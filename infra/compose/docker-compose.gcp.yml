@@ -23,3 +23,31 @@ services:
       timeout: 5s
       retries: 20
       start_period: 10s
+
+  frontend:
+    build:
+      context: ../../frontend
+    container_name: pct_frontend
+    restart: unless-stopped
+    environment:
+      - FASTAPI_BASE_URL=http://backend:8000
+      # ai_service isn't deployed yet (T216) — chatbot calls will fail until
+      # then, everything else (auth, dashboards, health) works fine.
+      - AI_SERVICE_BASE_URL=http://ai_service:8001
+      - INTERNAL_AUTH_SECRET=${INTERNAL_AUTH_SECRET:?INTERNAL_AUTH_SECRET must be set}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
+      - DJANGO_DEBUG=${DJANGO_DEBUG:-False}
+      - DJANGO_HTTPS_ENABLED=${DJANGO_HTTPS_ENABLED:-False}
+      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:?DJANGO_ALLOWED_HOSTS must be set}
+      - DJANGO_CSRF_TRUSTED_ORIGINS=${DJANGO_CSRF_TRUSTED_ORIGINS:?DJANGO_CSRF_TRUSTED_ORIGINS must be set}
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    depends_on:
+      backend:
+        condition: service_healthy

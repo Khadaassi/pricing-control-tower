@@ -1,3 +1,10 @@
+resource "google_compute_address" "pct_vm_static_ip" {
+  name   = "pct-app-vm-ip"
+  region = var.region
+
+  depends_on = [google_project_service.required]
+}
+
 resource "google_compute_disk" "pct_data" {
   name = "pct-data-disk"
   zone = var.zone
@@ -41,9 +48,12 @@ resource "google_compute_instance" "pct_vm" {
   network_interface {
     network    = google_compute_network.pct_vpc.id
     subnetwork = google_compute_subnetwork.pct_subnet.id
-    # Ephemeral public IP. Harmless without firewall rules (T213) — this custom
-    # VPC has no implied allow-ingress, so nothing can reach it yet.
-    access_config {}
+    access_config {
+      # Static instead of ephemeral — DJANGO_ALLOWED_HOSTS/CSRF_TRUSTED_ORIGINS
+      # (T215) are pinned to this IP; an ephemeral one would break on every
+      # instance replacement.
+      nat_ip = google_compute_address.pct_vm_static_ip.address
+    }
   }
 
   service_account {
