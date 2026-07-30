@@ -99,3 +99,30 @@ resource "google_secret_manager_secret_iam_member" "vm_groq_api_key_access" {
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.pct_vm.email}"
 }
+
+# Grafana admin password (T217).
+resource "random_password" "grafana_admin_password" {
+  length  = 24
+  special = false
+}
+
+resource "google_secret_manager_secret" "grafana_admin_password" {
+  secret_id = "pct-grafana-admin-password"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_version" "grafana_admin_password" {
+  secret      = google_secret_manager_secret.grafana_admin_password.id
+  secret_data = random_password.grafana_admin_password.result
+}
+
+resource "google_secret_manager_secret_iam_member" "vm_grafana_admin_password_access" {
+  secret_id = google_secret_manager_secret.grafana_admin_password.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.pct_vm.email}"
+}

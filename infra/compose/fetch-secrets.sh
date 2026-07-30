@@ -20,6 +20,7 @@ DB_PASSWORD=$(gcloud secrets versions access latest --secret=pct-db-password --p
 INTERNAL_AUTH_SECRET=$(gcloud secrets versions access latest --secret=pct-internal-auth-secret --project="$PROJECT_ID")
 DJANGO_SECRET_KEY=$(gcloud secrets versions access latest --secret=pct-django-secret-key --project="$PROJECT_ID")
 GROQ_API_KEY=$(gcloud secrets versions access latest --secret=pct-groq-api-key --project="$PROJECT_ID")
+GRAFANA_ADMIN_PASSWORD=$(gcloud secrets versions access latest --secret=pct-grafana-admin-password --project="$PROJECT_ID")
 
 cat > "$ENV_FILE" <<EOF
 DATABASE_URL=postgresql+psycopg://${DB_USER}:${DB_PASSWORD}@${CLOUDSQL_PRIVATE_IP}:5432/${DB_NAME}
@@ -30,6 +31,8 @@ DJANGO_HTTPS_ENABLED=False
 DJANGO_ALLOWED_HOSTS=${VM_STATIC_IP},localhost,127.0.0.1
 DJANGO_CSRF_TRUSTED_ORIGINS=http://${VM_STATIC_IP}:8001
 GROQ_API_KEY=${GROQ_API_KEY}
+GRAFANA_ADMIN_USER=admin
+GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
 EOF
 
 chmod 600 "$ENV_FILE"
