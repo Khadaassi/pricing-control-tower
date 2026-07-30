@@ -155,3 +155,32 @@ resource "google_secret_manager_secret_iam_member" "vm_django_superuser_password
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.pct_vm.email}"
 }
+
+# Shared password for the 4 seeded RBAC demo accounts (analyst@pct.local,
+# store.manager@pct.local, store.director@pct.local, country.director@pct.local)
+# — test-only accounts to switch between business roles, not real users.
+resource "random_password" "demo_users_password" {
+  length  = 24
+  special = false
+}
+
+resource "google_secret_manager_secret" "demo_users_password" {
+  secret_id = "pct-demo-users-password"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_version" "demo_users_password" {
+  secret      = google_secret_manager_secret.demo_users_password.id
+  secret_data = random_password.demo_users_password.result
+}
+
+resource "google_secret_manager_secret_iam_member" "vm_demo_users_password_access" {
+  secret_id = google_secret_manager_secret.demo_users_password.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.pct_vm.email}"
+}
