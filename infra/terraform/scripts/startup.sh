@@ -48,6 +48,37 @@ if ! command -v gcloud &>/dev/null; then
   apt-get install -y google-cloud-cli
 fi
 
+# Cloud Logging agent (T219) — the VM's service account already has
+# roles/logging.logWriter (T211) but nothing was using it until now. Docker
+# container logs aren't collected by default, so a custom receiver tails the
+# json-file logs directly.
+if ! dpkg -s google-cloud-ops-agent &>/dev/null; then
+  curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
+  bash add-google-cloud-ops-agent-repo.sh --also-install
+  rm -f add-google-cloud-ops-agent-repo.sh
+
+  mkdir -p /etc/google-cloud-ops-agent
+  cat > /etc/google-cloud-ops-agent/config.yaml <<'YAML'
+logging:
+  receivers:
+    docker_containers:
+      type: files
+      include_paths:
+        - /var/lib/docker/containers/*/*-json.log
+  processors:
+    docker_json_parser:
+      type: parse_json
+      time_key: time
+      time_format: "%Y-%m-%dT%H:%M:%S.%L%Z"
+  service:
+    pipelines:
+      docker_pipeline:
+        receivers: [docker_containers]
+        processors: [docker_json_parser]
+YAML
+  systemctl restart google-cloud-ops-agent
+fi
+
 # device_name in the attached_disk block (compute.tf) is "pct-data-disk", which
 # is what determines this by-id path — not the google_compute_disk resource name.
 DATA_DISK=/dev/disk/by-id/google-pct-data-disk
