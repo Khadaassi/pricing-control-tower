@@ -12,6 +12,15 @@ resource "google_compute_instance" "pct_vm" {
   machine_type = var.machine_type
   zone         = var.zone
 
+  # Targets the firewall rules in firewall.tf precisely, instead of applying
+  # them to every instance on pct-vpc.
+  tags = ["pct-app-vm"]
+
+  metadata = {
+    # SSH access is IAM-managed (OS Login) instead of static per-instance keys.
+    enable-oslogin = "TRUE"
+  }
+
   boot_disk {
     initialize_params {
       image = "ubuntu-os-cloud/ubuntu-2404-lts-amd64"

@@ -20,3 +20,8 @@ variable "machine_type" {
   type        = string
   default     = "e2-standard-4"
 }
+
+variable "admin_user_email" {
+  description = "Google account granted SSH access to the VM via IAP + OS Login"
+  type        = string
+}
