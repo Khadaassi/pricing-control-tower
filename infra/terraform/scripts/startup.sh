@@ -19,6 +19,23 @@ if ! command -v docker &>/dev/null; then
   systemctl start docker
 fi
 
+# Default json-file driver has no size cap — without this, container logs
+# (backend/frontend/ai_service run continuously) grow unbounded and can fill
+# the 30G boot disk over time. Only write + restart once, on first boot.
+if [ ! -f /etc/docker/daemon.json ]; then
+  mkdir -p /etc/docker
+  cat > /etc/docker/daemon.json <<'JSON'
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "5"
+  }
+}
+JSON
+  systemctl restart docker
+fi
+
 # gcloud CLI: used by fetch-secrets.sh to pull secrets from Secret Manager.
 # On GCE, it authenticates automatically as the instance's attached service
 # account via the metadata server — no gcloud auth login needed.
