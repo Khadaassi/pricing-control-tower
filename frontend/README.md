@@ -1,5 +1,7 @@
 # Django Frontend Documentation
 
+_Last verified: 2026-08-24_
+
 ## Objective
 This document ensures traceability of frontend development and helps any developer quickly understand the Pricing Control Tower frontend.
 
@@ -12,14 +14,18 @@ The frontend is a standard Django application, organized as follows:
 - `config/`: Django project configuration (settings, urls, wsgi/asgi).
 - `core/`: Main app containing:
   - `models.py`: Data models (rarely used, as business logic is in the API).
-  - `views.py`: Django views (mainly TemplateViews consuming the FastAPI backend).
+  - `views/`: Django views (TemplateViews consuming the FastAPI backend) — see note below.
   - `urls.py`: App routes.
   - `templates/core/`: HTML templates for each business page.
-  - `templates/core/partials/`: Reusable components (alerts, badges, etc).
   - `static/` and `static_src/`: Static files (CSS, JS, images).
   - `forms.py`: Django forms for user input.
-  - `services/api_client.py`: HTTP client for API calls to FastAPI.
+  - `middleware.py`: structured request logging + Prometheus metrics middleware.
+  - `chatbot_suggestions.py`: canned suggestion phrases for the chatbot page.
+  - `services/ai_chatbot_client.py`: HTTP client for the AI service's `/chat` endpoint.
+- `services/` (repo root of the frontend, not inside `core/`): `api_client.py` (HTTP client for the FastAPI backend), `http.py`, `internal_auth.py` (builds signed internal service tokens).
 - `theme/`: Tailwind theme management (see next section).
+
+The `core/views/` package holds one module per page (dashboard, prices, products, promotions, price_history, price_change_requests, anomalies, analytics_sales, chatbot, reference_data, home, errors, pagination). Templates are flat under `core/templates/core/` (no `partials/` subfolder).
 
 ---
 
@@ -37,8 +43,9 @@ The project uses [django-tailwind](https://django-tailwind.readthedocs.io/) to i
 ## 3. FastAPI API Connection
 
 - All data displayed in the frontend is fetched via HTTP calls to the FastAPI backend.
-- The `core/services/api_client.py` module centralizes all API calls (GET/POST) and error handling.
-- Django views (in `core/views.py`) use this client to populate template context.
+- The `services/api_client.py` module (frontend root, not inside `core/`) centralizes all API calls (GET/POST) and error handling.
+- Django views (in `core/views/`) use this client to populate template context.
+- The AI chatbot page uses a separate client, `core/services/ai_chatbot_client.py`, to call the AI service's `/chat` endpoint.
 - On API error, an alert is shown with a Retry button to reload the page.
 
 ---
@@ -52,16 +59,18 @@ The project uses [django-tailwind](https://django-tailwind.readthedocs.io/) to i
 - Anomalies: Price anomaly detection.
 - Price History: Audit trail of price changes.
 - Price Change Requests: Manage price change requests.
+- Chatbot: conversational assistant page (`core/templates/core/chatbot.html`, `ChatbotView`), calling the AI service via `core/services/ai_chatbot_client.py`.
+- Login: session-based authentication page (`templates/registration/login.html`).
 
 ---
 
 ## 5. MVP Limitations
 
-- No user authentication (user ID is hardcoded for actions).
-- No advanced permissions or roles.
 - No pagination on lists.
 - API errors are displayed but not detailed (no frontend logging).
 - Forms are basic (minimal client-side validation).
+
+User authentication (Django session-based login) and permissions (RBAC, enforced backend-side — see `backend/README.md`) are implemented, not MVP limitations. The frontend passes the user's identity to the backend via a signed internal service token (`frontend/services/internal_auth.py`, shared secret `INTERNAL_AUTH_SECRET`).
 
 ---
 
@@ -73,9 +82,20 @@ The project uses [django-tailwind](https://django-tailwind.readthedocs.io/) to i
 - Minimal JavaScript: most interactions are server-rendered for reliability.
 - The "Retry" button is shown on API errors to encourage user autonomy.
 - The design is mobile-friendly but optimized for desktop usage.
-- Reusable partials (alerts, badges, etc.) are used to ensure consistency.
 
 > These design choices are pragmatic for the MVP and may evolve as user needs, feedback, or technical constraints change in future versions.
+
+---
+
+## 7. Tests (not documented in the original MVP doc)
+
+`frontend/core/` contains Django test files: `test_ai_chatbot_client.py`, `test_api_client.py`, `test_dashboard_view.py`, `test_price_change_requests_view.py`, `test_prices_promotions_views.py`, `tests.py`.
+
+```bash
+uv run python manage.py test
+```
+
+CI (`.github/workflows/ci.yml`, job `frontend-ci`) also runs `ruff check`, `makemigrations --check --dry-run`, `migrate`, builds Tailwind CSS via npm, and `collectstatic` before running these tests.
 
 ---
 

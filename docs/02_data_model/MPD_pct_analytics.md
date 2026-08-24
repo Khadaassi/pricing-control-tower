@@ -1,5 +1,7 @@
 # PDM — PostgreSQL Physical Schema `pct_analytics`
 
+_Last verified: 2026-08-24_
+
 ## 1. Purpose
 
 This physical data model (PDM) describes the concrete implementation of the `pct_analytics` schema in PostgreSQL.
@@ -63,6 +65,8 @@ Main columns:
 | performance_flag | VARCHAR(30) | Performance flag |
 | benchmark_flag | VARCHAR(40) | Benchmark flag |
 
+> ⚠️ **Obsolete/needs nuance (verified 2026-08-24)** — No SQLAlchemy model maps `pct_analytics.kpi_price_performance` in `backend/app/models/` (exhaustive search: only `obt_sales.py` and `kpi_promo_performance.py` exist for this schema). This dbt table does exist (`data/dbt/models/marts/kpi_price_performance.sql`) but is currently **not consumed by the backend API**, contrary to what section 4 might suggest.
+
 ---
 
 ### 3.3 kpi_promo_performance
@@ -85,17 +89,21 @@ Main columns:
 | promo_performance_flag | VARCHAR(30) | Promo efficiency flag |
 | family_effect_flag | VARCHAR(20) | Family effect flag |
 
+> Note (verified 2026-08-24): the actual dbt table (`data/dbt/models/marts/kpi_promo_performance.sql`) contains additional columns not listed above, including `family_promo_quantity`/`family_promo_revenue`, `family_baseline_quantity`/`family_baseline_revenue`, `promo_days_observed`, `baseline_days_observed`, `baseline_period_days`. The SQLAlchemy model `KpiPromoPerformance` (`backend/app/models/kpi_promo_performance.py`), used by `backend/app/services/anomaly_service.py`, maps a subset of these columns (the product-level metrics, the flags, and the family `*_variation_pct`) but not these raw count columns.
+
 ---
 
 ## 4. API Consumption
 
-The `pct_analytics` schema is exposed via the SQLAlchemy `ObtSales` model (read-only) and consumed by:
+> ⚠️ **Obsolete (verified 2026-08-24)** — This section indicated that the `pct_analytics` schema was only exposed via the SQLAlchemy model `ObtSales`, and that `GET /anomalies` read `pct_analytics.obt_sales`. In reality, `backend/app/services/anomaly_service.py` queries the `KpiPromoPerformance` model (`backend/app/models/kpi_promo_performance.py`), i.e. the `pct_analytics.kpi_promo_performance` table, not `obt_sales`. Table corrected below.
+
+The `pct_analytics` schema is exposed via two read-only SQLAlchemy models — `ObtSales` (`backend/app/models/obt_sales.py`) and `KpiPromoPerformance` (`backend/app/models/kpi_promo_performance.py`) — and consumed by:
 
 | Endpoint | Usage |
 |---|---|
 | `GET /sales` | Transaction listing from `pct_core.sales_transaction` |
-| `GET /kpis` | Dynamic aggregations on `pct_analytics.obt_sales` |
-| `GET /anomalies` | Rule-based detection on `pct_analytics.obt_sales` |
+| `GET /kpis` | Dynamic aggregations on `pct_analytics.obt_sales` (via `ObtSales`, see `backend/app/services/kpi_service.py`) |
+| `GET /anomalies` | Rule-based detection on `pct_analytics.kpi_promo_performance` (via `KpiPromoPerformance`, see `backend/app/services/anomaly_service.py`) |
 
 ---
 

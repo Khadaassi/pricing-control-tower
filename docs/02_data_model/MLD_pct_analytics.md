@@ -1,5 +1,7 @@
 # LDM — Analytical Schema `pct_analytics`
 
+_Last verified: 2026-08-24_
+
 ## 1. Purpose
 
 This logical data model describes the structure of the `pct_analytics` schema, built by dbt from transactional data in the `pct_core` schema.

@@ -1,5 +1,7 @@
 # Simplified CDM — Pricing Control Tower
 
+_Last verified: 2026-08-24_
+
 ## 1. Purpose
 
 This conceptual data model (CDM) describes the main business entities of the Pricing Control Tower system and their relationships.
@@ -49,6 +51,15 @@ It serves as the reference for:
 * **PriceChangeRequest**: request for a price modification
 * **User**: system user (creation / validation)
 * **AuditLog**: user action log
+
+---
+
+### Access Control (RBAC)
+
+> ⚠️ **Added (verified 2026-08-24)** — These entities were not described in this CDM. They actually exist in the code (`backend/app/models/role.py`, `permission.py`, `user_role.py`, `role_permission.py`) and are documented functionally in `docs/01_functional/rbac_roles_permissions.md`.
+
+* **Role**: business responsibility that can be assigned to one or more **User**s (e.g. `STORE_MANAGER`, `PRICING_ANALYST`)
+* **Permission**: an action a user is allowed to perform (e.g. `CREATE_PRICE_REQUEST`, `VIEW_ALL_ANOMALIES`)
 
 ---
 
@@ -108,6 +119,17 @@ It serves as the reference for:
 ### Traceability
 
 * A **User** generates entries in **AuditLog**
+
+---
+
+### Access Control (RBAC)
+
+> ⚠️ **Added (verified 2026-08-24)** — Relationships absent from the initial CDM, confirmed by `backend/app/models/user_role.py` and `backend/app/models/role_permission.py`.
+
+* A **User** can have zero, one or several **Role**s (junction table `user_role`)
+* A **Role** can be assigned to several **User**s
+* A **Role** can have zero, one or several **Permission**s (junction table `role_permission`)
+* A **Permission** can be attached to several **Role**s
 
 ---
 
