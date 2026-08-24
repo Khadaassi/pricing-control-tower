@@ -179,6 +179,12 @@ def create_promotion(
     country_id: int,
     discount_pct: Decimal,
 ) -> int:
+    # ANOMALY_PROMO_END is always "yesterday" (see module docstring), so this
+    # promo's window never actually covers today — active must reflect that,
+    # not be hardcoded true, or every calibration promo ends up flagged active
+    # with an already-past end_date.
+    is_active = ANOMALY_PROMO_START <= date.today() <= ANOMALY_PROMO_END
+
     row = conn.execute(
         """
         insert into pct_core.promotion (
@@ -188,7 +194,7 @@ def create_promotion(
             store_id, created_by, active,
             country_id, product_id
         )
-        values (%s, %s, %s, 'PERCENTAGE', %s, %s, %s, null, %s, true, %s, %s)
+        values (%s, %s, %s, 'PERCENTAGE', %s, %s, %s, null, %s, %s, %s, %s)
         returning id;
         """,
         (
@@ -196,7 +202,7 @@ def create_promotion(
             f"Calibrated anomaly scenario — target severity encoded in label.",
             discount_pct,
             ANOMALY_PROMO_START, ANOMALY_PROMO_END,
-            CREATED_BY_USER_ID, country_id, product_id,
+            CREATED_BY_USER_ID, is_active, country_id, product_id,
         ),
     ).fetchone()
     return row[0]

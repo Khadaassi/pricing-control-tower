@@ -1,0 +1,186 @@
+resource "random_password" "db_password" {
+  length  = 32
+  special = false
+}
+
+resource "google_secret_manager_secret" "db_password" {
+  secret_id = "pct-db-password"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_version" "db_password" {
+  secret      = google_secret_manager_secret.db_password.id
+  secret_data = random_password.db_password.result
+}
+
+# Scoped to this one secret — not a project-wide secretAccessor grant.
+resource "google_secret_manager_secret_iam_member" "vm_db_password_access" {
+  secret_id = google_secret_manager_secret.db_password.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.pct_vm.email}"
+}
+
+# Shared HMAC secret for internal service tokens between backend, frontend,
+# and ai_service — same value consumed by all three (T214/T215/T216).
+resource "random_password" "internal_auth_secret" {
+  length  = 64
+  special = false
+}
+
+resource "google_secret_manager_secret" "internal_auth_secret" {
+  secret_id = "pct-internal-auth-secret"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_version" "internal_auth_secret" {
+  secret      = google_secret_manager_secret.internal_auth_secret.id
+  secret_data = random_password.internal_auth_secret.result
+}
+
+resource "google_secret_manager_secret_iam_member" "vm_internal_auth_secret_access" {
+  secret_id = google_secret_manager_secret.internal_auth_secret.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.pct_vm.email}"
+}
+
+# Django's session/CSRF signing key (frontend, T215).
+resource "random_password" "django_secret_key" {
+  length  = 50
+  special = false
+}
+
+resource "google_secret_manager_secret" "django_secret_key" {
+  secret_id = "pct-django-secret-key"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_version" "django_secret_key" {
+  secret      = google_secret_manager_secret.django_secret_key.id
+  secret_data = random_password.django_secret_key.result
+}
+
+resource "google_secret_manager_secret_iam_member" "vm_django_secret_key_access" {
+  secret_id = google_secret_manager_secret.django_secret_key.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.pct_vm.email}"
+}
+
+# Groq API key (ai_service, T216) — an external credential, not something
+# Terraform can generate. No secret_version resource here on purpose: the
+# real value is added out-of-band via `gcloud secrets versions add`, so it
+# never passes through Terraform state, git, or this conversation.
+resource "google_secret_manager_secret" "groq_api_key" {
+  secret_id = "pct-groq-api-key"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_iam_member" "vm_groq_api_key_access" {
+  secret_id = google_secret_manager_secret.groq_api_key.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.pct_vm.email}"
+}
+
+# Grafana admin password (T217).
+resource "random_password" "grafana_admin_password" {
+  length  = 24
+  special = false
+}
+
+resource "google_secret_manager_secret" "grafana_admin_password" {
+  secret_id = "pct-grafana-admin-password"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_version" "grafana_admin_password" {
+  secret      = google_secret_manager_secret.grafana_admin_password.id
+  secret_data = random_password.grafana_admin_password.result
+}
+
+resource "google_secret_manager_secret_iam_member" "vm_grafana_admin_password_access" {
+  secret_id = google_secret_manager_secret.grafana_admin_password.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.pct_vm.email}"
+}
+
+# Django superuser password (T220) — for end-to-end login testing. Not wired
+# into the app's own runtime env (only used once, manually, to bootstrap the
+# account via createsuperuser).
+resource "random_password" "django_superuser_password" {
+  length  = 24
+  special = false
+}
+
+resource "google_secret_manager_secret" "django_superuser_password" {
+  secret_id = "pct-django-superuser-password"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_version" "django_superuser_password" {
+  secret      = google_secret_manager_secret.django_superuser_password.id
+  secret_data = random_password.django_superuser_password.result
+}
+
+resource "google_secret_manager_secret_iam_member" "vm_django_superuser_password_access" {
+  secret_id = google_secret_manager_secret.django_superuser_password.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.pct_vm.email}"
+}
+
+# Shared password for the 4 seeded RBAC demo accounts (analyst@pct.local,
+# store.manager@pct.local, store.director@pct.local, country.director@pct.local)
+# — test-only accounts to switch between business roles, not real users.
+resource "random_password" "demo_users_password" {
+  length  = 24
+  special = false
+}
+
+resource "google_secret_manager_secret" "demo_users_password" {
+  secret_id = "pct-demo-users-password"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_version" "demo_users_password" {
+  secret      = google_secret_manager_secret.demo_users_password.id
+  secret_data = random_password.demo_users_password.result
+}
+
+resource "google_secret_manager_secret_iam_member" "vm_demo_users_password_access" {
+  secret_id = google_secret_manager_secret.demo_users_password.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.pct_vm.email}"
+}
