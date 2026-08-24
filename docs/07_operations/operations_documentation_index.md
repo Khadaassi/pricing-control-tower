@@ -2,7 +2,7 @@
 
 This document is the entry point for all operational documentation of Pricing Control Tower.
 
-It covers the local Docker Compose environment.
+It covers the local Docker Compose environment. For the GCP production deployment, see [gcp_exploitation_runbook.md](gcp_exploitation_runbook.md) and [docs/03_architecture/gcp_cloud_architecture.md](../03_architecture/gcp_cloud_architecture.md).
 
 ---
 

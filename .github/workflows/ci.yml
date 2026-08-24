@@ -156,5 +156,39 @@ jobs:
       - name: Apply Django migrations
         run: uv run python manage.py migrate --noinput
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Tailwind dependencies
+        working-directory: frontend/theme/static_src
+        run: npm ci
+
+      - name: Build Tailwind CSS
+        working-directory: frontend/theme/static_src
+        run: npm run build
+
+      - name: Collect static files
+        run: uv run python manage.py collectstatic --noinput
+
       - name: Run frontend tests
         run: uv run python manage.py test
+
+  docker-build:
+    name: Docker image build
+    runs-on: ubuntu-latest
+    needs: [backend-ci, ai-service-tests, frontend-ci]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t pct-backend:ci ./backend
+
+      - name: Build frontend image
+        run: docker build -t pct-frontend:ci ./frontend
+
+      - name: Build ai_service image
+        run: docker build -t pct-ai-service:ci ./ai_service
