@@ -16,6 +16,16 @@ groups:
           summary: "ai_service is raising unhandled exceptions"
           description: "ai_chat_errors_total increased in the last 5 minutes — see /chat_request_failed logs for error_type and request_id."
 
+      - alert: AIChatErrorResponsesDetected
+        expr: increase(ai_chat_responses_total{status="error"}[5m]) > 0
+        for: 30s
+        labels:
+          severity: warning
+          service: ai_service
+        annotations:
+          summary: "Chatbot is returning gracefully-degraded error responses"
+          description: "ai_chat_responses_total{status=\"error\"} increased in the last 5 minutes. Unlike AIServiceErrorsDetected (unhandled exceptions) or HTTP-level error metrics, this fires on tool-level failures the orchestrator caught and reported as status=\"error\" — e.g. a backend-dependent tool that cannot reach its dependency. This is the metric that caught the 2026-07-01 backend-connectivity incident (docs/08_certification/E5_cas_pratique_monitoring_incident.md) after health checks and generic HTTP error rates stayed silent throughout it."
+
       - alert: AIServiceHighAverageLatency
         expr: (rate(ai_chat_response_latency_seconds_sum[5m]) / rate(ai_chat_response_latency_seconds_count[5m])) > 1
         for: 1m
