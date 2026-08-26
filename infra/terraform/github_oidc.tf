@@ -64,3 +64,25 @@ resource "google_project_iam_member" "github_deployer_os_login" {
   role    = "roles/compute.osLogin"
   member  = "serviceAccount:${google_service_account.github_actions_deployer.email}"
 }
+
+# Granted in addition to (not instead of) osLogin above, as a pure add rather
+# than a role replacement: the redeploy command runs `sudo docker compose`,
+# which needs a sudo-capable OS Login POSIX account. The human admin gets sudo
+# through a broader project-level IAM role held independently of their osLogin
+# grant in iam.tf; the deployer service account has no such fallback, so it
+# needs the admin variant explicitly.
+resource "google_project_iam_member" "github_deployer_os_admin_login" {
+  project = var.project_id
+  role    = "roles/compute.osAdminLogin"
+  member  = "serviceAccount:${google_service_account.github_actions_deployer.email}"
+}
+
+# gcloud compute ssh requires the caller to be able to actAs the target
+# instance's attached service account (pct_vm) when that instance has one —
+# without this, OS Login SSH fails with PERMISSION_DENIED on
+# iam.serviceAccounts.actAs, even with iap.tunnelResourceAccessor + osLogin.
+resource "google_service_account_iam_member" "github_deployer_act_as_vm_sa" {
+  service_account_id = google_service_account.pct_vm.name
+  role                = "roles/iam.serviceAccountUser"
+  member              = "serviceAccount:${google_service_account.github_actions_deployer.email}"
+}
