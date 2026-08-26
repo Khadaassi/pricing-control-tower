@@ -236,6 +236,7 @@ jobs:
             --project="$GCP_PROJECT" \
             --tunnel-through-iap \
             --command="
+              git config --global --add safe.directory /opt/pct &&
               cd /opt/pct && git pull &&
               /opt/pct/infra/compose/fetch-secrets.sh &&
               cd /opt/pct/infra/compose &&
