@@ -1,0 +1,57 @@
+# Operationalizes the thresholds already documented in
+# docs/08_certification/E3_rapport_api_modele_ia.md §4.5 — until this file
+# existed, those were text in a report, not alerts. `for:` windows are kept
+# short (demo-friendly) rather than production-length; lengthen them once this
+# runs against real traffic patterns instead of a manual demo.
+groups:
+  - name: ai_service_alerts
+    rules:
+      - alert: AIServiceErrorsDetected
+        expr: increase(ai_chat_errors_total[5m]) > 0
+        for: 30s
+        labels:
+          severity: warning
+          service: ai_service
+        annotations:
+          summary: "ai_service is raising unhandled exceptions"
+          description: "ai_chat_errors_total increased in the last 5 minutes — see /chat_request_failed logs for error_type and request_id."
+
+      - alert: AIServiceHighAverageLatency
+        expr: (rate(ai_chat_response_latency_seconds_sum[5m]) / rate(ai_chat_response_latency_seconds_count[5m])) > 1
+        for: 1m
+        labels:
+          severity: warning
+          service: ai_service
+        annotations:
+          summary: "ai_service average response latency above 1s"
+          description: "Mean /chat latency over the last 5 minutes exceeds the 1s threshold."
+
+      - alert: AIServiceSlowRequestsSpike
+        expr: (rate(ai_chat_response_latency_seconds_bucket{le="5.0"}[5m]) / rate(ai_chat_response_latency_seconds_count[5m])) < 0.5
+        for: 1m
+        labels:
+          severity: critical
+          service: ai_service
+        annotations:
+          summary: "Over half of ai_service requests take more than 5s"
+          description: "The le=5.0 latency bucket has fallen well below the total request count — most requests are no longer completing within 5 seconds."
+
+      - alert: AIServiceNoTraffic
+        expr: absent_over_time(ai_chat_requests_total[10m]) or rate(ai_chat_requests_total[10m]) == 0
+        for: 10m
+        labels:
+          severity: critical
+          service: ai_service
+        annotations:
+          summary: "ai_service has recorded zero /chat requests in 10 minutes"
+          description: "Either ai_service is unreachable (scrape gap) or the frontend has stopped sending it traffic — check the Prometheus target status for ai_service first."
+
+      - alert: AIServiceToolFallbackElevated
+        expr: (rate(ai_chat_tool_usage_total{tool_name="none"}[10m]) / (rate(ai_chat_tool_usage_total[10m]) > 0)) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          service: ai_service
+        annotations:
+          summary: "Over half of routed questions select no business tool"
+          description: "tool_name=\"none\" accounts for more than 50% of tool usage over 10 minutes — may indicate an intent-routing regression."
