@@ -227,18 +227,22 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Redeploy on pct-app-vm
-        # Identical to the manual procedure in
-        # docs/07_operations/gcp_exploitation_runbook.md §4: git pull, refresh
-        # secrets from Secret Manager, rebuild only what changed.
+        # Same steps as the manual procedure in
+        # docs/07_operations/gcp_exploitation_runbook.md §4 (git pull, refresh
+        # secrets, rebuild only what changed), run entirely under sudo: the
+        # deployer's OS Login POSIX account is not the account /opt/pct was
+        # originally cloned under (unlike the human admin's), so it has no
+        # write access to it without sudo — the manual procedure only needed
+        # sudo for the final `docker compose` step.
         run: |
           gcloud compute ssh "$GCP_VM" \
             --zone="$GCP_ZONE" \
             --project="$GCP_PROJECT" \
             --tunnel-through-iap \
             --command="
-              git config --global --add safe.directory /opt/pct &&
-              cd /opt/pct && git pull &&
-              /opt/pct/infra/compose/fetch-secrets.sh &&
+              sudo git config --global --add safe.directory /opt/pct &&
+              cd /opt/pct && sudo git pull &&
+              sudo /opt/pct/infra/compose/fetch-secrets.sh &&
               cd /opt/pct/infra/compose &&
               sudo docker compose -f docker-compose.gcp.yml --env-file .env up -d --build
             "
