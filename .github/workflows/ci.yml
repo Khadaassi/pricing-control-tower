@@ -89,6 +89,11 @@ jobs:
 
     env:
       GROQ_API_KEY: test_groq_key
+      # PyJWT rejects an empty HMAC key (InvalidKeyError) — without this,
+      # every test touching issue_service_token/decode_service_token errors
+      # out, since Settings.internal_auth_secret defaults to "" when unset.
+      # Same value convention as frontend-ci/backend-ci below.
+      INTERNAL_AUTH_SECRET: test_internal_auth_secret
 
     defaults:
       run:
