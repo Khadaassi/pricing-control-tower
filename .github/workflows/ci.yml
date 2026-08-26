@@ -112,8 +112,11 @@ jobs:
       - name: Run AI service lint
         run: uv run ruff check .
 
-      - name: Run AI service tests
-        run: uv run pytest
+      - name: Run AI service tests (with coverage gate)
+        # fail_under is set in pyproject.toml [tool.coverage.report] — see
+        # docs/08_certification/E3_rapport_api_modele_ia.md §5.4 for how that
+        # number was derived from a real measurement, not chosen upfront.
+        run: uv run pytest --cov=app --cov-report=term-missing
 
   frontend-ci:
     name: Frontend CI
