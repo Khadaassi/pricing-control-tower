@@ -3,8 +3,9 @@ import time
 import uuid
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.api.dependencies.internal_auth import require_service_caller
 from app.core.chatbot_messages import CHATBOT_TECHNICAL_ERROR_MESSAGE
 from app.core.logging_config import get_logger, log_event
 from app.core.metrics import (
@@ -64,7 +65,10 @@ def build_technical_error_response(question: str, error: Exception) -> ChatRespo
         "et retourne une réponse structurée."
     ),
 )
-def chat(request: ChatRequest) -> ChatResponse:
+def chat(
+    request: ChatRequest,
+    caller: str = Depends(require_service_caller),
+) -> ChatResponse:
     request_id = str(uuid.uuid4())
     started_at = time.perf_counter()
 
@@ -74,6 +78,7 @@ def chat(request: ChatRequest) -> ChatResponse:
         logger,
         "chat_request_received",
         request_id=request_id,
+        caller=caller,
         user_email=request.user_email,
         store_id=request.store_id,
         question_length=len(request.question),
