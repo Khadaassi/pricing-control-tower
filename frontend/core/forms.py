@@ -17,18 +17,27 @@ _INPUT_CLASS = (
 class PriceChangeRequestForm(forms.Form):
     product_id = forms.ChoiceField(
         label="Produit",
-        widget=forms.Select(attrs={"class": _SELECT_CLASS, "id": "id_product_id"}),
+        widget=forms.Select(attrs={
+            "class": _SELECT_CLASS, "id": "id_product_id",
+            "aria-describedby": "id_product_id_error",
+        }),
     )
 
     country_id = forms.ChoiceField(
         label="Pays",
-        widget=forms.Select(attrs={"class": _SELECT_CLASS, "id": "id_country_id"}),
+        widget=forms.Select(attrs={
+            "class": _SELECT_CLASS, "id": "id_country_id",
+            "aria-describedby": "id_country_id_error",
+        }),
     )
 
     store_id = forms.ChoiceField(
         label="Magasin",
         required=False,
-        widget=forms.Select(attrs={"class": _SELECT_CLASS, "id": "id_store_id"}),
+        widget=forms.Select(attrs={
+            "class": _SELECT_CLASS, "id": "id_store_id",
+            "aria-describedby": "id_store_id_error",
+        }),
     )
 
     requested_price_amount = forms.DecimalField(
@@ -41,6 +50,7 @@ class PriceChangeRequestForm(forms.Form):
                 "class": _INPUT_CLASS,
                 "step": "0.01",
                 "placeholder": "Ex : 14.99",
+                "aria-describedby": "id_requested_price_amount_error",
             }
         ),
     )
@@ -51,6 +61,7 @@ class PriceChangeRequestForm(forms.Form):
             attrs={
                 "type": "date",
                 "class": _INPUT_CLASS + " [color-scheme:light]",
+                "aria-describedby": "id_requested_effective_date_error",
             }
         ),
     )
@@ -63,9 +74,19 @@ class PriceChangeRequestForm(forms.Form):
                 "class": _INPUT_CLASS,
                 "rows": 4,
                 "placeholder": "Expliquez pourquoi ce changement de prix est nécessaire…",
+                "aria-describedby": "id_justification_error",
             }
         ),
     )
+
+    def full_clean(self):
+        """Mark fields with validation errors as aria-invalid so screen readers
+        announce them (WCAG 4.1.2 Name, Role, Value) — errors are already shown
+        visually, but were not programmatically associated with their field."""
+        super().full_clean()
+        for name in self.errors:
+            if name in self.fields:
+                self.fields[name].widget.attrs["aria-invalid"] = "true"
 
     _LOCKED_CLASS = (
         "block w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm "
