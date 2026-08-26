@@ -3,6 +3,7 @@ name: Backend CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   backend-ci:
@@ -192,3 +193,67 @@ jobs:
 
       - name: Build ai_service image
         run: docker build -t pct-ai-service:ci ./ai_service
+
+  deploy-gcp:
+    name: Deploy to GCP (pct-app-vm)
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    # The VM only ever tracks feature/gcp-deployment (see
+    # docs/07_operations/gcp_exploitation_runbook.md §4) — a push to any other
+    # branch, or a pull_request event, must never trigger a real deployment.
+    # workflow_dispatch allows an on-demand redeploy without a new commit.
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/feature/gcp-deployment')
+
+    permissions:
+      contents: read
+      id-token: write # required for Workload Identity Federation (no static key)
+
+    env:
+      GCP_PROJECT: elite-ceremony-503918-i8
+      GCP_ZONE: europe-west1-b
+      GCP_VM: pct-app-vm
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOYER_SA_EMAIL }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Redeploy on pct-app-vm
+        # Identical to the manual procedure in
+        # docs/07_operations/gcp_exploitation_runbook.md §4: git pull, refresh
+        # secrets from Secret Manager, rebuild only what changed.
+        run: |
+          gcloud compute ssh "$GCP_VM" \
+            --zone="$GCP_ZONE" \
+            --project="$GCP_PROJECT" \
+            --tunnel-through-iap \
+            --command="
+              cd /opt/pct && git pull &&
+              /opt/pct/infra/compose/fetch-secrets.sh &&
+              cd /opt/pct/infra/compose &&
+              sudo docker compose -f docker-compose.gcp.yml --env-file .env up -d --build
+            "
+
+      - name: Post-deploy health check
+        # Same endpoints as the runbook's §5 "From outside" checks. Retries
+        # because containers can take a few seconds to report healthy after
+        # `up -d --build` returns.
+        run: |
+          for i in $(seq 1 10); do
+            if curl -sf http://104.155.34.3:8001/health && curl -sf http://104.155.34.3:3000/api/health; then
+              echo "Health checks passed."
+              exit 0
+            fi
+            echo "Waiting for services to become healthy... ($i/10)"
+            sleep 15
+          done
+          echo "Post-deploy health check failed." >&2
+          exit 1
