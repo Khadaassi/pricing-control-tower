@@ -33,7 +33,20 @@ python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = "-v"
 
+[tool.coverage.run]
+source = ["app"]
+
+[tool.coverage.report]
+# 80% measured on 2026-08-26 (uv run pytest --cov=app --cov-report=term-missing)
+# is the real baseline this enforces, not an a-priori target — see
+# docs/08_certification/E3_rapport_api_modele_ia.md §5.4 for the module-level
+# breakdown and why the RAG indexing / LLM provider adapters sit well below it
+# (validated by the manual business-question campaign instead, §5.5).
+fail_under = 80
+show_missing = true
+
 [dependency-groups]
 dev = [
+    "pytest-cov>=7.1.0",
     "ruff>=0.15.20",
 ]

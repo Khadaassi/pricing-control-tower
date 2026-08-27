@@ -237,6 +237,88 @@ T189 — Create application maintenance runbook (docs/07_operations/application_
 T190 — Validate complete monitoring stack end-to-end (all services, Prometheus, Grafana, logs)
 T191 — Write full incident report consolidating T184–T186 and T190
 
+## EPIC 10 — E3 Certification Remediation (C9 / C10 / C12 / C13)
+
+Tickets issus de la revue documentaire du rapport `docs/08_certification/E3_rapport_api_modele_ia.md` : chaque écart a été vérifié dans le code avant d'être transformé en ticket, pour ne pas confondre un défaut de rédaction avec un vrai développement manquant.
+
+### Feature 10.1 — C9 : Authentifier `POST /chat` (Django → ai_service) [BACKLOG]
+**Problème** : `ai_service/app/api/routes/chat.py::chat()` n'a aucune dépendance de sécurité ni vérification d'en-tête, et `frontend/core/services/ai_chatbot_client.py::ask_chatbot()` envoie le payload JSON sans en-tête `Authorization`. La grille C9 exige explicitement un moyen d'authentification de l'API IA.
+**Objectif** : Authentifier le flux `Django → ai_service` en réutilisant le mécanisme de jeton signé déjà en place dans l'autre sens (`ai_service → backend`, `app/core/internal_auth.py::issue_service_token`, `INTERNAL_AUTH_SECRET`), plutôt que d'introduire un second mécanisme.
+**Travaux à réaliser** :
+- Ajouter côté frontend une émission de jeton (miroir de `frontend/services/internal_auth.py::issue_service_token`) et l'envoyer en en-tête `Authorization: Bearer <jeton>` depuis `ask_chatbot()`.
+- Ajouter côté `ai_service` une fonction de vérification de jeton (`app/core/internal_auth.py`, il n'existe aujourd'hui que l'émission) exposée comme dépendance FastAPI (`Depends(...)`) sur `POST /chat`.
+- Retourner `401` si l'en-tête est absent, `403` si le jeton est invalide ou expiré.
+- Ajouter les tests : jeton valide → `200` ; en-tête absent → `401` ; jeton invalide/expiré → `403`.
+**Fichiers** : `ai_service/app/api/routes/chat.py`, `ai_service/app/core/internal_auth.py`, `frontend/core/services/ai_chatbot_client.py`, `frontend/services/internal_auth.py`, tests associés dans `ai_service/tests/api/`.
+**Complexité estimée** : Moyenne (0,5–1 jour) — le mécanisme JWT existe déjà dans l'autre sens, il s'agit de le répliquer et de l'appliquer à cet endpoint.
+**Definition of Done** :
+- Appel `POST /chat` avec jeton valide → `200`.
+- Appel sans en-tête `Authorization` → `401`.
+- Appel avec jeton invalide/expiré → `403`.
+- Tests automatisés ajoutés et passants (succès + les deux cas de refus).
+- `docs/08_certification/E3_rapport_api_modele_ia.md` §2.4 mis à jour avec preuve `curl`/Swagger réelle.
+
+### Feature 10.2 — C13 : Automatiser le déploiement vers la VM GCP [FAIT]
+
+**Statut (26/08/2026)** : job `deploy-gcp` validé avec succès en conditions réelles — run GitHub Actions #151 (commit `00efb8c`, push sur `feature/gcp-deployment`), tous les jobs verts dont `Deploy to GCP (pct-app-vm)`, health checks post-déploiement confirmés indépendamment (`/health` frontend et `/api/health` Grafana → `200`). Trois corrections IAM/exploitation ont été nécessaires en cours de route (détaillées dans `docs/08_certification/E3_rapport_api_modele_ia.md` §6.6) : `roles/iam.serviceAccountUser` sur `pct-vm-sa`, `roles/compute.osAdminLogin` pour le déployeur, et exécution de `git pull`/`fetch-secrets.sh` sous `sudo` (le compte OS Login du déployeur CI n'a pas les mêmes droits que l'opérateur humain sur `/opt/pct`). DoD satisfaite.
+**Problème** : `.github/workflows/ci.yml` ne contient aucun job de déploiement (pas de `gcloud`/`ssh`/`scp`/`workflow_dispatch`). Le déploiement vers la VM GCP se fait aujourd'hui manuellement, suivant `docs/07_operations/gcp_exploitation_runbook.md` §4. La grille C13 exige explicitement que validation, tests, packaging **et déploiement** soient automatisés.
+**Objectif** : Ajouter un job de déploiement automatisé déclenché après packaging réussi, reproduisant la procédure manuelle déjà documentée et validée.
+**Travaux à réaliser** :
+- Ajouter un job `deploy` à `.github/workflows/ci.yml`, dépendant de `docker-build`, déclenché sur push vers `main` et/ou via `workflow_dispatch`.
+- Stocker les identifiants nécessaires (clé du compte de service `pct-vm-sa` ou clé SSH) en secrets GitHub Actions.
+- Reproduire dans ce job les étapes du runbook d'exploitation (pull, rebuild, redeploy Docker Compose sur la VM).
+- Ajouter une vérification post-déploiement (health check sur `/chat/health` et `/health` backend) qui fait échouer le job en cas de service dégradé.
+**Fichiers** : `.github/workflows/ci.yml`, éventuellement un script dédié type `scripts/deploy_gcp.sh`.
+**Complexité estimée** : Moyenne à élevée (1–2 jours) — gestion des secrets CI, connexion SSH depuis GitHub Actions, idempotence du redéploiement.
+**Definition of Done** :
+- Un déploiement déclenché depuis GitHub Actions met à jour effectivement le service sur la VM GCP.
+- Le job échoue si le health check post-déploiement échoue.
+- Capture d'une exécution réussie ajoutée à `docs/08_certification/E3_rapport_api_modele_ia.md` §6.6.
+
+### Feature 10.3 — C12 : Mesurer et documenter la couverture de tests [FAIT]
+
+**Statut (26/08/2026)** : `pytest-cov` intégré, couverture mesurée à 81,23 %, seuil `fail_under = 80` fixé après coup dans `pyproject.toml` et appliqué dans le job CI `ai-service-tests` (bloque la fusion en cas de régression). Détail par module et analyse I/O vs. logique métier dans `docs/08_certification/E3_rapport_api_modele_ia.md` §5.4. DoD satisfaite.
+**Problème** : `pytest-cov` n'est pas déclaré dans les dépendances de `ai_service/pyproject.toml` ; aucune mesure de couverture n'existe. La grille C12 demande explicitement un objectif de couverture et une procédure de calcul documentée.
+**Objectif** : Outiller la mesure de couverture, obtenir un chiffre réel, puis fixer un objectif cohérent avec ce chiffre — pas l'inverse.
+**Travaux à réaliser** :
+- `uv add --dev pytest-cov` dans `ai_service`.
+- Exécuter `uv run pytest --cov=app --cov-report=term-missing` et consigner le résultat obtenu.
+- Identifier les modules sous-couverts (probablement `app/orchestrator`, `app/tools`, `app/rag`, `app/api`) et compléter les tests si nécessaire.
+- Fixer un objectif de couverture documenté, justifié par le résultat mesuré.
+- Optionnel : ajouter l'étape de couverture au job `ai-service-tests` de la CI.
+**Fichiers** : `ai_service/pyproject.toml`, `.github/workflows/ci.yml` (optionnel), `docs/08_certification/E3_rapport_api_modele_ia.md` §5.4.
+**Complexité estimée** : Faible pour la mesure initiale (quelques heures) ; variable selon les lacunes de couverture identifiées.
+**Definition of Done** :
+- `pytest-cov` intégré, exécutable localement (et en CI si retenu).
+- Rapport de couverture réel obtenu et analysé.
+- Objectif de couverture documenté avec sa justification (pas de chiffre fixé a priori).
+- `docs/08_certification/E3_rapport_api_modele_ia.md` §5.4 mis à jour avec le résultat réel.
+
+### Feature 10.4 — C10 : Corriger l'accessibilité de l'interface chatbot [FAIT]
+
+**Statut (26/08/2026)** : les trois attributs (`aria-label` sur les deux boutons icône, `role="log" aria-live="polite"` sur l'historique) ajoutés à `chatbot.html` et vérifiés dans le HTML réellement rendu par Django (`render_to_string` + `RequestFactory`). Reste à faire en soutenance : démonstration clavier/lecteur d'écran live, audit de contraste. DoD partiellement satisfaite (le code est fait et vérifié par rendu ; la démonstration live reste un acte de soutenance, pas un développement).
+**Problème** : audit de `frontend/core/templates/core/chatbot.html` (E3 §3.4) — le bouton d'envoi (`#chatbot-send`) n'a ni `aria-label` ni texte visible, le bouton d'effacement (`#chatbot-page-clear`) n'a qu'un `title` sans `aria-label`, et la zone `#chatbot-history` n'a pas de région `aria-live` pour annoncer les nouveaux messages aux lecteurs d'écran.
+**Objectif** : Fermer les deux écarts d'accessibilité identifiés, qui sont des corrections ciblées et non structurelles.
+**Travaux à réaliser** :
+- Ajouter `aria-label="Envoyer la question"` sur `#chatbot-send`.
+- Ajouter `aria-label="Effacer la conversation"` sur `#chatbot-page-clear`.
+- Ajouter `aria-live="polite"` sur `#chatbot-history` pour l'annonce des nouveaux messages assistant.
+- Réaliser et documenter un test clavier manuel (Tab, Entrée, focus visible sur tous les contrôles).
+**Fichiers** : `frontend/core/templates/core/chatbot.html`.
+**Complexité estimée** : Très faible (moins d'une heure de développement ; le reste est vérification et documentation).
+**Definition of Done** :
+- Les deux boutons ont un nom accessible vérifiable (ex. via l'arbre d'accessibilité du navigateur).
+- `#chatbot-history` annonce les nouveaux messages via `aria-live`.
+- Test clavier manuel réalisé et documenté.
+- `docs/08_certification/E3_rapport_api_modele_ia.md` §3.4 mis à jour pour refléter l'état corrigé.
+
+### Feature 10.5 — C11 : Opérationnaliser les seuils d'alerte [FAIT]
+
+**Problème** : les seuils documentés en E3 §4.5 n'étaient reliés à aucune règle Prometheus, aucun Alertmanager, aucune alerte réelle — un seuil documenté n'est pas une alerte.
+**Statut (26/08/2026)** : `monitoring/prometheus/alert_rules.yml` (5 règles couvrant les seuils déjà documentés), chargé via `rule_files:` dans `prometheus.yml`, service `alertmanager` ajouté à `docker-compose.yml` et `infra/compose/docker-compose.gcp.yml` (config `monitoring/alertmanager/alertmanager.yml`), port 9093 ouvert en IAP-only dans `infra/terraform/firewall.tf` (appliqué en production). Cycle complet `pending → firing → resolved` observé et vérifié via les API Prometheus/Alertmanager en conditions réelles (détail dans `docs/08_certification/E3_rapport_api_modele_ia.md` §4.5). Aucun canal de notification externe (e-mail/Slack) configuré — pas d'identifiants disponibles pour ce MVP, documenté comme tel plutôt que simulé.
+**Fichiers** : `monitoring/prometheus/alert_rules.yml`, `monitoring/alertmanager/alertmanager.yml`, `docker-compose.yml`, `infra/compose/docker-compose.gcp.yml`, `infra/terraform/firewall.tf`.
+**DoD** : règle réelle déclenchée en environnement de test, état firing puis resolved observé, notification (Alertmanager) confirmée. Satisfaite.
+
 ## Definition of Done (global)
 
 A ticket is considered done if:

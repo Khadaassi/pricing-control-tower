@@ -3,6 +3,7 @@ name: Backend CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   backend-ci:
@@ -31,6 +32,10 @@ jobs:
       POSTGRES_PORT: 5432
       POSTGRES_DB: ci_db
       INTERNAL_AUTH_SECRET: test_internal_auth_secret
+      # TestClient(app) is used without a context manager in this test suite, so
+      # startup events (and thus the scheduler) never actually fire in pytest —
+      # this is set for documentation/defense-in-depth, not because CI needs it.
+      GDPR_RETENTION_ENABLED: "false"
 
     steps:
       - name: Checkout repository
@@ -88,6 +93,11 @@ jobs:
 
     env:
       GROQ_API_KEY: test_groq_key
+      # PyJWT rejects an empty HMAC key (InvalidKeyError) — without this,
+      # every test touching issue_service_token/decode_service_token errors
+      # out, since Settings.internal_auth_secret defaults to "" when unset.
+      # Same value convention as frontend-ci/backend-ci below.
+      INTERNAL_AUTH_SECRET: test_internal_auth_secret
 
     defaults:
       run:
@@ -111,8 +121,11 @@ jobs:
       - name: Run AI service lint
         run: uv run ruff check .
 
-      - name: Run AI service tests
-        run: uv run pytest
+      - name: Run AI service tests (with coverage gate)
+        # fail_under is set in pyproject.toml [tool.coverage.report] — see
+        # docs/08_certification/E3_rapport_api_modele_ia.md §5.4 for how that
+        # number was derived from a real measurement, not chosen upfront.
+        run: uv run pytest --cov=app --cov-report=term-missing
 
   frontend-ci:
     name: Frontend CI
@@ -192,3 +205,72 @@ jobs:
 
       - name: Build ai_service image
         run: docker build -t pct-ai-service:ci ./ai_service
+
+  deploy-gcp:
+    name: Deploy to GCP (pct-app-vm)
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    # The VM only ever tracks feature/gcp-deployment (see
+    # docs/07_operations/gcp_exploitation_runbook.md §4) — a push to any other
+    # branch, or a pull_request event, must never trigger a real deployment.
+    # workflow_dispatch allows an on-demand redeploy without a new commit.
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/feature/gcp-deployment')
+
+    permissions:
+      contents: read
+      id-token: write # required for Workload Identity Federation (no static key)
+
+    env:
+      GCP_PROJECT: elite-ceremony-503918-i8
+      GCP_ZONE: europe-west1-b
+      GCP_VM: pct-app-vm
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOYER_SA_EMAIL }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Redeploy on pct-app-vm
+        # Same steps as the manual procedure in
+        # docs/07_operations/gcp_exploitation_runbook.md §4 (git pull, refresh
+        # secrets, rebuild only what changed), run entirely under sudo: the
+        # deployer's OS Login POSIX account is not the account /opt/pct was
+        # originally cloned under (unlike the human admin's), so it has no
+        # write access to it without sudo — the manual procedure only needed
+        # sudo for the final `docker compose` step.
+        run: |
+          gcloud compute ssh "$GCP_VM" \
+            --zone="$GCP_ZONE" \
+            --project="$GCP_PROJECT" \
+            --tunnel-through-iap \
+            --command="
+              sudo git config --global --add safe.directory /opt/pct &&
+              cd /opt/pct && sudo git pull &&
+              sudo /opt/pct/infra/compose/fetch-secrets.sh &&
+              cd /opt/pct/infra/compose &&
+              sudo docker compose -f docker-compose.gcp.yml --env-file .env up -d --build
+            "
+
+      - name: Post-deploy health check
+        # Same endpoints as the runbook's §5 "From outside" checks. Retries
+        # because containers can take a few seconds to report healthy after
+        # `up -d --build` returns.
+        run: |
+          for i in $(seq 1 10); do
+            if curl -sf http://104.155.34.3:8001/health && curl -sf http://104.155.34.3:3000/api/health; then
+              echo "Health checks passed."
+              exit 0
+            fi
+            echo "Waiting for services to become healthy... ($i/10)"
+            sleep 15
+          done
+          echo "Post-deploy health check failed." >&2
+          exit 1

@@ -1,6 +1,8 @@
 from unittest.mock import Mock, patch
 
+import jwt
 import requests
+from django.conf import settings
 from django.test import TestCase, override_settings
 
 from core.services.ai_chatbot_client import (
@@ -61,6 +63,19 @@ class AskChatbotTests(TestCase):
             mock_request.call_args.kwargs["json"],
             {"question": "question", "user_email": "a@b.com", "store_id": 3},
         )
+
+    @patch("services.http.requests.request")
+    def test_sends_signed_service_bearer_token(self, mock_request):
+        mock_request.return_value = make_response(200, {"answer": "ok", "status": "answered"})
+
+        ask_chatbot("question")
+
+        auth_header = mock_request.call_args.kwargs["headers"]["Authorization"]
+        self.assertTrue(auth_header.startswith("Bearer "))
+
+        token = auth_header.removeprefix("Bearer ")
+        payload = jwt.decode(token, settings.INTERNAL_AUTH_SECRET, algorithms=["HS256"])
+        self.assertEqual(payload["sub"], "pricing-control-tower-frontend")
 
     @patch("services.http.requests.request")
     def test_connection_error_raises_ai_chatbot_connection_error(self, mock_request):

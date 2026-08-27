@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
@@ -43,5 +45,10 @@ def get_current_business_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Business user is inactive",
         )
+
+    # Extends the RGPD retention window (see gdpr_retention_service): a user is
+    # only ever anonymized after 12 months with no authenticated request at all.
+    user.last_active_at = datetime.now(UTC)
+    db.commit()
 
     return user

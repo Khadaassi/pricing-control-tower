@@ -167,6 +167,7 @@ services:
     restart: unless-stopped
     volumes:
       - ../../monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../../monitoring/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
     ports:
@@ -181,6 +182,21 @@ services:
       # cadvisor has no healthcheck (out of scope here) — just wait for it to start.
       cadvisor:
         condition: service_started
+      alertmanager:
+        condition: service_started
+
+  # Not in DJANGO_ALLOWED_HOSTS's public port set — reachable only via IAP
+  # tunnel to 9093 (firewall.tf pct-allow-iap-admin), same tier as Prometheus.
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    container_name: pct_alertmanager
+    restart: unless-stopped
+    volumes:
+      - ../../monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+    ports:
+      - "9093:9093"
 
   grafana:
     image: grafana/grafana:13.1.0

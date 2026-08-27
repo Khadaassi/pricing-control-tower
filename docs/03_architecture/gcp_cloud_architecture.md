@@ -128,6 +128,7 @@ No secret is ever stored in `docker-compose.gcp.yml`, `.env` files committed to 
 ## 6. Observability
 
 - **Prometheus** scrapes `backend`, `frontend`, `ai_service` (`/metrics`) and `cadvisor` (container-level CPU/memory) — same `prometheus.yml` as local, unchanged.
+- **Alertmanager**, IAP-tunnel-only (port 9093, `pct-allow-iap-admin`), receives the alert rules Prometheus evaluates (`monitoring/prometheus/alert_rules.yml`) — no external notification channel configured (see E3 report §4.5 for why), but firing/resolved state is real and inspectable via its API.
 - **Grafana**, public, provisioned dashboards as code (`monitoring/grafana/provisioning`) — no manual dashboard configuration.
 - **Cloud Logging**: Google Cloud Ops Agent installed on the VM, configured with a custom receiver tailing Docker's `json-file` container logs (`/var/lib/docker/containers/*/*-json.log`), parsed as JSON. This is what the `roles/logging.logWriter` role (granted at VM provisioning) is actually used for.
 - **Log rotation**: Docker daemon configured with `max-size: 10m`, `max-file: 5` per container — the default `json-file` driver has no cap and would otherwise grow unbounded on the 30G boot disk.
@@ -165,6 +166,7 @@ All of the above is provisioned by Terraform (`infra/terraform/`), split by conc
 | `apis.tf` | Required GCP APIs |
 | `network.tf` | VPC, subnet, Private Services Access peering |
 | `iam.tf` | Service account, IAM role grants |
+| `github_oidc.tf` | Workload Identity Federation pool/provider + `pct-github-deployer` service account, so GitHub Actions can redeploy the VM without a stored key (§9) |
 | `compute.tf` | VM, boot disk, persistent data disk, static IP |
 | `database.tf` | Cloud SQL instance, database, user |
 | `secrets.tf` | Every Secret Manager secret + scoped IAM grants |
@@ -173,3 +175,18 @@ All of the above is provisioned by Terraform (`infra/terraform/`), split by conc
 | `scripts/startup.sh` | VM boot-time provisioning: Docker, gcloud CLI, Ops Agent, log rotation, persistent-disk mount points |
 
 The entire infrastructure can be recreated from scratch with `terraform apply` from this directory.
+
+---
+
+## 9. Automated deployment (GitHub Actions)
+
+Job `deploy-gcp` in `.github/workflows/ci.yml`, gated to the branch the VM tracks (`feature/gcp-deployment`) plus `workflow_dispatch` for on-demand runs. It authenticates via Workload Identity Federation (`github_oidc.tf` — no service account key stored anywhere) and runs the exact command already used for manual redeploys (§5, `docs/07_operations/gcp_exploitation_runbook.md` §4), followed by a health check against the two public endpoints before the job is allowed to succeed.
+
+Two repository secrets, populated from Terraform outputs, are required for the job to authenticate — not stored in this repo:
+
+| Secret | Value source |
+|---|---|
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | `terraform output github_actions_workload_identity_provider` |
+| `GCP_DEPLOYER_SA_EMAIL` | `terraform output github_actions_deployer_email` |
+
+The deployer service account (`pct-github-deployer`) has exactly the two roles a human operator has for manual redeploys — `roles/iap.tunnelResourceAccessor` and `roles/compute.osLogin` — nothing broader (no Secret Manager access: `fetch-secrets.sh` runs as root on the VM under `pct-vm-sa`'s existing grants, not the deployer's).
