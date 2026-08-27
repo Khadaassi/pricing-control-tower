@@ -1,0 +1,34 @@
+Preuve C5 (E1 §5) — capturée le 27/08/2026, backend local (docker compose)
+
+Mécanisme réel vérifié dans le code (frontend/services/api_client.py:33-37,
+build_user_headers) : un unique jeton Bearer HS256 est émis par
+issue_service_token(user_email), où `sub` = l'email métier de l'utilisateur
+directement (pas de jeton de service générique + en-tête X-User-Email séparé).
+Le backend (app/api/dependencies/current_user.py, get_current_business_user)
+décode le jeton, résout `sub` comme UserAccount.email, puis applique RBAC/scope
+sur cet utilisateur.
+
+$ curl -s -o /dev/null -w "GET /docs -> HTTP %{http_code}\n" http://localhost:8000/docs
+GET /docs -> HTTP 200
+
+--- Cas 1 : jeton valide, store.manager@pct.local (scope store_id=1) sur son propre store ---
+$ curl -s -w "\nHTTP %{http_code}\n" \
+    -H "Authorization: Bearer <token sub=store.manager@pct.local>" \
+    "http://localhost:8000/prices?store_id=1&limit=3"
+
+{"items":[{"id":1819,"product_id":1,"product_code":"FB_14910562664828","product_name":"Ceinture cuir à boucle","price_scope":"STORE","country_id":1,"store_id":1,"price_type":"STANDARD","amount":41.5,"currency_code":"EUR","effective_from":"2025-01-01","effective_to":"2026-07-04","status":"ACTIVE","promotion_id":null}, ...],"total":354}
+HTTP 200
+
+--- Cas 2 : même utilisateur, store_id=2 (hors scope) ---
+$ curl -s -w "\nHTTP %{http_code}\n" \
+    -H "Authorization: Bearer <token sub=store.manager@pct.local>" \
+    "http://localhost:8000/prices?store_id=2&limit=3"
+
+{"detail":"Store filter is outside the user's scope"}
+HTTP 403
+
+--- Cas 3 : aucun jeton ---
+$ curl -s -w "\nHTTP %{http_code}\n" "http://localhost:8000/prices?store_id=1&limit=1"
+
+{"detail":"Missing bearer token"}
+HTTP 401
