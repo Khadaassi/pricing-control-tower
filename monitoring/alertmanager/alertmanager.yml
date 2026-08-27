@@ -1,6 +1,6 @@
 # No external notification channel (email/Slack) is wired here — this MVP
 # doesn't have SMTP or webhook credentials to configure honestly (see
-# docs/08_certification/E3_rapport_api_modele_ia.md §4.5: don't claim a
+# certification report E3 §4.5: don't claim a
 # notification channel that doesn't exist). What this config does provide is
 # real: rule evaluation, grouping, and firing/resolved state, inspectable via
 # the Alertmanager UI/API at :9093 — the actual gap this file closes.
