@@ -32,6 +32,10 @@ jobs:
       POSTGRES_PORT: 5432
       POSTGRES_DB: ci_db
       INTERNAL_AUTH_SECRET: test_internal_auth_secret
+      # TestClient(app) is used without a context manager in this test suite, so
+      # startup events (and thus the scheduler) never actually fire in pytest —
+      # this is set for documentation/defense-in-depth, not because CI needs it.
+      GDPR_RETENTION_ENABLED: "false"
 
     steps:
       - name: Checkout repository
