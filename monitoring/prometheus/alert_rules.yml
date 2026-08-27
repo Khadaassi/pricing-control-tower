@@ -1,8 +1,8 @@
-# Operationalizes the thresholds already documented in
-# docs/08_certification/E3_rapport_api_modele_ia.md §4.5 — until this file
-# existed, those were text in a report, not alerts. `for:` windows are kept
-# short (demo-friendly) rather than production-length; lengthen them once this
-# runs against real traffic patterns instead of a manual demo.
+# Operationalizes the thresholds already documented in the certification
+# report E3 §4.5 — until this file existed, those were text in a report, not
+# alerts. `for:` windows are kept short (demo-friendly) rather than
+# production-length; lengthen them once this runs against real traffic
+# patterns instead of a manual demo.
 groups:
   - name: ai_service_alerts
     rules:
