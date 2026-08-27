@@ -1,5 +1,9 @@
 # Sales Dataset Definition — MVP
 
+_Last verified: 2026-08-24_
+
+> ⚠️ **Obsolete (verified 2026-08-24)** — This document describes generation via a CSV file subsequently loaded into the database. In reality, sales generation/seeding is done by Python scripts that insert directly into the database via `psycopg` (no intermediate CSV file): `data/scripts/reset_and_seed.py` (initial seed + sales from `SALES_START` to `yesterday`), `data/scripts/generate_incremental_sales.py` (incremental sales), and `data/scripts/generate_anomaly_scenarios.py` (anomaly scenarios). See exact details in sections 5 and 13 below.
+
 ## 1. Objective
 
 This document defines the structure and simulation rules of the MVP sales dataset for the Pricing Control Tower project.
@@ -92,6 +96,8 @@ The simulated dataset must cover:
 Recommended MVP period:
 
 - `2025-01-01` to `2025-06-30`
+
+> ⚠️ **Obsolete (verified 2026-08-24)** — The actual script `data/scripts/reset_and_seed.py` defines `SALES_START = date(2025, 1, 1)` (line 47) but generates sales up to `date.today() - timedelta(days=1)` (line 781), i.e. up to the day before execution — a sliding window, not a fixed 6-month period ending on 2025-06-30. `data/scripts/generate_incremental_sales.py` then completes this flow on an ongoing basis. The actual volume therefore depends on the script's execution date and can substantially exceed the ~20,000 rows targeted for the initial 6-month window alone (see section 4).
 
 This period is long enough to support:
 
@@ -334,6 +340,8 @@ The recommended output format for the generated dataset is:
 Recommended file location:
 
 `data/sales_transactions.csv`
+
+> ⚠️ **Obsolete (verified 2026-08-24)** — No `data/sales_transactions.csv` file was found in the repository, and no script references it. The actual implementation (`data/scripts/reset_and_seed.py`, `generate_incremental_sales.py`) writes directly to `pct_core.sales_transaction` via SQL `INSERT` statements (`psycopg`), with no intermediate CSV step.
 
 ### Why CSV
 
