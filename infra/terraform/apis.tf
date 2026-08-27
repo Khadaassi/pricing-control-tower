@@ -8,6 +8,10 @@ locals {
     "secretmanager.googleapis.com",
     "sqladmin.googleapis.com",
     "servicenetworking.googleapis.com",
+    # Workload Identity Federation for GitHub Actions (github_oidc.tf) — token
+    # exchange needs both, on top of iam.googleapis.com above.
+    "iamcredentials.googleapis.com",
+    "sts.googleapis.com",
   ]
 }
 

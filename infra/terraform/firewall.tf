@@ -34,8 +34,9 @@ resource "google_compute_firewall" "allow_public_web" {
   }
 }
 
-# backend, ai_service, Prometheus, cAdvisor — reachable only for validation,
-# through an IAP TCP tunnel (`gcloud compute start-iap-tunnel`), never public.
+# backend, ai_service, Prometheus, cAdvisor, Alertmanager — reachable only for
+# validation, through an IAP TCP tunnel (`gcloud compute start-iap-tunnel`),
+# never public.
 resource "google_compute_firewall" "allow_iap_admin" {
   name    = "pct-allow-iap-admin"
   network = google_compute_network.pct_vpc.id
@@ -46,6 +47,6 @@ resource "google_compute_firewall" "allow_iap_admin" {
 
   allow {
     protocol = "tcp"
-    ports    = ["8000", "8002", "9090", "8080"]
+    ports    = ["8000", "8002", "9090", "8080", "9093"]
   }
 }

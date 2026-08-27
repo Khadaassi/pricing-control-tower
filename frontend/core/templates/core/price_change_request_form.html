@@ -71,9 +71,11 @@
                                     Produit <span class="text-red-500">*</span>
                                 </label>
                                 {{ form.product_id }}
+                                <div id="id_product_id_error">
                                 {% for error in form.product_id.errors %}
                                     <p class="mt-1 text-xs font-medium text-red-600">{{ error }}</p>
                                 {% endfor %}
+                                </div>
                             </div>
 
                             {# Product preview card #}
@@ -109,9 +111,11 @@
                                     {% endif %}
                                 </label>
                                 {{ form.country_id }}
+                                <div id="id_country_id_error">
                                 {% for error in form.country_id.errors %}
                                     <p class="mt-1 text-xs font-medium text-red-600">{{ error }}</p>
                                 {% endfor %}
+                                </div>
                             </div>
 
                             <div>
@@ -127,9 +131,11 @@
                                     {% endif %}
                                 </label>
                                 {{ form.store_id }}
+                                <div id="id_store_id_error">
                                 {% for error in form.store_id.errors %}
                                     <p class="mt-1 text-xs font-medium text-red-600">{{ error }}</p>
                                 {% endfor %}
+                                </div>
                             </div>
 
                         </div>
@@ -138,7 +144,7 @@
                     <div class="border-t border-gray-100"></div>
 
                     {# ── Section : Prix actuel ── #}
-                    <div id="current-prices-section" class="hidden">
+                    <div id="current-prices-section" class="hidden" role="status" aria-live="polite">
                         <p class="mb-3 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Prix actuel appliqué</p>
 
                         {# Loading #}
@@ -181,9 +187,11 @@
                                         Prix actuel : <span id="price-ref-value" class="font-semibold text-gray-600"></span>
                                     </div>
                                 </div>
+                                <div id="id_requested_price_amount_error">
                                 {% for error in form.requested_price_amount.errors %}
                                     <p class="mt-1 text-xs font-medium text-red-600">{{ error }}</p>
                                 {% endfor %}
+                                </div>
                             </div>
 
                             <div>
@@ -191,9 +199,11 @@
                                     Date d'effet <span class="text-red-500">*</span>
                                 </label>
                                 {{ form.requested_effective_date }}
+                                <div id="id_requested_effective_date_error">
                                 {% for error in form.requested_effective_date.errors %}
                                     <p class="mt-1 text-xs font-medium text-red-600">{{ error }}</p>
                                 {% endfor %}
+                                </div>
                             </div>
 
                         </div>
@@ -208,9 +218,11 @@
                         </label>
                         {{ form.justification }}
                         <p class="mt-1 text-xs text-gray-400">Minimum 10 caractères.</p>
+                        <div id="id_justification_error">
                         {% for error in form.justification.errors %}
                             <p class="mt-1 text-xs font-medium text-red-600">{{ error }}</p>
                         {% endfor %}
+                        </div>
                     </div>
 
                     {% if form.non_field_errors %}

@@ -4,13 +4,19 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app.api.routes.chat as chat_routes
+from app.core.internal_auth import issue_service_token
 from app.main import app
 from app.orchestrator.chatbot_orchestrator import ChatbotOrchestrator
 
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(app)
+    # POST /chat requires a bearer token (see test_chat_auth.py) — every other
+    # test in this package exercises orchestration behavior, not auth, so the
+    # client carries a valid token by default rather than making all ~20 call
+    # sites in test_chat_endpoint.py pass one individually.
+    token = issue_service_token("test-caller")
+    return TestClient(app, headers={"Authorization": f"Bearer {token}"})
 
 
 @pytest.fixture

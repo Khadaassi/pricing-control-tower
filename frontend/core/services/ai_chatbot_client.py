@@ -6,8 +6,15 @@ from typing import Any
 from django.conf import settings
 
 from services.http import do_request
+from services.internal_auth import issue_service_token
 
 logger = logging.getLogger("pricing_control_tower.frontend.ai_chatbot_client")
+
+# Identifies the calling *service* (this Django frontend) to ai_service's
+# POST /chat, per the shared JWT scheme in services/internal_auth.py — not a
+# business user identity. The end user, if any, still travels separately in
+# the request body as `user_email`, used downstream for RBAC by the backend.
+AI_SERVICE_CALLER_IDENTITY = "pricing-control-tower-frontend"
 
 
 class AiChatbotClientError(Exception):
@@ -46,6 +53,7 @@ def ask_chatbot(
     """Send a question to the AI service /chat endpoint and return its JSON response."""
     url = f"{settings.AI_SERVICE_BASE_URL.rstrip('/')}/chat"
     payload = build_chat_payload(question, user_email, store_id)
+    token = issue_service_token(AI_SERVICE_CALLER_IDENTITY)
 
     return do_request(
         "POST",
@@ -54,6 +62,7 @@ def ask_chatbot(
         connection_error_cls=AiChatbotConnectionError,
         response_error_cls=AiChatbotResponseError,
         json=payload,
+        headers={"Authorization": f"Bearer {token}"},
         timeout=30,
         on_success=lambda status_code, duration_ms: logger.info(
             "AI service call succeeded",
