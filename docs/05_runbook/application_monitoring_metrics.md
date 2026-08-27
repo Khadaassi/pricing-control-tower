@@ -387,7 +387,7 @@ Example:
 
 ## 4. Suggested alerting rules
 
-The MVP does not include an automated alerting platform yet. The following rules define the target behavior for a future monitoring system.
+An automated alerting platform (Prometheus + Alertmanager) is now in place — see [`ai_chatbot_monitoring.md`](ai_chatbot_monitoring.md) §4.5 and §8, and [`monitoring/prometheus/alert_rules.yml`](../../monitoring/prometheus/alert_rules.yml) — but it currently only covers the AI service. The following rules define the target behavior for extending this same platform to the backend and frontend, which do not yet have dedicated alert rules.
 
 | Metric                  | Warning threshold           | Critical threshold                   |
 | ----------------------- | --------------------------- | ------------------------------------ |
@@ -412,14 +412,16 @@ Current capabilities:
 * `/health` endpoint with PostgreSQL check
 * user traceability through `X-User-Email`
 * manual inspection through console logs
+* Prometheus scraping `/metrics` on backend, frontend, ai_service, and cAdvisor (`monitoring/prometheus/prometheus.yml`)
+* Grafana dashboards, provisioned automatically (`pricing-control-tower-global.json`, `ai_chatbot_dashboard.json`)
+* automated alerting for the AI service via Prometheus + Alertmanager (see section 4)
 
 Current limitations:
 
-* no centralized log aggregation
-* no automated alerting
-* no metrics dashboard
+* no centralized log aggregation (no Loki or equivalent)
+* no automated alerting for the backend or frontend yet — only the AI service has alert rules (see section 4)
 * no long-term log retention policy
-* no Prometheus or Grafana integration yet
+* no external alert notification channel (email/Slack) configured
 
 These limitations are acceptable for the MVP and can be addressed in a later production-oriented iteration.
 
@@ -431,7 +433,8 @@ This monitoring setup contributes to the following RNCP expectations:
 
 | Evidence                | Description                                                     |
 | ----------------------- | --------------------------------------------------------------- |
-| Application monitoring  | FastAPI and Django structured logs                              |
+| Application monitoring  | FastAPI and Django structured logs, plus Prometheus metrics and Grafana dashboards across all three services |
+| Automated alerting      | Prometheus + Alertmanager, operational for the AI service (see section 4) |
 | Incident diagnosis      | API failures and request errors are visible                     |
 | Exploitability          | `/health` allows quick system status verification               |
 | Traceability            | User email is logged when available                             |

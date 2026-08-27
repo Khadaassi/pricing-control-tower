@@ -423,12 +423,18 @@ The "Business tool usage" panel uses an instant query (`"instant": true` on the 
    curl http://localhost:8001/metrics
    ```
 3. Open Prometheus at `http://localhost:9090` and check that the `ai_service` target is `UP` (**Status → Targets**).
-4. Generate chatbot traffic:
+4. Generate chatbot traffic. `POST /chat` requires a signed service bearer token since the C9 remediation (`require_service_caller`, `ai_service/app/api/dependencies/internal_auth.py`) — issue one the same way the frontend does:
    ```bash
+   TOKEN=$(docker compose exec frontend python manage.py shell -c "
+   from services.internal_auth import issue_service_token
+   print(issue_service_token('pricing-control-tower-frontend'))")
+
    curl -X POST http://localhost:8001/chat \
      -H "Content-Type: application/json" \
+     -H "Authorization: Bearer $TOKEN" \
      -d '{"question":"Que peut faire un store manager ?"}'
    ```
+   A request without the `Authorization` header now returns `401`.
 5. Open Grafana at `http://localhost:3000`, then **Dashboards → Pricing Control Tower → AI Chatbot Monitoring**.
 6. Verify that request volume, errors, latency, and tool usage are visible.
 
@@ -437,7 +443,7 @@ The "Business tool usage" panel uses an instant query (`"instant": true` on the 
 * metrics are collected only while the local Docker Compose stack is running;
 * no persistent Grafana volume is configured in the MVP — Grafana's own state (dashboards aside, which are re-provisioned from disk) does not survive a container recreation;
 * Grafana uses local development credentials (`admin` / `admin`);
-* no alerting rules are configured in Grafana yet (see section 4.4 for manual threshold references);
+* alerting is handled via Prometheus + Alertmanager, not via Grafana's native alerting feature — the thresholds in section 4.4 are implemented as real rules in [`monitoring/prometheus/alert_rules.yml`](../../monitoring/prometheus/alert_rules.yml), evaluated continuously and dispatched to [`monitoring/alertmanager/alertmanager.yml`](../../monitoring/alertmanager/alertmanager.yml); no external notification channel (email/Slack) is configured yet;
 * the dashboard focuses on technical observability (requests, errors, latency, tool usage), not business KPI analysis;
 * metrics do not expose user questions or personal data (see section 3.3);
 * the chatbot currently selects one business tool per question.
