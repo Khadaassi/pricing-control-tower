@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.api.dependencies.current_user import get_current_business_user
 from app.db import get_db
 from app.models.product import Product
+from app.models.user_account import UserAccount
 from app.schemas.product import ProductRead
 
 router = APIRouter(prefix="/products", tags=["Products"])
@@ -17,6 +19,7 @@ def list_products(
     limit: int = Query(default=25, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
+    current_user: UserAccount = Depends(get_current_business_user),
 ):
     stmt = select(Product).options(
         selectinload(Product.family),
