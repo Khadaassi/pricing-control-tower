@@ -1,0 +1,56 @@
+# Journal de veille technique et réglementaire — Pricing Control Tower
+
+## 1. Objet
+
+Ce journal trace, semaine par semaine, la veille technique et réglementaire menée sur le projet (fournisseurs LLM/embeddings, bases vectorielles, RAG, sécurité des API d'IA, RGPD appliqué à l'IA). Il matérialise la remédiation engagée en E2 §2.1 : passer d'une veille réactive (déclenchée par un incident ou une décision structurante) à une veille planifiée, avec une récurrence minimale d'environ une heure par semaine.
+
+Chaque entrée répond à trois questions : qu'est-ce qui a été consulté, qu'est-ce qui en ressort, est-ce que ça change quelque chose au projet (et si oui, quoi — avec un renvoi vers le commit ou le document concerné).
+
+Une entrée sans décision n'est pas un échec : « rien de nouveau à signaler cette semaine » est une entrée valide, tant qu'elle est datée et qu'elle montre que la veille a bien eu lieu.
+
+---
+
+## 2. Entrées rétroactives (veille réactive, avant la mise en place de ce journal)
+
+Ces trois décisions sont documentées en détail dans le rapport E2 §2.1–§2.3 ; elles sont consolidées ici pour donner un point de départ au journal, pas pour se substituer au rapport.
+
+### 28/07/2026 — Qualité des embeddings en français
+
+**Consulté** : test comparatif réel sur le corpus RAG (SmartData Generator), 4 requêtes en français.
+**Constat** : `mxbai-embed-large` discrimine mal 2 requêtes sur 4 ; `bge-m3` (multilingue) les discrimine correctement.
+**Décision** : bascule vers `bge-m3` sur SmartData Generator. Pricing Control Tower conserve `mxbai-embed-large`, validé séparément sur son propre corpus (cf. E2 §3.3).
+**Preuve** : commit `c2b1843`.
+
+### 28/07/2026 — Contrainte d'environnement ChromaDB
+
+**Consulté** : échec d'installation du client ChromaDB embarqué (pas de wheel `onnxruntime` compatible macOS x86_64 + Python 3.12).
+**Décision** : bascule vers `chromadb-client` (HTTP) + service Docker autonome — confirme rétroactivement l'architecture déjà retenue pour Pricing Control Tower (§3.4).
+
+### 26/08/2026 — Dépréciation du modèle Groq
+
+**Consulté** : `console.groq.com/docs/deprecations`.
+**Constat** : `llama-3.1-8b-instant` déprécié pour les offres Free/Developer.
+**Décision** : migration vers `openai/gpt-oss-20b`, testée puis validée par la suite de non-régression (623 tests).
+**Preuve** : commit `3f209fd`.
+
+---
+
+## 3. Journal hebdomadaire (à partir du 25/08/2026)
+
+<!-- Gabarit à dupliquer pour chaque nouvelle semaine :
+
+### JJ/MM/AAAA
+
+**Sources consultées** :
+**Constat** :
+**Impact projet** : (aucun / décision prise → commit ou doc)
+**Temps passé** : ~X min
+
+-->
+
+### 27/08/2026
+
+**Sources consultées** :
+**Constat** :
+**Impact projet** :
+**Temps passé** :
