@@ -14,7 +14,7 @@ The chatbot must handle three distinct question types:
 | Question type | Source of truth | Mechanism |
 |---|---|---|
 | Live operational data | Backend API / PostgreSQL | Tool Calling |
-| Documentary knowledge | Project documentation (18 documents) | RAG |
+| Documentary knowledge | Project documentation (23 documents) | RAG |
 | Response wording and synthesis | LLM (grounded, not free) | Controlled generation |
 
 **Core principle:** Tool Calling takes absolute priority for operational data.
