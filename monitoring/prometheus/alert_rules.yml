@@ -24,7 +24,7 @@ groups:
           service: ai_service
         annotations:
           summary: "Chatbot is returning gracefully-degraded error responses"
-          description: "ai_chat_responses_total{status=\"error\"} increased in the last 5 minutes. Unlike AIServiceErrorsDetected (unhandled exceptions) or HTTP-level error metrics, this fires on tool-level failures the orchestrator caught and reported as status=\"error\" — e.g. a backend-dependent tool that cannot reach its dependency. This is the metric that caught the 2026-07-01 backend-connectivity incident (docs/08_certification/E5_cas_pratique_monitoring_incident.md) after health checks and generic HTTP error rates stayed silent throughout it."
+          description: "ai_chat_responses_total{status=\"error\"} increased in the last 5 minutes. Unlike AIServiceErrorsDetected (unhandled exceptions) or HTTP-level error metrics, this fires on tool-level failures the orchestrator caught and reported as status=\"error\" — e.g. a backend-dependent tool that cannot reach its dependency. This is the metric that caught the 2026-07-01 backend-connectivity incident (docs/06_validation/incident_report_backend_connectivity.md) after health checks and generic HTTP error rates stayed silent throughout it."
 
       - alert: AIServiceHighAverageLatency
         expr: (rate(ai_chat_response_latency_seconds_sum[5m]) / rate(ai_chat_response_latency_seconds_count[5m])) > 1
