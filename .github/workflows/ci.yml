@@ -210,11 +210,12 @@ jobs:
     name: Deploy to GCP (pct-app-vm)
     runs-on: ubuntu-latest
     needs: [docker-build]
-    # The VM only ever tracks feature/gcp-deployment (see
-    # docs/07_operations/gcp_exploitation_runbook.md §4) — a push to any other
-    # branch, or a pull_request event, must never trigger a real deployment.
-    # workflow_dispatch allows an on-demand redeploy without a new commit.
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/feature/gcp-deployment')
+    # The VM tracks develop (see docs/07_operations/gcp_exploitation_runbook.md
+    # §4) — a push to any other branch, or a pull_request event, must never
+    # trigger a real deployment. workflow_dispatch allows an on-demand redeploy
+    # without a new commit. Was feature/gcp-deployment until that branch was
+    # merged into develop and deleted (git-flow feature finish).
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/develop')
 
     permissions:
       contents: read
