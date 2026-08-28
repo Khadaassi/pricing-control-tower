@@ -6,8 +6,9 @@ This document describes the vector indexing layer of the Pricing Control Tower R
 It covers the technology choices, corpus configuration, chunking strategy, metadata schema,
 and operational commands.
 
-This layer is responsible for transforming the 18 documents retained in T194 into
-searchable vector embeddings stored in ChromaDB.
+This layer is responsible for transforming the documents retained in the corpus
+manifest into searchable vector embeddings stored in ChromaDB. The corpus started
+at 18 documents in T194 and has since grown to 23 (see §4).
 
 ---
 
@@ -65,18 +66,21 @@ Replacing the provider does not require changing the retrieval logic.
 
 ## 4. Indexed corpus
 
-18 documents retained from the T194 manifest
-(`docs/05_ai/rag_document_corpus_manifest.md`).
+23 documents retained from the corpus manifest
+(`docs/05_ai/rag_document_corpus_manifest.md`), up from the original 18 in T194 —
+434 chunks currently indexed (verified against the live ChromaDB collection,
+27/08/2026).
 
 | Domain | Documents |
 |---|---|
-| architecture | 7 |
+| architecture | 6 |
+| business_knowledge | 4 |
+| rbac | 3 |
+| user_guide | 3 |
 | business_rules | 2 |
-| rbac | 2 |
-| user_guide | 2 |
 | monitoring | 2 |
-| api | 1 |
 | operations | 2 |
+| api | 1 |
 
 ---
 
@@ -187,6 +191,6 @@ uv run python scripts/search_rag_documents.py "How is the chatbot monitored?"
 | No automatic re-indexing | Corpus changes require a manual `--reset` run | T196+ |
 | No orchestrator integration | RAG retrieval is not yet wired to the chatbot response flow | T196 |
 | Retrieval only — no answer generation | Scripts return passages, not final answers | T196 |
-| Corpus limited to T194 documents | Only 18 documents indexed | T197 if corpus grows |
+| ~~Corpus limited to T194 documents~~ | Resolved — grown to 23 documents (§4) | Done |
 | Intel Mac CPU indexing: ~270s | Slow but functional; Docker deployment on Linux will be faster | Deployment |
 | `mxbai-embed-large` context: 512 tokens | Chunks truncated at 1400 chars | Acceptable for MVP |

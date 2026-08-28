@@ -1,0 +1,35 @@
+Preuve C21 (E5 fin) — rejeu réel de l'incident, capturé le 27/08/2026 sur la stack locale complète (docker compose, 11 services)
+
+Reproduction : docker-compose.yml, ai_service.environment.BACKEND_API_URL
+temporairement changé de http://backend:8000 vers http://backend-wrong:8000,
+puis `docker compose up -d ai_service` pour recréer le conteneur avec la
+config cassée (même procédure que l'incident du 01/07/2026).
+
+Chronologie observée (UTC, 27/08/2026) :
+
+20:24:30  GET /chat/health -> {"status":"degraded", checks.backend.reachable=false}
+20:24:39  POST /chat (anomaly_tool) -> HTTP 200, {"status":"error","error_type":"ConnectError"}
+          (+ 3 appels supplémentaires jusqu'à ai_chat_responses_total{status="error"}=3)
+20:29:12  Règle Prometheus AIChatErrorResponsesDetected -> pending
+          (activeAt: 2026-08-27T20:29:12.913365411Z)
+20:29:42  Règle -> firing (for: 30s écoulé)
+          Alertmanager: startsAt 2026-08-27T20:29:42.913Z, status.state=active
+          fingerprint 75189245c19d3f81, receiver "default"
+20:30:07  docker-compose.yml restauré (BACKEND_API_URL=http://backend:8000),
+          `docker compose up -d ai_service`
+20:30:13  GET /chat/health -> {"status":"ok", checks.backend.reachable=true}
+20:30:1x  POST /chat (anomaly_tool) -> {"status":"answered", 20 anomalies retournées}
+20:34:47  Règle Prometheus AIChatErrorResponsesDetected -> inactive
+          Alertmanager: GET /api/v2/alerts -> [] (aucune alerte active)
+
+Vérifié indépendamment via les deux API à chaque étape (/api/v1/rules et
+/api/v1/alerts côté Prometheus, /api/v2/alerts côté Alertmanager) — pas
+seulement via l'UI. Captures d'écran associées :
+  - e5_prometheus_alerts_firing.png (Prometheus /alerts, AIChatErrorResponsesDetected en rouge, FIRING (1))
+  - e5_alertmanager_active.png (Alertmanager, 1 alerte active, labels alertname/service/status/severity visibles)
+
+Boucle complète confirmée : faute injectée -> dégradation fonctionnelle
+(status="error", infra restée verte) -> pending -> firing -> correctif ->
+resolved. Résolution à 20:34:47, soit ~5 min après le dernier appel en
+erreur (20:29:39ème), cohérente avec la fenêtre glissante increase(...[5m])
+de la règle, pas avec un délai de diagnostic.

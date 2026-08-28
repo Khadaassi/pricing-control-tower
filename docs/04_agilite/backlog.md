@@ -237,11 +237,13 @@ T189 — Create application maintenance runbook (docs/07_operations/application_
 T190 — Validate complete monitoring stack end-to-end (all services, Prometheus, Grafana, logs)
 T191 — Write full incident report consolidating T184–T186 and T190
 
-## EPIC 10 — E3 Certification Remediation (C9 / C10 / C12 / C13)
+## EPIC 10 — Certification Remediation (C9 / C10 / C11 / C12 / C13 / C17 / C21)
 
-Tickets issus de la revue documentaire du rapport `docs/08_certification/E3_rapport_api_modele_ia.md` : chaque écart a été vérifié dans le code avant d'être transformé en ticket, pour ne pas confondre un défaut de rédaction avec un vrai développement manquant.
+Tickets issus de la revue documentaire des rapports de certification (E3, E4, E5) : chaque écart a été vérifié dans le code avant d'être transformé en ticket, pour ne pas confondre un défaut de rédaction avec un vrai développement manquant.
 
-### Feature 10.1 — C9 : Authentifier `POST /chat` (Django → ai_service) [BACKLOG]
+### Feature 10.1 — C9 : Authentifier `POST /chat` (Django → ai_service) [FAIT]
+
+**Statut (26/08/2026)** : authentification implémentée en réutilisant le mécanisme de jeton signé déjà en place dans l'autre sens — `ai_service/app/api/dependencies/internal_auth.py::require_service_caller` (dépendance FastAPI, schéma `HTTPBearer`) vérifie le jeton via `ai_service/app/core/internal_auth.py::decode_service_token` ; `frontend/core/services/ai_chatbot_client.py::ask_chatbot()` émet ce jeton via `issue_service_token()` et l'envoie en en-tête `Authorization: Bearer`. Preuve `curl` réelle : en-tête absent → `401`, jeton invalide/forgé → `401`, jeton valide → `200`. 6 nouveaux tests (`ai_service/tests/api/test_chat_auth.py`) + 1 côté frontend ; suite complète passante (623 tests ai_service + 67 frontend). Détail dans rapport E3 §2.4. DoD satisfaite, à une nuance de forme près : le code retourne `401` de façon uniforme (en-tête absent *et* jeton invalide/expiré) plutôt que `403` pour ce second cas comme prévu initialement — écart mineur par rapport à la formulation d'origine, pas une faille de sécurité.
 **Problème** : `ai_service/app/api/routes/chat.py::chat()` n'a aucune dépendance de sécurité ni vérification d'en-tête, et `frontend/core/services/ai_chatbot_client.py::ask_chatbot()` envoie le payload JSON sans en-tête `Authorization`. La grille C9 exige explicitement un moyen d'authentification de l'API IA.
 **Objectif** : Authentifier le flux `Django → ai_service` en réutilisant le mécanisme de jeton signé déjà en place dans l'autre sens (`ai_service → backend`, `app/core/internal_auth.py::issue_service_token`, `INTERNAL_AUTH_SECRET`), plutôt que d'introduire un second mécanisme.
 **Travaux à réaliser** :
@@ -256,11 +258,11 @@ Tickets issus de la revue documentaire du rapport `docs/08_certification/E3_rapp
 - Appel sans en-tête `Authorization` → `401`.
 - Appel avec jeton invalide/expiré → `403`.
 - Tests automatisés ajoutés et passants (succès + les deux cas de refus).
-- `docs/08_certification/E3_rapport_api_modele_ia.md` §2.4 mis à jour avec preuve `curl`/Swagger réelle.
+- rapport E3 §2.4 mis à jour avec preuve `curl`/Swagger réelle.
 
 ### Feature 10.2 — C13 : Automatiser le déploiement vers la VM GCP [FAIT]
 
-**Statut (26/08/2026)** : job `deploy-gcp` validé avec succès en conditions réelles — run GitHub Actions #151 (commit `00efb8c`, push sur `feature/gcp-deployment`), tous les jobs verts dont `Deploy to GCP (pct-app-vm)`, health checks post-déploiement confirmés indépendamment (`/health` frontend et `/api/health` Grafana → `200`). Trois corrections IAM/exploitation ont été nécessaires en cours de route (détaillées dans `docs/08_certification/E3_rapport_api_modele_ia.md` §6.6) : `roles/iam.serviceAccountUser` sur `pct-vm-sa`, `roles/compute.osAdminLogin` pour le déployeur, et exécution de `git pull`/`fetch-secrets.sh` sous `sudo` (le compte OS Login du déployeur CI n'a pas les mêmes droits que l'opérateur humain sur `/opt/pct`). DoD satisfaite.
+**Statut (26/08/2026)** : job `deploy-gcp` validé avec succès en conditions réelles — run GitHub Actions #151 (commit `00efb8c`, push sur `feature/gcp-deployment`), tous les jobs verts dont `Deploy to GCP (pct-app-vm)`, health checks post-déploiement confirmés indépendamment (`/health` frontend et `/api/health` Grafana → `200`). Trois corrections IAM/exploitation ont été nécessaires en cours de route (détaillées dans rapport E3 §6.6) : `roles/iam.serviceAccountUser` sur `pct-vm-sa`, `roles/compute.osAdminLogin` pour le déployeur, et exécution de `git pull`/`fetch-secrets.sh` sous `sudo` (le compte OS Login du déployeur CI n'a pas les mêmes droits que l'opérateur humain sur `/opt/pct`). DoD satisfaite.
 **Problème** : `.github/workflows/ci.yml` ne contient aucun job de déploiement (pas de `gcloud`/`ssh`/`scp`/`workflow_dispatch`). Le déploiement vers la VM GCP se fait aujourd'hui manuellement, suivant `docs/07_operations/gcp_exploitation_runbook.md` §4. La grille C13 exige explicitement que validation, tests, packaging **et déploiement** soient automatisés.
 **Objectif** : Ajouter un job de déploiement automatisé déclenché après packaging réussi, reproduisant la procédure manuelle déjà documentée et validée.
 **Travaux à réaliser** :
@@ -273,11 +275,11 @@ Tickets issus de la revue documentaire du rapport `docs/08_certification/E3_rapp
 **Definition of Done** :
 - Un déploiement déclenché depuis GitHub Actions met à jour effectivement le service sur la VM GCP.
 - Le job échoue si le health check post-déploiement échoue.
-- Capture d'une exécution réussie ajoutée à `docs/08_certification/E3_rapport_api_modele_ia.md` §6.6.
+- Capture d'une exécution réussie ajoutée à rapport E3 §6.6.
 
 ### Feature 10.3 — C12 : Mesurer et documenter la couverture de tests [FAIT]
 
-**Statut (26/08/2026)** : `pytest-cov` intégré, couverture mesurée à 81,23 %, seuil `fail_under = 80` fixé après coup dans `pyproject.toml` et appliqué dans le job CI `ai-service-tests` (bloque la fusion en cas de régression). Détail par module et analyse I/O vs. logique métier dans `docs/08_certification/E3_rapport_api_modele_ia.md` §5.4. DoD satisfaite.
+**Statut (26/08/2026)** : `pytest-cov` intégré, couverture mesurée à 81,23 %, seuil `fail_under = 80` fixé après coup dans `pyproject.toml` et appliqué dans le job CI `ai-service-tests` (bloque la fusion en cas de régression). Détail par module et analyse I/O vs. logique métier dans rapport E3 §5.4. DoD satisfaite.
 **Problème** : `pytest-cov` n'est pas déclaré dans les dépendances de `ai_service/pyproject.toml` ; aucune mesure de couverture n'existe. La grille C12 demande explicitement un objectif de couverture et une procédure de calcul documentée.
 **Objectif** : Outiller la mesure de couverture, obtenir un chiffre réel, puis fixer un objectif cohérent avec ce chiffre — pas l'inverse.
 **Travaux à réaliser** :
@@ -286,13 +288,13 @@ Tickets issus de la revue documentaire du rapport `docs/08_certification/E3_rapp
 - Identifier les modules sous-couverts (probablement `app/orchestrator`, `app/tools`, `app/rag`, `app/api`) et compléter les tests si nécessaire.
 - Fixer un objectif de couverture documenté, justifié par le résultat mesuré.
 - Optionnel : ajouter l'étape de couverture au job `ai-service-tests` de la CI.
-**Fichiers** : `ai_service/pyproject.toml`, `.github/workflows/ci.yml` (optionnel), `docs/08_certification/E3_rapport_api_modele_ia.md` §5.4.
+**Fichiers** : `ai_service/pyproject.toml`, `.github/workflows/ci.yml` (optionnel), rapport E3 §5.4.
 **Complexité estimée** : Faible pour la mesure initiale (quelques heures) ; variable selon les lacunes de couverture identifiées.
 **Definition of Done** :
 - `pytest-cov` intégré, exécutable localement (et en CI si retenu).
 - Rapport de couverture réel obtenu et analysé.
 - Objectif de couverture documenté avec sa justification (pas de chiffre fixé a priori).
-- `docs/08_certification/E3_rapport_api_modele_ia.md` §5.4 mis à jour avec le résultat réel.
+- rapport E3 §5.4 mis à jour avec le résultat réel.
 
 ### Feature 10.4 — C10 : Corriger l'accessibilité de l'interface chatbot [FAIT]
 
@@ -310,14 +312,28 @@ Tickets issus de la revue documentaire du rapport `docs/08_certification/E3_rapp
 - Les deux boutons ont un nom accessible vérifiable (ex. via l'arbre d'accessibilité du navigateur).
 - `#chatbot-history` annonce les nouveaux messages via `aria-live`.
 - Test clavier manuel réalisé et documenté.
-- `docs/08_certification/E3_rapport_api_modele_ia.md` §3.4 mis à jour pour refléter l'état corrigé.
+- Rapport E3 §3.4 mis à jour pour refléter l'état corrigé.
 
 ### Feature 10.5 — C11 : Opérationnaliser les seuils d'alerte [FAIT]
 
 **Problème** : les seuils documentés en E3 §4.5 n'étaient reliés à aucune règle Prometheus, aucun Alertmanager, aucune alerte réelle — un seuil documenté n'est pas une alerte.
-**Statut (26/08/2026)** : `monitoring/prometheus/alert_rules.yml` (5 règles couvrant les seuils déjà documentés), chargé via `rule_files:` dans `prometheus.yml`, service `alertmanager` ajouté à `docker-compose.yml` et `infra/compose/docker-compose.gcp.yml` (config `monitoring/alertmanager/alertmanager.yml`), port 9093 ouvert en IAP-only dans `infra/terraform/firewall.tf` (appliqué en production). Cycle complet `pending → firing → resolved` observé et vérifié via les API Prometheus/Alertmanager en conditions réelles (détail dans `docs/08_certification/E3_rapport_api_modele_ia.md` §4.5). Aucun canal de notification externe (e-mail/Slack) configuré — pas d'identifiants disponibles pour ce MVP, documenté comme tel plutôt que simulé.
+**Statut (26/08/2026)** : `monitoring/prometheus/alert_rules.yml` (5 règles couvrant les seuils déjà documentés), chargé via `rule_files:` dans `prometheus.yml`, service `alertmanager` ajouté à `docker-compose.yml` et `infra/compose/docker-compose.gcp.yml` (config `monitoring/alertmanager/alertmanager.yml`), port 9093 ouvert en IAP-only dans `infra/terraform/firewall.tf` (appliqué en production). Cycle complet `pending → firing → resolved` observé et vérifié via les API Prometheus/Alertmanager en conditions réelles (détail dans le rapport E3 §4.5). Aucun canal de notification externe (e-mail/Slack) configuré — pas d'identifiants disponibles pour ce MVP, documenté comme tel plutôt que simulé.
 **Fichiers** : `monitoring/prometheus/alert_rules.yml`, `monitoring/alertmanager/alertmanager.yml`, `docker-compose.yml`, `infra/compose/docker-compose.gcp.yml`, `infra/terraform/firewall.tf`.
 **DoD** : règle réelle déclenchée en environnement de test, état firing puis resolved observé, notification (Alertmanager) confirmée. Satisfaite.
+
+### Feature 10.6 — C17 : Corriger l'accessibilité du formulaire de demande de changement de prix [FAIT]
+
+**Problème** : audit de `PriceChangeRequestForm` (E4 §4.5) — les labels étaient déjà associés à leurs champs et les champs obligatoires portaient déjà `required`, mais les messages d'erreur n'étaient pas associés programmatiquement à leur champ, et un champ en erreur n'était pas signalé aux technologies d'assistance.
+**Statut (26/08/2026)** : commit `db268f4` — chaque champ expose désormais `aria-describedby` vers son conteneur d'erreur (`frontend/core/forms.py`), et `PriceChangeRequestForm.full_clean()` est surchargé pour ajouter `aria-invalid="true"` sur les champs en erreur (WCAG 4.1.2/3.3.1). La section de prix chargée dynamiquement en JS porte `role="status" aria-live="polite"` (WCAG 4.1.3).
+**Fichiers** : `frontend/core/forms.py`.
+**DoD** : attributs vérifiés dans le HTML rendu, suite de tests frontend (67 tests) verte après le changement, score Lighthouse Accessibilité passé de 90 à 96 sur les pages auditées (rapport E4 §4.5). Satisfaite.
+
+### Feature 10.7 — C11/C21 : Fermer l'angle mort d'alerte révélé par l'incident E5 [FAIT]
+
+**Problème** : l'incident du 01/07/2026 (E5) a montré qu'aucune alerte n'existait pour une dégradation fonctionnelle sans exception non gérée — `AIServiceErrorsDetected` surveille `ai_chat_errors_total`, mais une panne absorbée et retournée en `status="error"` ne l'incrémente jamais.
+**Statut (26/08/2026)** : commit `75fe8d77` — nouvelle règle `AIChatErrorResponsesDetected` (`monitoring/prometheus/alert_rules.yml`), sur `increase(ai_chat_responses_total{status="error"}[5m]) > 0`. Rejouée en conditions réelles le 27/08/2026 sur la stack locale complète : cycle `pending → firing → resolved` confirmé via les API Prometheus et Alertmanager (`docs/06_validation/evidence/e5_incident_replay_20260827.txt`, `e5_prometheus_alerts_firing_20260827.png`, `e5_alertmanager_active_20260827.png`).
+**Fichiers** : `monitoring/prometheus/alert_rules.yml`.
+**DoD** : règle déclenchée par le scénario réel qui l'a motivée, cycle firing → resolved observé indépendamment via les deux API. Satisfaite.
 
 ## Definition of Done (global)
 

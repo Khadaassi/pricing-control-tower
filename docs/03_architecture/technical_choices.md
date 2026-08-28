@@ -77,6 +77,8 @@ Translation scope:
 | **Docker Compose** | Local orchestration (PostgreSQL) |
 | **GCP Cloud Run** (target) | Serverless cloud deployment |
 
+> ⚠️ **Obsolete (verified 2026-08-24)** — the actual GCP deployment does not use Cloud Run. The Terraform infrastructure (`infra/terraform/*.tf`) provisions a Compute Engine VM (`google_compute_instance`) running the stack via Docker Compose (`infra/compose/docker-compose.gcp.yml`), with Cloud SQL (`google_sql_database_instance`) for PostgreSQL and Secret Manager for secrets. See [gcp_cloud_architecture.md](gcp_cloud_architecture.md) for the up-to-date detail.
+
 ---
 
 ## 6. Quality and Testing
@@ -86,6 +88,8 @@ Translation scope:
 | **pytest** | Backend unit and integration tests |
 | **dbt test** | Data tests (not_null, unique, accepted_values) |
 | **GitHub Actions** (target) | Automated CI/CD |
+
+> ⚠️ **Obsolete (verified 2026-08-24)** — no longer just a target: `.github/workflows/ci.yml` exists and actually runs tests, lint, Tailwind CSS build, and Docker image builds (backend, frontend, ai_service).
 
 ---
 

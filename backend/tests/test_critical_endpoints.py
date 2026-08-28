@@ -25,9 +25,12 @@ def test_health_endpoint_returns_expected_schema(client):
 
 def test_products_endpoint_returns_paginated_response(
     client,
+    rbac_headers_factory,
     workflow_test_data,
 ):
-    response = client.get("/products")
+    headers = rbac_headers_factory([])
+
+    response = client.get("/products", headers=headers)
 
     assert response.status_code == 200
 
@@ -49,9 +52,12 @@ def test_products_endpoint_returns_paginated_response(
 
 def test_product_families_endpoint_returns_list_response(
     client,
+    rbac_headers_factory,
     workflow_test_data,
 ):
-    response = client.get("/product-families")
+    headers = rbac_headers_factory([])
+
+    response = client.get("/product-families", headers=headers)
 
     assert response.status_code == 200
 

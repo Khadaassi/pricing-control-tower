@@ -1,0 +1,16 @@
+Preuve C4 (E1 §4) — capturée le 27/08/2026, backend local (docker compose)
+
+$ docker compose exec backend uv run alembic current
+d1e5a7c39f42 (head)
+
+$ docker compose exec backend uv run alembic history | head -5
+5672c0a352d1 -> d1e5a7c39f42 (head), add last_active_at to user_account
+8d805af24af3 -> 5672c0a352d1, remove single role from user_account
+f984259217d9 -> 8d805af24af3, create rbac role permission tables
+ce9a2d7a81b5 -> f984259217d9, add rbac fields to user_account
+63cb3004e2e5 -> ce9a2d7a81b5, add rejection fields to price_change_request
+
+$ SELECT table_name FROM information_schema.tables WHERE table_schema='pct_core' ORDER BY table_name;
+16 tables : audit_log, country, permission, price, price_change_request,
+price_history, product, product_family, product_image, promotion, role,
+role_permission, sales_transaction, store, user_account, user_role

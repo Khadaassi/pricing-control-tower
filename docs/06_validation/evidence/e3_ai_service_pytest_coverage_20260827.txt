@@ -1,0 +1,86 @@
+$ cd ai_service
+$ uv run ruff check .
+All checks passed!
+
+$ uv run pytest --cov=app --cov-report=term-missing
+app/api/dependencies/__init__.py                         0      0   100%
+app/api/dependencies/internal_auth.py                   11      0   100%
+app/api/routes/__init__.py                               0      0   100%
+app/api/routes/chat.py                                  40      0   100%
+app/api/routes/health.py                                26      1    96%   16
+app/api/routes/metrics.py                                7      0   100%
+app/clients/__init__.py                                  0      0   100%
+app/clients/backend_client.py                           14      6    57%   19-33
+app/core/__init__.py                                     0      0   100%
+app/core/chatbot_messages.py                            28      0   100%
+app/core/config.py                                      22      0   100%
+app/core/internal_auth.py                               20      0   100%
+app/core/language_detector.py                            6      0   100%
+app/core/llm_response_cleaner.py                        22      7    68%   34, 39-45, 60, 63
+app/core/logging_config.py                              17      0   100%
+app/core/metrics.py                                     43      0   100%
+app/handlers/__init__.py                                 0      0   100%
+app/handlers/clarification_handler.py                   15      0   100%
+app/handlers/guardrail_handler.py                        9      0   100%
+app/handlers/rag_response_handler.py                    46      0   100%
+app/handlers/static_response_handler.py                 29     18    38%   25-47, 58-81, 101-119, 137-160
+app/handlers/tool_response_handler.py                  411     46    89%   106, 175, 186-202, 251, 256, 307, 341, 359, 442, 477-478, 487, 512-537, 598, 633-634, 700, 702, 743, 745, 754, 756, 759-760, 869, 871, 875, 889, 891, 903, 965, 976, 985, 1012
+app/intents/__init__.py                                  0      0   100%
+app/intents/anomaly_phrases.py                          13      0   100%
+app/intents/capability_phrases.py                        2      0   100%
+app/intents/decision_phrases.py                          2      0   100%
+app/intents/guardrail_phrases.py                         1      0   100%
+app/intents/pricing_phrases.py                           7      0   100%
+app/intents/promotion_phrases.py                         4      0   100%
+app/intents/rbac_phrases.py                              1      0   100%
+app/intents/reference_data_phrases.py                    3      0   100%
+app/intents/workflow_phrases.py                          4      0   100%
+app/llm/__init__.py                                      0      0   100%
+app/llm/base.py                                          5      1    80%   8
+app/llm/factory.py                                       7      3    57%   7-10
+app/llm/groq_provider.py                                12      6    50%   9-13, 16-35
+app/main.py                                             17      1    94%   20
+app/middleware/__init__.py                               0      0   100%
+app/middleware/metrics_middleware.py                    29      7    76%   32-38
+app/orchestrator/__init__.py                             0      0   100%
+app/orchestrator/chat_context.py                         6      0   100%
+app/orchestrator/chatbot_orchestrator.py                71      1    99%   224
+app/orchestrator/intent_registry.py                     16      0   100%
+app/orchestrator/intent_router.py                       24      0   100%
+app/orchestrator/intent_types.py                        46      0   100%
+app/orchestrator/normalization.py                        9      0   100%
+app/orchestrator/response_dispatcher.py                 33      2    94%   56, 67
+app/rag/__init__.py                                      0      0   100%
+app/rag/chunker.py                                      68     60    12%   9-39, 44-58, 63-83, 87-91, 95-98
+app/rag/config.py                                        4      0   100%
+app/rag/document_loader.py                              33     29    12%   8-23, 28-58
+app/rag/embeddings/__init__.py                           0      0   100%
+app/rag/embeddings/base.py                               8      2    75%   8, 13
+app/rag/embeddings/factory.py                            7      1    86%   13
+app/rag/embeddings/ollama_provider.py                   17      3    82%   14-20
+app/rag/prompt_builder.py                               39      0   100%
+app/rag/retriever.py                                    12      6    50%   13-15, 18-20
+app/rag/source_formatter.py                             29      0   100%
+app/rag/vector_store.py                                 37     17    54%   24-32, 35-37, 40-44, 49, 63, 84-96
+app/schemas/__init__.py                                  0      0   100%
+app/schemas/chat.py                                     22      0   100%
+app/services/__init__.py                                 0      0   100%
+app/services/business_rules_explanation_service.py      19      9    53%   16-17, 20-42, 60
+app/services/kpi_explanation_service.py                 19      9    53%   16-17, 20-42, 61
+app/services/rbac_explanation_service.py                89     17    81%   303-307, 310-311, 314-315, 318-322, 325-329, 334-342, 378, 380, 382, 384, 386
+app/services/response_generation_service.py             16      0   100%
+app/tools/__init__.py                                    0      0   100%
+app/tools/anomaly_tool.py                               30      2    93%   74, 77
+app/tools/business_rules_tool.py                        13      0   100%
+app/tools/kpi_data_tool.py                             101     82    19%   54-66, 69-70, 73-74, 77-80, 83, 86-92, 95-99, 108-184, 196-223
+app/tools/kpi_tool.py                                   13      0   100%
+app/tools/price_change_request_tool.py                  23      0   100%
+app/tools/price_tool.py                                 21      0   100%
+app/tools/promotion_tool.py                             23      0   100%
+app/tools/rbac_tool.py                                  26      0   100%
+app/tools/reference_data_tool.py                        43      0   100%
+----------------------------------------------------------------------------------
+TOTAL                                                 1790    336    81%
+Required test coverage of 80.0% reached. Total coverage: 81.23%
+======================= 623 passed, 2 warnings in 4.57s ========================
+

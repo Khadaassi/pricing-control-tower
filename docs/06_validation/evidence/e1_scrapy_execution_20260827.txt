@@ -1,0 +1,33 @@
+Preuve C1 (E1 §2) — exécution réelle du spider Scrapy, capturée le 27/08/2026
+
+$ cd data/scraping
+$ uv run scrapy crawl fitnessboutique -o /tmp/fitnessboutique_evidence_20260827.json
+
+2026-08-27 23:32:53 [scrapy.extensions.feedexport] INFO: Stored json feed (668 items) in: /tmp/fitnessboutique_evidence_20260827.json
+{'downloader/request_count': 27,
+ 'downloader/response_status_count/200': 27,
+ 'elapsed_time_seconds': 35.09,
+ 'item_scraped_count': 668,
+ 'robotstxt/response_status_count/200': 1,
+ 'finish_reason': 'finished'}
+
+Post-traitement (vérification manuelle sur le JSON brut) :
+- 668 lignes brutes -> 616 URL produit (product_url) uniques
+  (652 -> 606 lors de l'exécution originale documentée dans E1 ; l'écart
+  vient du catalogue FitnessBoutique.fr qui a légèrement évolué entre les
+  deux exécutions, pas d'un changement du spider)
+- 0 valeur manquante sur les champs obligatoires (name, price_text, image_url)
+- robots.txt consulté et respecté (1 requête, 200 OK) avant le crawl
+
+Exemple d'item brut (data/raw ou évidence, structure réelle) :
+{
+  "source": "fitnessboutique",
+  "category_code": "MUSCULATION_ACCESSORY",
+  "external_product_id": "14910562664828",
+  "product_url": "https://www.fitnessboutique.fr/products/heubozen-ceinture-cuir-a-boucle-prod-heucuirbou5s",
+  "brand": "HEUBOZEN",
+  "name": "Ceinture cuir à boucle",
+  "price_text": "39,90€",
+  "availability_text": "En stock",
+  "image_url": "https://www.fitnessboutique.fr/cdn/shop/files/heucuirbou5l_principale_f_e591b028-9bf5-47e3-99ad-4b061b2dd081.jpg?v=1738171839&width=460"
+}

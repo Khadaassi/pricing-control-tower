@@ -45,8 +45,10 @@
     </div>
 
     {# ── Zone messages ── #}
-    {# aria-live="polite": announces each new assistant bubble appended by JS below,
-       without interrupting the user mid-typing (unlike "assertive"). #}
+    {% comment %}
+    aria-live="polite": announces each new assistant bubble appended by JS below,
+    without interrupting the user mid-typing (unlike "assertive").
+    {% endcomment %}
     <div id="chatbot-history" class="flex-1 space-y-3 overflow-y-auto px-5 py-4" role="log" aria-live="polite">
         {% if not chatbot_history %}
             <div id="chatbot-empty-state" class="flex h-full min-h-[160px] items-center justify-center py-6 text-center">

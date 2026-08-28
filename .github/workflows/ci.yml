@@ -123,7 +123,7 @@ jobs:
 
       - name: Run AI service tests (with coverage gate)
         # fail_under is set in pyproject.toml [tool.coverage.report] — see
-        # docs/08_certification/E3_rapport_api_modele_ia.md §5.4 for how that
+        # the certification report E3 §5.4 for how that
         # number was derived from a real measurement, not chosen upfront.
         run: uv run pytest --cov=app --cov-report=term-missing
 
@@ -210,11 +210,12 @@ jobs:
     name: Deploy to GCP (pct-app-vm)
     runs-on: ubuntu-latest
     needs: [docker-build]
-    # The VM only ever tracks feature/gcp-deployment (see
-    # docs/07_operations/gcp_exploitation_runbook.md §4) — a push to any other
-    # branch, or a pull_request event, must never trigger a real deployment.
-    # workflow_dispatch allows an on-demand redeploy without a new commit.
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/feature/gcp-deployment')
+    # The VM tracks develop (see docs/07_operations/gcp_exploitation_runbook.md
+    # §4) — a push to any other branch, or a pull_request event, must never
+    # trigger a real deployment. workflow_dispatch allows an on-demand redeploy
+    # without a new commit. Was feature/gcp-deployment until that branch was
+    # merged into develop and deleted (git-flow feature finish).
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/develop')
 
     permissions:
       contents: read
