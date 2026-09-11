@@ -30,6 +30,7 @@ from app.core.chatbot_messages import (
     CHATBOT_RBAC_DENIED_MESSAGE,
     CHATBOT_TECHNICAL_ERROR_MESSAGE,
 )
+from app.core.logging_config import get_logger, log_event
 from app.intents.anomaly_phrases import (
     ANOMALY_DEFINITION_TEXTS,
     ANOMALY_SEVERITY,
@@ -54,6 +55,8 @@ from app.tools.price_change_request_tool import PriceChangeRequestTool
 from app.tools.price_tool import PriceTool
 from app.tools.promotion_tool import PromotionTool
 from app.tools.reference_data_tool import ReferenceDataTool
+
+logger = get_logger("ai_service.orchestrator")
 
 _MAX_DISPLAYED = 5
 
@@ -165,6 +168,12 @@ class ToolResponseHandler:
                 "error_type": type(error).__name__,
             }
         except Exception as error:
+            log_event(
+                logger,
+                "tool_unexpected_error",
+                error=str(error),
+                error_type=type(error).__name__,
+            )
             return {
                 "status": "error",
                 "answer": CHATBOT_TECHNICAL_ERROR_MESSAGE,

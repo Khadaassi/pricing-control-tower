@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     environment: str = "local"
 
     llm_provider: str = "groq"
-    llm_model: str = "llama-3.1-8b-instant"
+    llm_model: str = "openai/gpt-oss-20b"
     groq_api_key: str | None = None
 
     backend_api_url: str = "http://localhost:8000"

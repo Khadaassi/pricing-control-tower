@@ -73,6 +73,12 @@ class RAGResponseHandler:
                 "error_type": type(error).__name__,
             }
         except Exception as error:
+            log_event(
+                logger,
+                "rag_unexpected_error",
+                error=str(error),
+                error_type=type(error).__name__,
+            )
             return {
                 "status": "error",
                 "answer": CHATBOT_TECHNICAL_ERROR_MESSAGE,
