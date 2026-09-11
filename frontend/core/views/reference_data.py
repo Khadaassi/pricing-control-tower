@@ -5,9 +5,9 @@ from typing import Any
 from services.api_client import ApiClientError, api_get
 
 
-def build_product_lookup() -> dict[int, dict[str, Any]]:
+def build_product_lookup(user_email: str | None = None) -> dict[int, dict[str, Any]]:
     try:
-        data = api_get("/products", {"limit": 500})
+        data = api_get("/products", {"limit": 500}, user_email=user_email)
         products = data.get("items", []) if isinstance(data, dict) else data
     except ApiClientError:
         return {}
@@ -19,24 +19,26 @@ def build_product_lookup() -> dict[int, dict[str, Any]]:
     }
 
 
-def build_country_choices() -> list[dict[str, Any]]:
+def build_country_choices(user_email: str | None = None) -> list[dict[str, Any]]:
     try:
-        return api_get("/countries")
+        return api_get("/countries", user_email=user_email)
     except ApiClientError:
         return []
 
 
-def build_store_choices(country_id: int | None = None) -> list[dict[str, Any]]:
+def build_store_choices(
+    country_id: int | None = None, user_email: str | None = None
+) -> list[dict[str, Any]]:
     try:
         params = {"country_id": country_id} if country_id else None
-        return api_get("/stores", params=params)
+        return api_get("/stores", params=params, user_email=user_email)
     except ApiClientError:
         return []
 
 
-def build_product_choices() -> list[dict[str, Any]]:
+def build_product_choices(user_email: str | None = None) -> list[dict[str, Any]]:
     try:
-        data = api_get("/products", {"limit": 500})
+        data = api_get("/products", {"limit": 500}, user_email=user_email)
         products = data.get("items", []) if isinstance(data, dict) else data
         return [
             {"id": p["id"], "code": p.get("code", ""), "name": p.get("name", f"#{p['id']}")}

@@ -42,7 +42,7 @@ class PriceHistoryView(LoginRequiredMixin, TemplateView):
         items_raw = data.get("items", [])
         total = data.get("total", 0)
 
-        product_lookup = build_product_lookup()
+        product_lookup = build_product_lookup(self.request.user.email)
 
         price_history_list = []
         for item in items_raw:

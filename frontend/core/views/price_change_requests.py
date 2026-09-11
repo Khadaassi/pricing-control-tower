@@ -27,7 +27,7 @@ class PriceChangeRequestsView(LoginRequiredMixin, TemplateView):
         context["chatbot_suggestions"] = get_chatbot_suggestions("price_change_requests")
         context["api_error"] = None
         context["price_change_requests"] = []
-        context["countries"] = build_country_choices()
+        context["countries"] = build_country_choices(self.request.user.email)
 
         raw_filters = {}
         status_val = self.request.GET.get("status", "").strip()
@@ -59,7 +59,7 @@ class PriceChangeRequestsView(LoginRequiredMixin, TemplateView):
         items_raw = data.get("items", [])
         total = data.get("total", 0)
 
-        product_lookup = build_product_lookup()
+        product_lookup = build_product_lookup(self.request.user.email)
         country_lookup = build_country_lookup(context["countries"])
 
         price_change_requests_list = []
@@ -199,9 +199,10 @@ class PriceChangeRequestCreateView(LoginRequiredMixin, TemplateView):
             return None, None
 
     def _load_choices(self, scope_country_id=None, scope_store_id=None):
-        products = build_product_choices()
-        countries = build_country_choices()
-        stores = build_store_choices()
+        user_email = self.request.user.email
+        products = build_product_choices(user_email)
+        countries = build_country_choices(user_email)
+        stores = build_store_choices(user_email=user_email)
 
         if scope_country_id is not None:
             countries = [c for c in countries if c["id"] == scope_country_id]

@@ -17,7 +17,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context["chatbot_suggestions"] = get_chatbot_suggestions("dashboard")
         context["api_error"] = None
         context["kpi_cards"] = []
-        context["stores"] = build_store_choices()
+        context["stores"] = build_store_choices(user_email=self.request.user.email)
         context["chart_sales_json"] = None
         context["chart_revenue_json"] = None
         context["chart_requests_json"] = None

@@ -17,7 +17,7 @@ class AnomaliesView(LoginRequiredMixin, TemplateView):
         context["chatbot_suggestions"] = get_chatbot_suggestions("anomalies")
         context["api_error"] = None
         context["anomalies"] = []
-        context["stores"] = build_store_choices()
+        context["stores"] = build_store_choices(user_email=self.request.user.email)
 
         raw_filters = {}
         store_id_val = self.request.GET.get("store_id", "").strip()
@@ -47,7 +47,7 @@ class AnomaliesView(LoginRequiredMixin, TemplateView):
         items_raw = data.get("items", [])
         total = data.get("total", 0)
 
-        product_lookup = build_product_lookup()
+        product_lookup = build_product_lookup(self.request.user.email)
 
         anomaly_type_labels = {
             "LOW_PROMOTION_REVENUE": "Revenu promotionnel faible",

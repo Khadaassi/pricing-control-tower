@@ -42,10 +42,11 @@ class ProductsView(LoginRequiredMixin, TemplateView):
 
         api_params = {**raw_filters, "limit": PER_PAGE, "offset": offset}
 
+        user_email = self.request.user.email
         with ThreadPoolExecutor(max_workers=3) as executor:
-            f_products  = executor.submit(api_get, "/products", api_params)
-            f_countries = executor.submit(build_country_choices)
-            f_stores    = executor.submit(build_store_choices)
+            f_products  = executor.submit(api_get, "/products", api_params, user_email)
+            f_countries = executor.submit(build_country_choices, user_email)
+            f_stores    = executor.submit(build_store_choices, None, user_email)
 
         try:
             data = f_products.result()
@@ -163,8 +164,8 @@ class ProductPromotionsView(LoginRequiredMixin, View):
             return JsonResponse({"error": API_CONNECTION_ERROR_MESSAGE}, status=502)
 
         promotions = data.get("items", data) if isinstance(data, dict) else data
-        countries = build_country_choices()
-        stores = build_store_choices()
+        countries = build_country_choices(_request.user.email)
+        stores = build_store_choices(user_email=_request.user.email)
         country_lookup = build_country_lookup(countries)
         store_lookup = build_store_lookup(stores)
 

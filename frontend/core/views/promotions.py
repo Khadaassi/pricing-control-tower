@@ -55,11 +55,12 @@ class PromotionsView(LoginRequiredMixin, TemplateView):
         pagination_params = {"limit": PER_PAGE, "offset": offset}
         api_params = {**raw_filters, **pagination_params} if raw_filters else pagination_params
 
+        user_email = self.request.user.email
         with ThreadPoolExecutor(max_workers=4) as executor:
-            f_promotions = executor.submit(api_get, "/promotions", api_params, self.request.user.email)
-            f_countries  = executor.submit(build_country_choices)
-            f_stores     = executor.submit(build_store_choices)
-            f_products   = executor.submit(build_product_lookup)
+            f_promotions = executor.submit(api_get, "/promotions", api_params, user_email)
+            f_countries  = executor.submit(build_country_choices, user_email)
+            f_stores     = executor.submit(build_store_choices, None, user_email)
+            f_products   = executor.submit(build_product_lookup, user_email)
 
         try:
             data = f_promotions.result()

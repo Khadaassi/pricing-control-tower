@@ -13,8 +13,8 @@ class AnalyticsSalesView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         context["api_error"] = None
         context["sales"] = []
-        context["countries"] = build_country_choices()
-        context["stores"] = build_store_choices()
+        context["countries"] = build_country_choices(self.request.user.email)
+        context["stores"] = build_store_choices(user_email=self.request.user.email)
 
         raw_filters = {}
         product_id_val = self.request.GET.get("product_id", "").strip()
